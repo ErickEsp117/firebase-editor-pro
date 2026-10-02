@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 const invoke = vi.fn();
 const open = vi.fn();
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open }));
+const save = vi.fn();
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open, save }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => true }));
 
 describe("TauriPlatform", () => {
@@ -40,6 +41,29 @@ describe("TauriPlatform", () => {
     open.mockResolvedValueOnce(null);
     await expect(new TauriPlatform().pickJsonFile()).resolves.toBeNull();
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("saves exports through the save dialog and the Rust writer", async () => {
+    const { TauriPlatform } = await import("../TauriPlatform");
+    const p = new TauriPlatform();
+    invoke.mockClear();
+    save.mockResolvedValueOnce("/tmp/out.json");
+    invoke.mockResolvedValueOnce(undefined);
+    await expect(p.saveTextFile("doc.json", "{}")).resolves.toBe(true);
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ defaultPath: "doc.json" }));
+    expect(invoke).toHaveBeenCalledWith("write_text_file", { path: "/tmp/out.json", contents: "{}" });
+    invoke.mockClear();
+    save.mockResolvedValueOnce(null);
+    await expect(p.saveTextFile("doc.json", "{}")).resolves.toBe(false);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("reads import files with the large-file Rust reader", async () => {
+    const { TauriPlatform } = await import("../TauriPlatform");
+    open.mockResolvedValueOnce("/tmp/export.json");
+    invoke.mockResolvedValueOnce({ name: "export.json", contents: "{}" });
+    await new TauriPlatform().pickImportFile();
+    expect(invoke).toHaveBeenLastCalledWith("read_import_file", { path: "/tmp/export.json" });
   });
 
   it("detects tauri mode via isTauri", async () => {

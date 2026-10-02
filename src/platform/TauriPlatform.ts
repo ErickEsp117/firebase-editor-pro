@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import type { PickedFile, Platform } from "./types";
 
 export class TauriPlatform implements Platform {
@@ -32,5 +32,25 @@ export class TauriPlatform implements Platform {
     });
     if (typeof path !== "string") return null;
     return invoke<PickedFile>("read_text_file", { path });
+  }
+
+  async pickImportFile(): Promise<PickedFile | null> {
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (typeof path !== "string") return null;
+    return invoke<PickedFile>("read_import_file", { path });
+  }
+
+  async saveTextFile(suggestedName: string, contents: string): Promise<boolean> {
+    const path = await save({
+      defaultPath: suggestedName,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (!path) return false;
+    await invoke<void>("write_text_file", { path, contents });
+    return true;
   }
 }

@@ -1,4 +1,4 @@
-import { pickJsonFileViaInput } from "./pickFile";
+import { downloadTextViaBlob, pickJsonFileViaInput } from "./pickFile";
 import type { PickedFile, Platform } from "./types";
 
 export const STORAGE_PREFIX = "fbep:";
@@ -67,5 +67,13 @@ export class BrowserPlatform implements Platform {
 
   pickJsonFile(): Promise<PickedFile | null> {
     return pickJsonFileViaInput();
+  }
+
+  pickImportFile(): Promise<PickedFile | null> {
+    return pickJsonFileViaInput();
+  }
+
+  async saveTextFile(suggestedName: string, contents: string): Promise<boolean> {
+    return downloadTextViaBlob(suggestedName, contents);
   }
 }

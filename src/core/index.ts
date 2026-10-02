@@ -20,3 +20,14 @@ export {
   normalizeTimestamp,
 } from "./FirestoreCodec";
 export type { EncodedDoc, EncodeOptions, CodecErrorCode, RestFields, RestValue } from "./FirestoreCodec";
+export {
+  COLLECTIONS_KEY,
+  ImportError,
+  planDocumentImport,
+  planCollectionImport,
+  runImport,
+  exportDocument,
+  exportDocumentText,
+  exportCollection,
+} from "./FirestoreIO";
+export type { ImportEntry } from "./FirestoreIO";

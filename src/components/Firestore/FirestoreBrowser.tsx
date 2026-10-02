@@ -35,6 +35,14 @@ export function FirestoreBrowser() {
           </button>
           <button
             type="button"
+            data-testid="import-collection"
+            onClick={() => openDialog({ kind: "import", scope: "collection", path: "" })}
+            className="mr-2 rounded border border-slate-400 px-2 py-0.5 text-xs"
+          >
+            {t("io.importCollection")}
+          </button>
+          <button
+            type="button"
             data-testid="refresh"
             disabled={fetching}
             onClick={() => void queryClient.invalidateQueries({ queryKey: ["fs", projectId] })}

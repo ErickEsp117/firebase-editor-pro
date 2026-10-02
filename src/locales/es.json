@@ -175,5 +175,43 @@
     "deleteCollConfirm": "Borrar colección",
     "deleteCollProgress": "Borrados {{deleted}} de {{count}}…",
     "countError": "No se pudo contar los documentos: {{message}}"
+  },
+  "io": {
+    "exportDocument": "Exportar JSON",
+    "importDocument": "Importar JSON",
+    "exportCollection": "Exportar colección",
+    "importCollection": "Importar colección",
+    "importIntoCollection": "Importar JSON en {{path}}",
+    "exportTitleDoc": "Exportar documento",
+    "exportTitleColl": "Exportar colección",
+    "exporting": "Exportando {{path}}… {{count}} documentos leídos",
+    "exportDone_one": "Exportado {{count}} documento a {{name}}.",
+    "exportDone_other": "Exportados {{count}} documentos a {{name}}.",
+    "exportCancelled": "Exportación cancelada: no se guardó ningún archivo.",
+    "exportError": "No se pudo exportar: {{message}}",
+    "close": "Cerrar",
+    "importTitleDoc": "Importar documento desde JSON",
+    "importTitleColl": "Importar colección desde JSON",
+    "targetDoc": "Ruta del documento de destino",
+    "targetColl": "Ruta de la colección de destino",
+    "targetHintDoc": "Si ya existe un documento en esta ruta, se reemplaza.",
+    "targetHintColl": "Los documentos existentes con el mismo ID se reemplazan; no se borra nada más.",
+    "chooseFile": "Elegir archivo JSON…",
+    "pasteLabel": "Contenido JSON",
+    "loadedFile": "Cargado {{name}}",
+    "empty": "Elige un archivo o pega JSON primero.",
+    "importButton": "Importar",
+    "importing": "Importando… {{written}} de {{total}} documentos escritos",
+    "importDone_one": "Importado {{count}} documento.",
+    "importDone_other": "Importados {{count}} documentos.",
+    "importWriteError": "La importación se detuvo tras {{written}} de {{total}} documentos: {{message}}",
+    "fileError": "No se pudo leer el archivo: {{message}}",
+    "invalidNothingWritten": "No se escribió nada. {{message}}",
+    "errors": {
+      "notObject": "{{path}}: se esperaba un objeto JSON.",
+      "badId": "ID de documento o colección no válido \"{{id}}\" en {{path}}.",
+      "badPath": "Ruta de destino no válida \"{{path}}\".",
+      "badCollections": "{{path}}: __collections__ debe ser un objeto."
+    }
   }
 }

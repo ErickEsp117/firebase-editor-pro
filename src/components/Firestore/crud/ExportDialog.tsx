@@ -1,0 +1,78 @@
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { exportCollection, exportDocument } from "../../../core";
+import { getPlatform } from "../../../platform";
+import { useCrudDialog } from "../../../store/crudDialog";
+import { useFirestoreApi } from "../useFirestore";
+import { ioErrorMessage } from "./ioErrors";
+import { BTN, Modal } from "./Modal";
+
+interface Props {
+  scope: "doc" | "collection";
+  path: string;
+}
+
+type Status = { phase: "running"; count: number } | { phase: "done"; count: number; name: string } | { phase: "cancelled" } | { phase: "error"; message: string };
+
+export function ExportDialog({ scope, path }: Props) {
+  const { t } = useTranslation();
+  const api = useFirestoreApi();
+  const close = useCrudDialog((s) => s.close);
+  const [status, setStatus] = useState<Status>({ phase: "running", count: 0 });
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!api || started.current) return;
+    started.current = true;
+    const leaf = path.slice(path.lastIndexOf("/") + 1);
+    const name = `${leaf}.json`;
+    void (async () => {
+      try {
+        let text: string;
+        let count = 1;
+        if (scope === "doc") {
+          text = await exportDocument(api, path);
+        } else {
+          const res = await exportCollection(api, path, (n) => setStatus({ phase: "running", count: n }));
+          text = res.text;
+          count = res.docs;
+        }
+        const saved = await getPlatform().saveTextFile(name, text);
+        setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
+      } catch (e) {
+        setStatus({ phase: "error", message: ioErrorMessage(t, e) });
+      }
+    })();
+  }, [api, path, scope, t]);
+
+  return (
+    <Modal titleId="export-title" testId="export-dialog" title={scope === "doc" ? t("io.exportTitleDoc") : t("io.exportTitleColl")}>
+      <p className="break-all font-mono text-xs text-slate-500">{path}</p>
+      {status.phase === "running" && (
+        <p role="status" data-testid="export-progress" className="text-sm">
+          {t("io.exporting", { path, count: status.count })}
+        </p>
+      )}
+      {status.phase === "done" && (
+        <p role="status" data-testid="export-done" className="text-sm text-green-800 dark:text-green-300">
+          {t("io.exportDone", { count: status.count, name: status.name })}
+        </p>
+      )}
+      {status.phase === "cancelled" && (
+        <p role="status" data-testid="export-cancelled" className="text-sm">
+          {t("io.exportCancelled")}
+        </p>
+      )}
+      {status.phase === "error" && (
+        <p role="alert" data-testid="export-error" className="text-sm text-red-700 dark:text-red-300">
+          {t("io.exportError", { message: status.message })}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <button type="button" data-testid="export-close" className={BTN} onClick={close}>
+          {t("io.close")}
+        </button>
+      </div>
+    </Modal>
+  );
+}

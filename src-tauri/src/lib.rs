@@ -29,6 +29,16 @@ fn read_text_file(path: String) -> Result<files::TextFile, String> {
     files::read_text_file(&path)
 }
 
+#[tauri::command]
+fn read_import_file(path: String) -> Result<files::TextFile, String> {
+    files::read_import_file(&path)
+}
+
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    files::write_text_file(&path, &contents)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -45,7 +55,9 @@ pub fn run() {
             secure_store_get,
             secure_store_set,
             secure_store_delete,
-            read_text_file
+            read_text_file,
+            read_import_file,
+            write_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

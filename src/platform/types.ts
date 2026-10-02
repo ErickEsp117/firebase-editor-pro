@@ -18,4 +18,8 @@ export interface Platform {
   ): Promise<string>;
   secureStore: SecureStore;
   pickJsonFile(): Promise<PickedFile | null>;
+  /** Like pickJsonFile but with a limit suited to Firestore exports instead of a key file. */
+  pickImportFile(): Promise<PickedFile | null>;
+  /** Offers `contents` as a download / save dialog. Resolves false when the user cancels. */
+  saveTextFile(suggestedName: string, contents: string): Promise<boolean>;
 }

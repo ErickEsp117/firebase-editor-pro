@@ -27,6 +27,22 @@ export function DocumentView() {
         </button>
         <button
           type="button"
+          data-testid="export-document"
+          onClick={() => openDialog({ kind: "export", scope: "doc", path })}
+          className="rounded border border-slate-400 px-2 py-0.5 text-xs"
+        >
+          {t("io.exportDocument")}
+        </button>
+        <button
+          type="button"
+          data-testid="import-document"
+          onClick={() => openDialog({ kind: "import", scope: "doc", path })}
+          className="rounded border border-slate-400 px-2 py-0.5 text-xs"
+        >
+          {t("io.importDocument")}
+        </button>
+        <button
+          type="button"
           data-testid="delete-document"
           onClick={() => openDialog({ kind: "deleteDoc", path })}
           className="rounded border border-red-600 px-2 py-0.5 text-xs text-red-700 dark:text-red-300"

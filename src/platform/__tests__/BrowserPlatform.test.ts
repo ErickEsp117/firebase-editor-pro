@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateKeyPairSync, createVerify, webcrypto } from "node:crypto";
 import { BrowserPlatform } from "../BrowserPlatform";
 import { detectMode, getPlatform } from "../index";
@@ -44,5 +44,22 @@ describe("BrowserPlatform", () => {
     await expect(new BrowserPlatform().signJwtRsa("garbage", {}, {})).rejects.toThrow(
       /invalid private key PEM/,
     );
+  });
+
+  it("saves text through a blob URL download anchor", async () => {
+    const created: Blob[] = [];
+    URL.createObjectURL = vi.fn((b: Blob | MediaSource) => {
+      created.push(b as Blob);
+      return "blob:fbep-test";
+    });
+    URL.revokeObjectURL = vi.fn();
+    const clicked: { href: string; download: string }[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push({ href: this.href, download: this.download });
+    });
+    await expect(new BrowserPlatform().saveTextFile("doc.json", '{"a":1}')).resolves.toBe(true);
+    expect(clicked).toEqual([{ href: "blob:fbep-test", download: "doc.json" }]);
+    expect(await created[0].text()).toBe('{"a":1}');
+    click.mockRestore();
   });
 });

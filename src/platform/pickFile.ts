@@ -27,3 +27,17 @@ export function pickJsonFileViaInput(): Promise<PickedFile | null> {
     input.click();
   });
 }
+
+/** Browser-mode save: a blob URL clicked through a transient anchor. */
+export function downloadTextViaBlob(name: string, contents: string): boolean {
+  const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return true;
+}

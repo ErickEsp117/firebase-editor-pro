@@ -84,6 +84,26 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
         </button>
         <button
           type="button"
+          data-testid={`collection-export:${path}`}
+          aria-label={`${t("io.exportCollection")} ${path}`}
+          title={t("io.exportCollection")}
+          onClick={() => openDialog({ kind: "export", scope: "collection", path })}
+          className="px-1 text-sm"
+        >
+          ⬇
+        </button>
+        <button
+          type="button"
+          data-testid={`collection-import:${path}`}
+          aria-label={t("io.importIntoCollection", { path })}
+          title={t("io.importCollection")}
+          onClick={() => openDialog({ kind: "import", scope: "collection", path })}
+          className="px-1 text-sm"
+        >
+          ⬆
+        </button>
+        <button
+          type="button"
           data-testid={`collection-delete:${path}`}
           aria-label={t("crud.deleteCollection") + ` ${path}`}
           title={t("crud.deleteCollection")}

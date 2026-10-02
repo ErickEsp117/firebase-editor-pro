@@ -175,5 +175,43 @@
     "deleteCollConfirm": "Delete collection",
     "deleteCollProgress": "Deleted {{deleted}} of {{count}}…",
     "countError": "Could not count the documents: {{message}}"
+  },
+  "io": {
+    "exportDocument": "Export JSON",
+    "importDocument": "Import JSON",
+    "exportCollection": "Export collection",
+    "importCollection": "Import collection",
+    "importIntoCollection": "Import JSON into {{path}}",
+    "exportTitleDoc": "Export document",
+    "exportTitleColl": "Export collection",
+    "exporting": "Exporting {{path}}… {{count}} documents read",
+    "exportDone_one": "Exported {{count}} document to {{name}}.",
+    "exportDone_other": "Exported {{count}} documents to {{name}}.",
+    "exportCancelled": "Export cancelled: no file was saved.",
+    "exportError": "Could not export: {{message}}",
+    "close": "Close",
+    "importTitleDoc": "Import document from JSON",
+    "importTitleColl": "Import collection from JSON",
+    "targetDoc": "Target document path",
+    "targetColl": "Target collection path",
+    "targetHintDoc": "If a document already exists at this path it is replaced.",
+    "targetHintColl": "Existing documents with the same ID are replaced; nothing else is deleted.",
+    "chooseFile": "Choose JSON file…",
+    "pasteLabel": "JSON content",
+    "loadedFile": "Loaded {{name}}",
+    "empty": "Choose a file or paste JSON first.",
+    "importButton": "Import",
+    "importing": "Importing… {{written}} of {{total}} documents written",
+    "importDone_one": "Imported {{count}} document.",
+    "importDone_other": "Imported {{count}} documents.",
+    "importWriteError": "Import stopped after {{written}} of {{total}} documents: {{message}}",
+    "fileError": "Could not read the file: {{message}}",
+    "invalidNothingWritten": "Nothing was written. {{message}}",
+    "errors": {
+      "notObject": "{{path}}: a JSON object was expected.",
+      "badId": "Invalid document or collection ID \"{{id}}\" in {{path}}.",
+      "badPath": "Invalid target path \"{{path}}\".",
+      "badCollections": "{{path}}: __collections__ must be an object."
+    }
   }
 }
