@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { ApiError, decodeDoc, stringifyEditorJson } from "../../core";
+import { ApiError } from "../../core";
+import { DocumentEditor } from "../DocumentEditor/DocumentEditor";
 import { useFirestoreNav } from "../../store/firestoreNav";
 import { errorMessage } from "./TreeNodes";
 import { useDocument } from "./useFirestore";
@@ -27,16 +28,7 @@ export function DocumentView() {
             </button>
           </div>
         ))}
-      {doc.data && <DocumentBody doc={doc.data} />}
+      {doc.data && path && <DocumentEditor path={path} serverDoc={doc.data} />}
     </div>
-  );
-}
-
-function DocumentBody({ doc }: { doc: Parameters<typeof decodeDoc>[0] }) {
-  const { t } = useTranslation();
-  return (
-    <pre data-testid="document-json" aria-label={t("firestore.documentContent")} className="overflow-auto rounded bg-slate-100 p-3 text-xs dark:bg-slate-800">
-      {stringifyEditorJson(decodeDoc(doc))}
-    </pre>
   );
 }

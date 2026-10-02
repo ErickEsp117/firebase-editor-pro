@@ -104,7 +104,7 @@ describe("FirestoreBrowser", () => {
     fireEvent.click(await screen.findByTestId("doc-toggle:items/parent"));
     fireEvent.click(await screen.findByTestId("collection:items/parent/sub"));
     fireEvent.click(await screen.findByTestId("doc:items/parent/sub/s1"));
-    expect(await screen.findByTestId("document-json")).toBeTruthy();
+    expect(await screen.findByTestId("document-editor")).toBeTruthy();
     expect(screen.getByTestId("document-path").textContent).toBe("items/parent/sub/s1");
   });
 
@@ -112,8 +112,8 @@ describe("FirestoreBrowser", () => {
     mount();
     fireEvent.click(await screen.findByTestId("collection:items"));
     fireEvent.click(await screen.findByTestId("doc:items/d03"));
-    const json = await screen.findByTestId("document-json");
-    expect(json.textContent).toContain('"items/d03"');
+    const row = await screen.findByTestId("row-n");
+    expect((row.querySelector("input") as HTMLInputElement).value).toBe("items/d03");
   });
 
   it("shows a clear message when selecting a missing document", async () => {
