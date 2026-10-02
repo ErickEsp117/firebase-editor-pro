@@ -1,7 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listRootCollections } from "../core/connection";
+import { FirestoreBrowser } from "./Firestore/FirestoreBrowser";
 import { useConnection } from "../store/connection";
 
 export function ConnectedView() {
@@ -10,42 +9,17 @@ export function ConnectedView() {
   const disconnect = useConnection((s) => s.disconnect);
   const [confirming, setConfirming] = useState(false);
 
-  const projectId = connection?.projectId;
-  const collections = useQuery({
-    queryKey: ["fs", projectId, "root-collections"],
-    queryFn: () => listRootCollections(connection!),
-    enabled: !!connection,
-  });
   if (!connection) return null;
 
   return (
-    <section data-testid="connected" className="mx-auto flex max-w-xl flex-col gap-4">
+    <section data-testid="connected" className="flex flex-col gap-4">
       <h2 className="text-2xl font-semibold" data-testid="connected-title">
         {t("connection.connectedTo", { project: connection.projectId })}
       </h2>
       <p className="text-sm text-slate-600 dark:text-slate-400">
         {t("connection.serviceAccount", { email: connection.clientEmail })}
       </p>
-      <div>
-        <h3 className="mb-2 font-medium">{t("connection.collections")}</h3>
-        {collections.isPending && <p>{t("connection.collectionsLoading")}</p>}
-        {collections.isError && (
-          <div role="alert" data-testid="collections-error" className="text-sm text-red-700 dark:text-red-300">
-            <p>{t("connection.collectionsError", { message: collections.error.message })}</p>
-            <button type="button" className="underline" onClick={() => void collections.refetch()}>
-              {t("connection.retry")}
-            </button>
-          </div>
-        )}
-        {collections.data?.length === 0 && <p>{t("connection.collectionsEmpty")}</p>}
-        <ul data-testid="collections-list" className="space-y-1">
-          {collections.data?.map((id) => (
-            <li key={id} className="rounded bg-slate-100 px-3 py-1 font-mono text-sm dark:bg-slate-800">
-              {id}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <FirestoreBrowser />
       <button
         type="button"
         data-testid="disconnect"

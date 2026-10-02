@@ -50,5 +50,23 @@
       "badField": "falta el campo «{{field}}» o no es válido",
       "badPem": "el campo «{{field}}» no es una clave PEM PKCS#8"
     }
+  },
+  "firestore": {
+    "refresh": "Refrescar",
+    "refreshing": "Refrescando…",
+    "docsLoading": "Cargando documentos…",
+    "docsError": "No se pudieron listar los documentos: {{message}}",
+    "docsEmpty": "Sin documentos.",
+    "loadMore": "Cargar más",
+    "loadingMore": "Cargando…",
+    "noSubcollections": "Sin subcolecciones.",
+    "toggleSubcollections": "Subcolecciones de {{id}}",
+    "missing": "faltante",
+    "missingHint": "Este documento no tiene campos; solo existe como padre de subcolecciones.",
+    "selectDocument": "Selecciona un documento para verlo.",
+    "documentLoading": "Cargando documento…",
+    "documentMissing": "Este documento no existe (solo tiene subcolecciones).",
+    "documentError": "No se pudo cargar el documento: {{message}}",
+    "documentContent": "Contenido del documento"
   }
 }

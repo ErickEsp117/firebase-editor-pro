@@ -50,5 +50,23 @@
       "badField": "field \"{{field}}\" is missing or invalid",
       "badPem": "field \"{{field}}\" is not a PEM PKCS#8 key"
     }
+  },
+  "firestore": {
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "docsLoading": "Loading documents…",
+    "docsError": "Could not list documents: {{message}}",
+    "docsEmpty": "No documents.",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "noSubcollections": "No subcollections.",
+    "toggleSubcollections": "Subcollections of {{id}}",
+    "missing": "missing",
+    "missingHint": "This document has no fields; it only exists as the parent of subcollections.",
+    "selectDocument": "Select a document to view it.",
+    "documentLoading": "Loading document…",
+    "documentMissing": "This document does not exist (it only has subcollections).",
+    "documentError": "Could not load the document: {{message}}",
+    "documentContent": "Document content"
   }
 }
