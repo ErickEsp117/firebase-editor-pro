@@ -71,3 +71,38 @@ describe("TauriPlatform", () => {
     expect(detectMode()).toBe("tauri");
   });
 });
+
+describe("TauriPlatform file errors and size limit", () => {
+  it("turns native error codes into PlatformFileError for read and write", async () => {
+    const { TauriPlatform } = await import("../TauriPlatform");
+    const { PlatformFileError } = await import("../errors");
+    const p = new TauriPlatform();
+    for (const code of ["file_read_failed", "file_not_regular", "file_too_large", "file_not_utf8"]) {
+      open.mockResolvedValueOnce("/tmp/x.json");
+      invoke.mockRejectedValueOnce(code);
+      await expect(p.pickImportFile()).rejects.toEqual(new PlatformFileError(code as never));
+    }
+    save.mockResolvedValueOnce("/tmp/out.json");
+    invoke.mockRejectedValueOnce("file_write_failed");
+    await expect(p.saveTextFile("a.json", "{}")).rejects.toMatchObject({ code: "file_write_failed" });
+    open.mockResolvedValueOnce("/tmp/x.json");
+    invoke.mockRejectedValueOnce("something else");
+    await expect(p.pickJsonFile()).rejects.toBe("something else");
+  });
+
+  it("rejects exports over 32 MiB before opening the save dialog", async () => {
+    const { TauriPlatform } = await import("../TauriPlatform");
+    save.mockClear();
+    invoke.mockClear();
+    const big = "a".repeat(32 * 1024 * 1024 + 1);
+    await expect(new TauriPlatform().saveTextFile("big.json", big)).rejects.toMatchObject({ code: "file_too_large" });
+    expect(save).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("counts UTF-8 bytes, not characters, against the limit", async () => {
+    const { assertWithinFileLimit } = await import("../errors");
+    expect(() => assertWithinFileLimit("é".repeat(16 * 1024 * 1024 + 1))).toThrow();
+    expect(() => assertWithinFileLimit("é".repeat(16 * 1024 * 1024))).not.toThrow();
+  });
+});

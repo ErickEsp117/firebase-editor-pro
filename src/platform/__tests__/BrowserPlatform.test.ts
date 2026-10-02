@@ -62,4 +62,13 @@ describe("BrowserPlatform", () => {
     expect(await created[0].text()).toBe('{"a":1}');
     click.mockRestore();
   });
+
+  it("rejects exports over 32 MiB without creating a download", async () => {
+    const create = vi.fn();
+    URL.createObjectURL = create;
+    await expect(new BrowserPlatform().saveTextFile("big.json", "a".repeat(32 * 1024 * 1024 + 1))).rejects.toMatchObject({
+      code: "file_too_large",
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
 });

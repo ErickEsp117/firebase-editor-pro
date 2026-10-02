@@ -1,3 +1,4 @@
+import { assertWithinFileLimit } from "./errors";
 import { downloadTextViaBlob, pickJsonFileViaInput } from "./pickFile";
 import type { PickedFile, Platform } from "./types";
 
@@ -74,6 +75,7 @@ export class BrowserPlatform implements Platform {
   }
 
   async saveTextFile(suggestedName: string, contents: string): Promise<boolean> {
+    assertWithinFileLimit(contents);
     return downloadTextViaBlob(suggestedName, contents);
   }
 }

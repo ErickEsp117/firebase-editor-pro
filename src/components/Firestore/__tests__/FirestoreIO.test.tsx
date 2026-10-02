@@ -5,12 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../../i18n";
 import { setPlatformForTests } from "../../../platform";
 import { useConnection } from "../../../store/connection";
+import { PlatformFileError } from "../../../platform/errors";
+import i18n from "../../../i18n";
 import { ExportDialog } from "../crud/ExportDialog";
 import { ImportDialog } from "../crud/ImportDialog";
 
 const ROOT = "projects/p/databases/(default)/documents";
 const saveTextFile = vi.fn();
 const request = vi.fn();
+const pickImportFile = vi.fn();
 
 function mountWith(node: React.ReactNode) {
   render(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>);
@@ -19,7 +22,9 @@ function mountWith(node: React.ReactNode) {
 beforeEach(() => {
   saveTextFile.mockReset().mockResolvedValue(true);
   request.mockReset();
-  setPlatformForTests({ mode: "browser", saveTextFile, pickImportFile: vi.fn() } as never);
+  pickImportFile.mockReset();
+  void i18n.changeLanguage("en");
+  setPlatformForTests({ mode: "browser", saveTextFile, pickImportFile } as never);
   useConnection.setState({ phase: "connected", connection: { client: { request }, projectId: "p", clientEmail: "x" } as never });
 });
 afterEach(() => {
@@ -83,5 +88,39 @@ describe("export dialog", () => {
     request.mockResolvedValue({ data: { name: `${ROOT}/c/d`, fields: {} } });
     mountWith(<ExportDialog scope="doc" path="c/d" />);
     await screen.findByTestId("export-cancelled");
+  });
+});
+
+describe("native file errors", () => {
+  const CODES = ["file_read_failed", "file_write_failed", "file_not_regular", "file_too_large", "file_not_utf8"] as const;
+
+  it.each(["en", "es"])("shows translated import file errors in %s without raw codes", async (lng) => {
+    await i18n.changeLanguage(lng);
+    for (const code of CODES) {
+      pickImportFile.mockRejectedValueOnce(new PlatformFileError(code));
+      mountWith(<ImportDialog scope="doc" path="c/d" />);
+      fireEvent.click(screen.getByTestId("import-choose-file"));
+      const text = (await screen.findByTestId("import-error")).textContent ?? "";
+      expect(text).not.toContain(code);
+      expect(text).toContain(i18n.t(`io.fileErrors.${code}`));
+      cleanup();
+    }
+  });
+
+  it("explains the 32 MiB limit when the export is too large", async () => {
+    saveTextFile.mockRejectedValue(new PlatformFileError("file_too_large"));
+    request.mockResolvedValue({ data: { name: `${ROOT}/c/d`, fields: {} } });
+    mountWith(<ExportDialog scope="doc" path="c/d" />);
+    const text = (await screen.findByTestId("export-error")).textContent ?? "";
+    expect(text).toContain("32 MiB");
+    expect(text).not.toContain("file_too_large");
+  });
+
+  it("translates export write failures", async () => {
+    await i18n.changeLanguage("es");
+    saveTextFile.mockRejectedValue(new PlatformFileError("file_write_failed"));
+    request.mockResolvedValue({ data: { name: `${ROOT}/c/d`, fields: {} } });
+    mountWith(<ExportDialog scope="doc" path="c/d" />);
+    expect((await screen.findByTestId("export-error")).textContent).toContain("carpeta de destino");
   });
 });

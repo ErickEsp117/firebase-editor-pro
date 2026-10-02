@@ -41,7 +41,7 @@ export function ImportDialog({ scope, path }: Props) {
       setFileName(file.name);
       setDoneCount(null);
     } catch (e) {
-      setError(t("io.fileError", { message: errorMessage(e) }));
+      setError(t("io.fileError", { message: ioErrorMessage(t, e) }));
     }
   };
 

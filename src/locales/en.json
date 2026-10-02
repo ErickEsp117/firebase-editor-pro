@@ -206,6 +206,13 @@
     "importDone_other": "Imported {{count}} documents.",
     "importWriteError": "Import stopped after {{written}} of {{total}} documents: {{message}}",
     "fileError": "Could not read the file: {{message}}",
+    "fileErrors": {
+      "file_read_failed": "it may not exist or you may lack permission.",
+      "file_write_failed": "check the destination folder and your permissions.",
+      "file_not_regular": "the chosen path is not a regular file.",
+      "file_too_large": "the file exceeds the 32 MiB limit.",
+      "file_not_utf8": "the file is not valid UTF-8 text."
+    },
     "invalidNothingWritten": "Nothing was written. {{message}}",
     "errors": {
       "notObject": "{{path}}: a JSON object was expected.",

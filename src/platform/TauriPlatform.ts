@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { assertWithinFileLimit, toPlatformFileError } from "./errors";
 import type { PickedFile, Platform } from "./types";
 
 export class TauriPlatform implements Platform {
@@ -31,7 +32,9 @@ export class TauriPlatform implements Platform {
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
     if (typeof path !== "string") return null;
-    return invoke<PickedFile>("read_text_file", { path });
+    return invoke<PickedFile>("read_text_file", { path }).catch((e) => {
+      throw toPlatformFileError(e);
+    });
   }
 
   async pickImportFile(): Promise<PickedFile | null> {
@@ -41,16 +44,21 @@ export class TauriPlatform implements Platform {
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
     if (typeof path !== "string") return null;
-    return invoke<PickedFile>("read_import_file", { path });
+    return invoke<PickedFile>("read_import_file", { path }).catch((e) => {
+      throw toPlatformFileError(e);
+    });
   }
 
   async saveTextFile(suggestedName: string, contents: string): Promise<boolean> {
+    assertWithinFileLimit(contents);
     const path = await save({
       defaultPath: suggestedName,
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
     if (!path) return false;
-    await invoke<void>("write_text_file", { path, contents });
+    await invoke<void>("write_text_file", { path, contents }).catch((e) => {
+      throw toPlatformFileError(e);
+    });
     return true;
   }
 }

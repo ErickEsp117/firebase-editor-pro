@@ -206,6 +206,13 @@
     "importDone_other": "Importados {{count}} documentos.",
     "importWriteError": "La importación se detuvo tras {{written}} de {{total}} documentos: {{message}}",
     "fileError": "No se pudo leer el archivo: {{message}}",
+    "fileErrors": {
+      "file_read_failed": "puede que no exista o que no tengas permiso.",
+      "file_write_failed": "comprueba la carpeta de destino y tus permisos.",
+      "file_not_regular": "la ruta elegida no es un archivo normal.",
+      "file_too_large": "el archivo supera el límite de 32 MiB. No se ha guardado nada.",
+      "file_not_utf8": "el archivo no es texto UTF-8 válido."
+    },
     "invalidNothingWritten": "No se escribió nada. {{message}}",
     "errors": {
       "notObject": "{{path}}: se esperaba un objeto JSON.",
