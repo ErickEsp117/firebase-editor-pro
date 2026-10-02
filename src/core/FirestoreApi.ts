@@ -145,33 +145,52 @@ export class FirestoreApi {
     await this.client.request(this.url(docPath, "", query(preconditionParams(precondition))), { method: "DELETE" });
   }
 
-  /** Counts existing documents (not "missing" parents) of a collection by paging through it. */
-  async countDocs(collectionPath: string): Promise<number> {
-    let count = 0;
+  /** Relative path ("coll/doc") of every document in a collection, "missing" parents included. Pages without mutating. */
+  private async listAllDocPaths(collectionPath: string): Promise<string[]> {
+    const paths: string[] = [];
     let pageToken: string | undefined;
     do {
-      const page = await this.listDocs(collectionPath, { pageSize: 300, pageToken });
-      count += page.documents.length;
+      const page = await this.listDocs(collectionPath, { pageSize: 300, pageToken, showMissing: true });
+      for (const d of page.documents) {
+        const i = d.name.indexOf("/documents/");
+        paths.push(i >= 0 ? d.name.slice(i + "/documents/".length) : d.name);
+      }
       pageToken = page.nextPageToken;
     } while (pageToken);
+    return paths;
+  }
+
+  /** Counts every document in the collection's whole subtree, including "missing" parents of subcollections. */
+  async countDocs(collectionPath: string): Promise<number> {
+    let count = 0;
+    for (const docPath of await this.listAllDocPaths(collectionPath)) {
+      count += 1;
+      for (const sub of await this.listAllCollectionIds(docPath)) count += await this.countDocs(`${docPath}/${sub}`);
+    }
     return count;
   }
 
   /**
-   * Deletes every document directly in the collection (subcollections of those documents are left alone).
-   * Always re-lists from the first page after deleting, so page tokens are never reused across mutations.
+   * Deletes the collection's whole subtree depth-first: subcollections of each document go first, then the
+   * document itself (so "missing" parents disappear with their last descendant). Re-lists until the collection
+   * is empty, so page tokens are never reused across mutations.
    */
   async deleteCollection(collectionPath: string, onProgress?: (deleted: number) => void): Promise<number> {
     let deleted = 0;
-    for (;;) {
-      const page = await this.listDocs(collectionPath, { pageSize: 100 });
-      if (page.documents.length === 0) return deleted;
-      for (const d of page.documents) {
-        const i = d.name.indexOf("/documents/");
-        await this.deleteDoc(i >= 0 ? d.name.slice(i + "/documents/".length) : d.name);
-        deleted += 1;
-        onProgress?.(deleted);
+    const purge = async (path: string): Promise<void> => {
+      for (let pass = 0; pass < 10; pass++) {
+        const docPaths = await this.listAllDocPaths(path);
+        if (docPaths.length === 0) return;
+        for (const docPath of docPaths) {
+          for (const sub of await this.listAllCollectionIds(docPath)) await purge(`${docPath}/${sub}`);
+          await this.deleteDoc(docPath);
+          deleted += 1;
+          onProgress?.(deleted);
+        }
       }
-    }
+      throw new Error(`Collection ${path} still has documents after repeated deletion`);
+    };
+    await purge(collectionPath);
+    return deleted;
   }
 }

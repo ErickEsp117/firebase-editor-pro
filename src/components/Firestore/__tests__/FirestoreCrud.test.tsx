@@ -33,7 +33,12 @@ const request = async (url: string, opts?: { method?: string; body?: unknown }) 
   if (path === ":listCollectionIds") {
     return { data: { collectionIds: [...new Set(Object.keys(store).map((k) => k.split("/")[0]))] } };
   }
-  if (path.endsWith(":listCollectionIds")) return { data: {} };
+  if (path.endsWith(":listCollectionIds")) {
+    const parent = path.slice(1, -":listCollectionIds".length);
+    const subs = new Set<string>();
+    for (const k of Object.keys(store)) if (k.startsWith(`${parent}/`)) subs.add(k.slice(parent.length + 1).split("/")[0]);
+    return { data: { collectionIds: [...subs] } };
+  }
   if (method === "POST") {
     const id = u.searchParams.get("documentId")!;
     const full = `${path.slice(1)}/${id}`;
@@ -46,8 +51,14 @@ const request = async (url: string, opts?: { method?: string; body?: unknown }) 
     return { data: {} };
   }
   const coll = path.slice(1);
-  if (!coll.includes("/")) {
-    return { data: { documents: Object.entries(store).filter(([k]) => k.startsWith(`${coll}/`)).map(([, v]) => v) } };
+  if (coll.split("/").length % 2 === 1) {
+    const direct = new Map<string, ReturnType<typeof doc>>();
+    for (const [k, v] of Object.entries(store)) {
+      if (!k.startsWith(`${coll}/`)) continue;
+      const full = k.split("/").slice(0, coll.split("/").length + 1).join("/");
+      direct.set(full, k === full ? v : { name: `${ROOT}/${full}` } as never);
+    }
+    return { data: { documents: [...direct.values()] } };
   }
   if (store[coll]) return { data: store[coll] };
   throw new ApiError(404, "NOT_FOUND", "nf");
@@ -152,6 +163,21 @@ describe("Firestore create/delete", () => {
     await screen.findByTestId("collection:fbep_a");
     fireEvent.click(screen.getByTestId("collection-delete:fbep_a"));
     await waitFor(() => expect(screen.getByTestId("delete-coll-body").textContent).toContain("2"));
+    fireEvent.click(screen.getByTestId("delete-confirm"));
+    await waitFor(() => expect(screen.queryByTestId("collection:fbep_a")).toBeNull());
+    expect(Object.keys(store)).toHaveLength(0);
+  });
+
+  it("counts and deletes the whole subtree, including missing parents and nested subcollections", async () => {
+    store["fbep_a/ghost/sub/deep"] = doc("fbep_a/ghost/sub/deep");
+    store["fbep_a/ghost/sub/deeper/x/y/z/w"] = doc("fbep_a/ghost/sub/deeper/x/y/z/w");
+    mount();
+    await screen.findByTestId("collection:fbep_a");
+    fireEvent.click(screen.getByTestId("collection-delete:fbep_a"));
+    // one, two, ghost, deep, deeper, y, w = 7 (ghost, deeper and y are missing parents)
+    await waitFor(() => expect(screen.getByTestId("delete-coll-body").textContent).toContain("fbep_a"));
+    expect(screen.getByTestId("delete-coll-body").textContent).toContain("7 ");
+    expect(screen.getByTestId("delete-collection-dialog").textContent).toMatch(/subcollections|subcolecciones/);
     fireEvent.click(screen.getByTestId("delete-confirm"));
     await waitFor(() => expect(screen.queryByTestId("collection:fbep_a")).toBeNull());
     expect(Object.keys(store)).toHaveLength(0);

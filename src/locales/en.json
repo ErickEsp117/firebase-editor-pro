@@ -169,9 +169,9 @@
     "deleteError": "Could not delete: {{message}}",
     "deleteCollTitle": "Delete collection",
     "deleteCollCounting": "Counting documents in {{path}}…",
-    "deleteCollBody_one": "You are about to permanently delete the collection {{path}}: {{count}} document will be deleted. This cannot be undone.",
-    "deleteCollBody_other": "You are about to permanently delete the collection {{path}}: {{count}} documents will be deleted. This cannot be undone.",
-    "deleteCollNested": "Subcollections of those documents are not deleted.",
+    "deleteCollBody_one": "You are about to permanently delete the collection {{path}}: {{count}} document will be deleted in total (including subcollections and missing parent documents). This cannot be undone.",
+    "deleteCollBody_other": "You are about to permanently delete the collection {{path}}: {{count}} documents will be deleted in total (including subcollections and missing parent documents). This cannot be undone.",
+    "deleteCollNested": "Deep delete: all subcollections and their documents are removed too, along with parent documents that only exist because they have subcollections. The count covers the whole subtree.",
     "deleteCollConfirm": "Delete collection",
     "deleteCollProgress": "Deleted {{deleted}} of {{count}}…",
     "countError": "Could not count the documents: {{message}}"

@@ -169,9 +169,9 @@
     "deleteError": "No se pudo borrar: {{message}}",
     "deleteCollTitle": "Borrar colección",
     "deleteCollCounting": "Contando documentos de {{path}}…",
-    "deleteCollBody_one": "Vas a borrar permanentemente la colección {{path}}: se borrará {{count}} documento. Esta acción no se puede deshacer.",
-    "deleteCollBody_other": "Vas a borrar permanentemente la colección {{path}}: se borrarán {{count}} documentos. Esta acción no se puede deshacer.",
-    "deleteCollNested": "Las subcolecciones de esos documentos no se borran.",
+    "deleteCollBody_one": "Vas a borrar permanentemente la colección {{path}}: se borrará {{count}} documento en total (incluye subcolecciones y documentos padre faltantes). Esta acción no se puede deshacer.",
+    "deleteCollBody_other": "Vas a borrar permanentemente la colección {{path}}: se borrarán {{count}} documentos en total (incluyen subcolecciones y documentos padre faltantes). Esta acción no se puede deshacer.",
+    "deleteCollNested": "Borrado profundo: también se eliminan todas las subcolecciones y sus documentos, además de los documentos padre que solo existen por tener subcolecciones. El recuento cubre todo el subárbol.",
     "deleteCollConfirm": "Borrar colección",
     "deleteCollProgress": "Borrados {{deleted}} de {{count}}…",
     "countError": "No se pudo contar los documentos: {{message}}"

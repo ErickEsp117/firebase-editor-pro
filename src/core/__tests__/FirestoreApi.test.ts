@@ -114,24 +114,53 @@ describe("FirestoreApi URL building", () => {
 });
 
 describe("FirestoreApi collection helpers", () => {
-  it("deleteCollection re-lists from the first page until empty and never reuses page tokens", async () => {
-    let remaining = ["a", "b", "c"];
-    const { api, calls } = setup((c) => {
+  /** In-memory tree: docs listed via showMissing; missing parents have subcollections only. */
+  function tree(existing: string[]) {
+    const docs = new Set(existing);
+    const allPaths = () => {
+      const all = new Set<string>();
+      for (const d of docs) {
+        const parts = d.split("/");
+        for (let n = 2; n <= parts.length; n += 2) all.add(parts.slice(0, n).join("/"));
+      }
+      return all;
+    };
+    const order: string[] = [];
+    const t = setup((c) => {
+      const rel = decodeURIComponent(c.url.slice(D.length)).replace(/\?.*$/, "");
       if (c.method === "DELETE") {
-        remaining = remaining.filter((id) => !c.url.endsWith(`/c/${id}`));
+        order.push(rel.slice(1));
+        docs.delete(rel.slice(1));
         return { json: {} };
       }
-      return { json: { documents: remaining.slice(0, 2).map((id) => ({ name: `projects/proj/databases/(default)/documents/c/${id}` })), nextPageToken: "x" } };
+      if (rel.endsWith(":listCollectionIds")) {
+        const parent = rel.slice(1, -":listCollectionIds".length);
+        const ids = new Set<string>();
+        for (const p of allPaths()) if (p.startsWith(`${parent}/`) && p.split("/").length === parent.split("/").length + 2) ids.add(p.split("/").slice(-2, -1)[0]);
+        return { json: { collectionIds: [...ids] } };
+      }
+      if (!c.url.includes("showMissing=true")) throw new Error("listing must use showMissing=true");
+      const coll = rel.slice(1);
+      const names = [...allPaths()].filter((p) => p.startsWith(`${coll}/`) && p.split("/").length === coll.split("/").length + 1);
+      return { json: { documents: names.map((n) => ({ name: `projects/proj/databases/(default)/documents/${n}` })) } };
     });
-    expect(await api.deleteCollection("c")).toBe(3);
-    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url.slice(D.length))).toEqual(["/c/a", "/c/b", "/c/c"]);
-    expect(calls.every((c) => !c.url.includes("pageToken"))).toBe(true);
+    return { ...t, docs, order };
+  }
+
+  it("countDocs includes direct docs, missing parents and every descendant", async () => {
+    const { api } = tree(["c/a", "c/ghost/s/x", "c/ghost/s/y/t/z"]);
+    // a, ghost, x, y(missing), z
+    expect(await api.countDocs("c")).toBe(5);
   });
 
-  it("countDocs follows nextPageToken", async () => {
-    const { api } = setup((c) =>
-      c.url.includes("pageToken=n") ? { json: { documents: [{ name: "z" }] } } : { json: { documents: [{ name: "x" }, { name: "y" }], nextPageToken: "n" } },
-    );
-    expect(await api.countDocs("c")).toBe(3);
+  it("deleteCollection deletes descendants before parents, depth-first, leaving nothing behind", async () => {
+    const { api, docs, order } = tree(["c/a", "c/ghost/s/x", "c/ghost/s/y/t/z"]);
+    expect(await api.deleteCollection("c")).toBe(5);
+    expect(docs.size).toBe(0);
+    for (const parent of ["c/ghost", "c/ghost/s/y"]) {
+      const children = order.filter((p) => p.startsWith(`${parent}/`));
+      expect(children.length).toBeGreaterThan(0);
+      expect(Math.max(...children.map((p) => order.indexOf(p)))).toBeLessThan(order.indexOf(parent));
+    }
   });
 });

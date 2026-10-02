@@ -39,6 +39,18 @@ describe.skipIf(!existsSync(keyPath))("real Firestore CRUD (project of dev-secre
     }
   });
 
+
+  async function countByWalk(collectionPath: string): Promise<number> {
+    let n = 0;
+    const docs = (await api.listDocs(collectionPath, { showMissing: true, pageSize: 300 })).documents;
+    for (const d of docs) {
+      n += 1;
+      const rel = d.name.slice(d.name.indexOf("/documents/") + "/documents/".length);
+      for (const sub of (await api.listCollectionIds(rel)).collectionIds) n += await countByWalk(`${rel}/${sub}`);
+    }
+    return n;
+  }
+
   const source = `{
     "int64": 9007199254740993,
     "double": 1.5,
@@ -203,6 +215,28 @@ describe.skipIf(!existsSync(keyPath))("real Firestore CRUD (project of dev-secre
   it("lists root collections including the test collection", async () => {
     expect(await api.listAllCollectionIds()).toEqual(expect.arrayContaining(["users", coll]));
   });
+
+  it("deleteCollection removes the whole subtree: direct docs, missing parents and nested subcollections", async () => {
+    const deep = guarded(`${PREFIX}fsdeep_${run}`);
+    const leaves = [`${deep}/direct`, `${deep}/ghost/inner/leaf`, `${deep}/parent/sub/mid/deeper/leaf2`, `${deep}/parent/sub/mid2`];
+    for (const leaf of leaves) {
+      const i = leaf.lastIndexOf("/");
+      await api.createDoc(leaf.slice(0, i), leaf.slice(i + 1), encodeFields({ n: 1 }));
+    }
+    try {
+      // direct + ghost(missing) + parent(missing: only has sub) + mid(missing) + mid2 + inner leaf + deeper leaf2 ... counted via showMissing
+      const expected = (await countByWalk(deep)) as number;
+      expect(await api.countDocs(deep)).toBe(expected);
+      expect(expected).toBeGreaterThanOrEqual(leaves.length + 3);
+      expect(await api.deleteCollection(deep)).toBe(expected);
+      expect((await api.listDocs(deep, { showMissing: true })).documents).toHaveLength(0);
+      expect(await api.listAllCollectionIds(`${deep}/ghost`)).toEqual([]);
+      expect(await api.listAllCollectionIds(`${deep}/parent/sub/mid`)).toEqual([]);
+      expect(await api.listAllCollectionIds()).not.toContain(deep);
+    } finally {
+      await api.deleteCollection(deep).catch(() => undefined);
+    }
+  }, 60_000);
 
   it("delete honours a stale precondition, then deletes and 404s afterwards", async () => {
     const path = guarded(`${coll}/doc1`);
