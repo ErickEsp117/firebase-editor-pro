@@ -144,4 +144,34 @@ export class FirestoreApi {
   async deleteDoc(docPath: string, precondition: Precondition = {}): Promise<void> {
     await this.client.request(this.url(docPath, "", query(preconditionParams(precondition))), { method: "DELETE" });
   }
+
+  /** Counts existing documents (not "missing" parents) of a collection by paging through it. */
+  async countDocs(collectionPath: string): Promise<number> {
+    let count = 0;
+    let pageToken: string | undefined;
+    do {
+      const page = await this.listDocs(collectionPath, { pageSize: 300, pageToken });
+      count += page.documents.length;
+      pageToken = page.nextPageToken;
+    } while (pageToken);
+    return count;
+  }
+
+  /**
+   * Deletes every document directly in the collection (subcollections of those documents are left alone).
+   * Always re-lists from the first page after deleting, so page tokens are never reused across mutations.
+   */
+  async deleteCollection(collectionPath: string, onProgress?: (deleted: number) => void): Promise<number> {
+    let deleted = 0;
+    for (;;) {
+      const page = await this.listDocs(collectionPath, { pageSize: 100 });
+      if (page.documents.length === 0) return deleted;
+      for (const d of page.documents) {
+        const i = d.name.indexOf("/documents/");
+        await this.deleteDoc(i >= 0 ? d.name.slice(i + "/documents/".length) : d.name);
+        deleted += 1;
+        onProgress?.(deleted);
+      }
+    }
+  }
 }

@@ -112,3 +112,26 @@ describe("FirestoreApi URL building", () => {
     expect(fieldPath("a`b")).toBe("`a\\`b`");
   });
 });
+
+describe("FirestoreApi collection helpers", () => {
+  it("deleteCollection re-lists from the first page until empty and never reuses page tokens", async () => {
+    let remaining = ["a", "b", "c"];
+    const { api, calls } = setup((c) => {
+      if (c.method === "DELETE") {
+        remaining = remaining.filter((id) => !c.url.endsWith(`/c/${id}`));
+        return { json: {} };
+      }
+      return { json: { documents: remaining.slice(0, 2).map((id) => ({ name: `projects/proj/databases/(default)/documents/c/${id}` })), nextPageToken: "x" } };
+    });
+    expect(await api.deleteCollection("c")).toBe(3);
+    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url.slice(D.length))).toEqual(["/c/a", "/c/b", "/c/c"]);
+    expect(calls.every((c) => !c.url.includes("pageToken"))).toBe(true);
+  });
+
+  it("countDocs follows nextPageToken", async () => {
+    const { api } = setup((c) =>
+      c.url.includes("pageToken=n") ? { json: { documents: [{ name: "z" }] } } : { json: { documents: [{ name: "x" }, { name: "y" }], nextPageToken: "n" } },
+    );
+    expect(await api.countDocs("c")).toBe(3);
+  });
+});

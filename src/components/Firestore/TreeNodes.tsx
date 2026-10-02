@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { ApiError } from "../../core";
+import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
 import { isMissing, relativePath, useCollectionIds, useDocsPage } from "./useFirestore";
 
@@ -55,18 +56,43 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
   const key = `c:${path}`;
   const open = useFirestoreNav((s) => !!s.expanded[key]);
   const toggle = useFirestoreNav((s) => s.toggle);
+  const openDialog = useCrudDialog((s) => s.open);
+  const parentDocPath = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  const { t } = useTranslation();
   return (
     <li data-testid={`collection-node:${path}`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        data-testid={`collection:${path}`}
-        onClick={() => toggle(key)}
-        className="flex w-full items-center rounded px-1 py-0.5 text-left font-mono text-sm hover:bg-slate-200 dark:hover:bg-slate-800"
-      >
-        <Chevron open={open} />
-        <span className="truncate">{name}</span>
-      </button>
+      <div className="flex items-center rounded hover:bg-slate-200 dark:hover:bg-slate-800">
+        <button
+          type="button"
+          aria-expanded={open}
+          data-testid={`collection:${path}`}
+          onClick={() => toggle(key)}
+          className="flex min-w-0 flex-1 items-center px-1 py-0.5 text-left font-mono text-sm"
+        >
+          <Chevron open={open} />
+          <span className="truncate">{name}</span>
+        </button>
+        <button
+          type="button"
+          data-testid={`collection-add:${path}`}
+          aria-label={t("crud.addDocTo", { path })}
+          title={t("crud.addDocTo", { path })}
+          onClick={() => openDialog({ kind: "create", parentDocPath, collectionPath: path })}
+          className="px-1 text-sm"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          data-testid={`collection-delete:${path}`}
+          aria-label={t("crud.deleteCollection") + ` ${path}`}
+          title={t("crud.deleteCollection")}
+          onClick={() => openDialog({ kind: "deleteCollection", path })}
+          className="px-1 text-sm text-red-700 dark:text-red-300"
+        >
+          🗑
+        </button>
+      </div>
       {open && (
         <div className="ml-4 border-l border-slate-300 pl-1 dark:border-slate-700">
           <DocList collectionPath={path} />
