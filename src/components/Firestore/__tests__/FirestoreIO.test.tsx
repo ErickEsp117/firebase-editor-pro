@@ -44,6 +44,14 @@ describe("import dialog", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("rejects __collections__ in a document import without any request", async () => {
+    mountWith(<ImportDialog scope="doc" path="c/d" />);
+    fireEvent.change(screen.getByTestId("import-json"), { target: { value: '{"a":1,"__collections__":{"s":{"e":{}}}}' } });
+    fireEvent.click(screen.getByTestId("import-submit"));
+    expect((await screen.findByTestId("import-error")).textContent).toContain("__collections__");
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("imports documents and subcollections with PATCH and no mask", async () => {
     request.mockResolvedValue({ data: {} });
     mountWith(<ImportDialog scope="collection" path="fbep_x" />);

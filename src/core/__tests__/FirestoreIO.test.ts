@@ -57,10 +57,15 @@ describe("document import/export", () => {
     expect(e.fields.r).toEqual({ referenceValue: "projects/proj/databases/(default)/documents/projects/team" });
   });
 
-  it("expands __collections__ into nested entries", () => {
-    const entries = planDocumentImport('{"a":1,"__collections__":{"sub":{"d1":{"b":2}}}}', "x/y");
-    expect(entries.map((e) => e.path)).toEqual(["x/y", "x/y/sub/d1"]);
-    expect(entries[0].fields).toEqual({ a: { integerValue: "1" } });
+  it("rejects a top-level __collections__ in a document import", () => {
+    const run = () => planDocumentImport('{"a":1,"__collections__":{"sub":{"d1":{"b":2}}}}', "x/y");
+    expect(run).toThrow(ImportError);
+    expect(run).toThrow(expect.objectContaining({ code: "reservedKey", i18nKey: "io.errors.reservedKey" }));
+  });
+
+  it("does not reinterpret nested __collections__ keys in document imports", () => {
+    const [e] = planDocumentImport('{"m":{"__collections__":{"k":1}}}', "x/y");
+    expect(e.fields.m).toEqual({ mapValue: { fields: { __collections__: { mapValue: { fields: { k: { integerValue: "1" } } } } } } });
   });
 });
 

@@ -6,7 +6,7 @@ import type { FirestoreApi, FirestoreDocument } from "./FirestoreApi";
 /** Key under which a document lists its subcollections in collection exports (app and Firefoo). */
 export const COLLECTIONS_KEY = "__collections__";
 
-export type ImportErrorCode = "notObject" | "badId" | "badPath" | "badCollections";
+export type ImportErrorCode = "notObject" | "badId" | "badPath" | "badCollections" | "reservedKey";
 
 export class ImportError extends Error {
   readonly i18nKey: string;
@@ -67,7 +67,10 @@ function collectCollection(collectionPath: string, docs: unknown, out: ImportEnt
 export function planDocumentImport(text: string, docPath: string, projectId = "-"): ImportEntry[] {
   if (segments(docPath).length === 0 || segments(docPath).length % 2 !== 0) throw new ImportError("badPath", { path: docPath });
   const out: ImportEntry[] = [];
-  collect(segments(docPath).join("/"), parseEditorJson(text), out, documentsRootOf(projectId));
+  const doc = parseEditorJson(text);
+  // Subcollections are only part of the collection import format; a single document must not write outside its path.
+  if (isPlainObject(doc) && COLLECTIONS_KEY in doc) throw new ImportError("reservedKey", { path: segments(docPath).join("/"), key: COLLECTIONS_KEY });
+  collect(segments(docPath).join("/"), doc, out, documentsRootOf(projectId));
   return out;
 }
 

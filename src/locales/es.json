@@ -211,7 +211,8 @@
       "notObject": "{{path}}: se esperaba un objeto JSON.",
       "badId": "ID de documento o colección no válido \"{{id}}\" en {{path}}.",
       "badPath": "Ruta de destino no válida \"{{path}}\".",
-      "badCollections": "{{path}}: __collections__ debe ser un objeto."
+      "badCollections": "{{path}}: __collections__ debe ser un objeto.",
+      "reservedKey": "{{path}}: la clave \"{{key}}\" está reservada para la importación de colecciones y no se admite en un documento individual."
     }
   }
 }

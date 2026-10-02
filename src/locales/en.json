@@ -211,7 +211,8 @@
       "notObject": "{{path}}: a JSON object was expected.",
       "badId": "Invalid document or collection ID \"{{id}}\" in {{path}}.",
       "badPath": "Invalid target path \"{{path}}\".",
-      "badCollections": "{{path}}: __collections__ must be an object."
+      "badCollections": "{{path}}: __collections__ must be an object.",
+      "reservedKey": "{{path}}: the \"{{key}}\" key is reserved for collection imports and is not allowed in a single document."
     }
   }
 }
