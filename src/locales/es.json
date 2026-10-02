@@ -1,0 +1,44 @@
+{
+  "app": { "title": "Firebase Editor Pro" },
+  "settings": {
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "themeSystem": "Sistema"
+  },
+  "welcome": {
+    "title": "Bienvenido a Firebase Editor Pro",
+    "intro": "Para empezar, importa el archivo key.json de una cuenta de servicio de tu proyecto Firebase.",
+    "step1": "En la consola de Firebase abre Configuración del proyecto > Cuentas de servicio.",
+    "step2": "Pulsa «Generar nueva clave privada» y guarda el archivo JSON.",
+    "step3": "Impórtalo aquí. La credencial se guarda solo en el llavero de tu sistema (o en el almacenamiento local del navegador).",
+    "import": "Importar key.json"
+  },
+  "connection": {
+    "importing": "Verificando credencial…",
+    "connecting": "Conectando…",
+    "connectedTo": "Conectado a {{project}}",
+    "serviceAccount": "Cuenta de servicio: {{email}}",
+    "collections": "Colecciones",
+    "collectionsLoading": "Cargando colecciones…",
+    "collectionsEmpty": "Este proyecto no tiene colecciones.",
+    "collectionsError": "No se pudieron listar las colecciones: {{message}}",
+    "retry": "Reintentar",
+    "disconnect": "Desconectar",
+    "disconnectTitle": "¿Desconectar y olvidar la credencial?",
+    "disconnectBody": "Se borrará la credencial guardada. Tendrás que importar el key.json otra vez para volver a conectar.",
+    "disconnectConfirm": "Sí, desconectar",
+    "cancel": "Cancelar",
+    "dismiss": "Descartar"
+  },
+  "errors": {
+    "keyInvalid": "El archivo key.json no es válido: {{detail}}",
+    "keyUnreadable": "No se pudo leer la clave privada del archivo. Comprueba que sea el key.json original.",
+    "rejected": "Google rechazó la credencial ({{cause}}). Comprueba que la clave no esté revocada y que el archivo sea el correcto.",
+    "offline": "Sin conexión: no se pudo contactar con Google ({{cause}}).",
+    "forbidden": "La cuenta de servicio no tiene permisos o la API de Firestore no está habilitada ({{cause}}).",
+    "unknown": "Error inesperado: {{cause}}",
+    "fileRead": "No se pudo leer el archivo seleccionado."
+  }
+}

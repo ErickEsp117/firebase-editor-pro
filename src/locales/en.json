@@ -1,0 +1,44 @@
+{
+  "app": { "title": "Firebase Editor Pro" },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "welcome": {
+    "title": "Welcome to Firebase Editor Pro",
+    "intro": "To get started, import the key.json file of a service account from your Firebase project.",
+    "step1": "In the Firebase console open Project settings > Service accounts.",
+    "step2": "Click \"Generate new private key\" and save the JSON file.",
+    "step3": "Import it here. The credential is stored only in your system keychain (or the browser's local storage).",
+    "import": "Import key.json"
+  },
+  "connection": {
+    "importing": "Verifying credential…",
+    "connecting": "Connecting…",
+    "connectedTo": "Connected to {{project}}",
+    "serviceAccount": "Service account: {{email}}",
+    "collections": "Collections",
+    "collectionsLoading": "Loading collections…",
+    "collectionsEmpty": "This project has no collections.",
+    "collectionsError": "Could not list collections: {{message}}",
+    "retry": "Retry",
+    "disconnect": "Disconnect",
+    "disconnectTitle": "Disconnect and forget the credential?",
+    "disconnectBody": "The stored credential will be deleted. You will need to import the key.json again to reconnect.",
+    "disconnectConfirm": "Yes, disconnect",
+    "cancel": "Cancel",
+    "dismiss": "Dismiss"
+  },
+  "errors": {
+    "keyInvalid": "The key.json file is not valid: {{detail}}",
+    "keyUnreadable": "The private key in the file could not be read. Make sure it is the original key.json.",
+    "rejected": "Google rejected the credential ({{cause}}). Check that the key has not been revoked and that the file is the right one.",
+    "offline": "Offline: could not reach Google ({{cause}}).",
+    "forbidden": "The service account lacks permissions or the Firestore API is not enabled ({{cause}}).",
+    "unknown": "Unexpected error: {{cause}}",
+    "fileRead": "The selected file could not be read."
+  }
+}

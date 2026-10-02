@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import process from "node:process";
 
 const host = process.env.TAURI_DEV_HOST;
@@ -12,13 +13,13 @@ const googleProxy = (target: string, prefix: string) => ({
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
 
   clearScreen: false,
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    host: host || "127.0.0.1",
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: {
       ignored: ["**/src-tauri/**", "**/dev-secrets/**"],
