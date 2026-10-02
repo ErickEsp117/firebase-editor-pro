@@ -124,7 +124,9 @@ fn split_chunks(value: &str) -> Vec<&str> {
 /// Writes the new chunks first, switches the marker, and only then removes the
 /// old chunks. Any failure before the switch leaves the previous value intact.
 fn set_with(b: &dyn Backend, key: &str, value: &str) -> Result<(), String> {
-    let old = read_marker(b, key).ok().flatten();
+    // Only an absent marker means "no previous value"; any other read failure
+    // must abort before writing, or live chunks could be overwritten or orphaned.
+    let old = read_marker(b, key)?;
     let parts = split_chunks(value);
     let new = Marker { gen: old.map_or(1, |m| m.gen + 1), count: parts.len() };
 
@@ -181,10 +183,14 @@ mod tests {
         map: RefCell<HashMap<String, String>>,
         writes: Cell<usize>,
         fail_on_write: Cell<Option<usize>>,
+        fail_reads: Cell<bool>,
     }
 
     impl Backend for Mem {
         fn read(&self, name: &str) -> Result<Option<String>, String> {
+            if self.fail_reads.get() {
+                return Err("injected read failure".into());
+            }
             Ok(self.map.borrow().get(name).cloned())
         }
         fn write(&self, name: &str, value: &str) -> Result<(), String> {
@@ -243,6 +249,21 @@ mod tests {
             assert_eq!(get_with(&b, "k").unwrap().as_deref(), Some("previous"), "fail_at={fail_at}");
             assert_eq!(*b.map.borrow(), before, "no partial chunks left, fail_at={fail_at}");
         }
+    }
+
+    #[test]
+    fn read_error_on_marker_aborts_without_writing() {
+        let b = Mem::default();
+        set_with(&b, "k", "previous").unwrap();
+        let before = b.map.borrow().clone();
+        b.writes.set(0);
+        b.fail_reads.set(true);
+        let err = set_with(&b, "k", &"x".repeat(CHUNK_BYTES * 2)).unwrap_err();
+        assert!(err.contains("injected read failure"));
+        assert_eq!(b.writes.get(), 0, "nothing written");
+        assert_eq!(*b.map.borrow(), before, "previous entries untouched");
+        b.fail_reads.set(false);
+        assert_eq!(get_with(&b, "k").unwrap().as_deref(), Some("previous"));
     }
 
     #[test]
