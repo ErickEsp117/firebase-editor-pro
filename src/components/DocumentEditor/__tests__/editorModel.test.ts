@@ -2,7 +2,7 @@ import { LosslessNumber } from "lossless-json";
 import { describe, expect, it } from "vitest";
 import { parseEditorJson, stringifyEditorJson } from "../../../core";
 import { ApiError } from "../../../core";
-import { buildSavePlan, diffFields, isConflict, parseDraft } from "../editorModel";
+import { buildSavePlan, diffFields, hasChanges, isConflict, parseDraft } from "../editorModel";
 import { addAt, deleteAt, setAt, typeOf, type Obj } from "../valueTypes";
 
 const js = (v: unknown) => stringifyEditorJson(v).replace(/\s+/g, "");
@@ -74,5 +74,18 @@ describe("isConflict", () => {
     expect(isConflict(new ApiError(404, "NOT_FOUND", ""))).toBe(true);
     expect(isConflict(new ApiError(403, "PERMISSION_DENIED", ""))).toBe(false);
     expect(isConflict(new ApiError(0, "UNAVAILABLE", ""))).toBe(false);
+  });
+});
+
+describe("inherited property names as field names", () => {
+  const own = (o: Record<string, unknown>) => parseEditorJson(JSON.stringify(o)) as Obj;
+
+  it("diffs added, changed and deleted fields named like Object.prototype members", () => {
+    const base = own({ keep: 1 });
+    const added = diffFields(base, own({ keep: 1, constructor: "x", toString: 2, hasOwnProperty: 3 }));
+    expect(Object.keys(added.changed).sort()).toEqual(["constructor", "hasOwnProperty", "toString"]);
+    const removed = diffFields(own({ constructor: "x", toString: 2, hasOwnProperty: 3 }), own({}));
+    expect(removed.deleted.sort()).toEqual(["constructor", "hasOwnProperty", "toString"]);
+    expect(hasChanges(own({}), own({ constructor: 1 }))).toBe(true);
   });
 });

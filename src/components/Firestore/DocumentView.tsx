@@ -64,7 +64,7 @@ export function DocumentView() {
             </button>
           </div>
         ))}
-      {doc.data && path && <DocumentEditor path={path} serverDoc={doc.data} />}
+      {doc.data && !doc.isError && path && <DocumentEditor path={path} serverDoc={doc.data} />}
     </div>
   );
 }

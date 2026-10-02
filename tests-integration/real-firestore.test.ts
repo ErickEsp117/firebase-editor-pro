@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { diffFields } from "../src/components/DocumentEditor/editorModel";
 import { ApiClient } from "../src/core/ApiClient";
 import { FirestoreApi } from "../src/core/FirestoreApi";
 import { decodeDoc, encodeDoc, encodeFields, parseEditorJson, stringifyEditorJson } from "../src/core/FirestoreCodec";
@@ -95,6 +96,22 @@ describe.skipIf(!existsSync(keyPath))("real Firestore CRUD (project of dev-secre
   it("Firestore itself rejects reserved __x__ field names, so a tag-lookalike map cannot be stored", async () => {
     const fields = encodeFields(parseEditorJson('{"look": {"__type__": "wat", "__value__": 1, "other": "x"}}'));
     await expect(api.createDoc(guarded(coll), "lookalike", fields)).rejects.toMatchObject({ http: 400, status: "INVALID_ARGUMENT" });
+  });
+
+  it("fields named like inherited Object members round-trip through create, masked PATCH and delete", async () => {
+    const path = guarded(`${coll}/inherited`);
+    created.add(path);
+    const doc = await api.createDoc(guarded(coll), "inherited", encodeFields(parseEditorJson('{"constructor":"c","toString":1,"hasOwnProperty":true,"keep":"k"}')));
+    expect(JSON.parse(stringifyEditorJson(decodeDoc(doc)))).toEqual({ constructor: "c", toString: 1, hasOwnProperty: true, keep: "k" });
+    const base = decodeDoc(doc);
+    const next = parseEditorJson('{"constructor":"c2","keep":"k"}') as Record<string, unknown>;
+    const { changed, deleted } = diffFields(base as never, next as never);
+    const after = await api.upsertDoc(path, encodeFields(changed), { updateMask: [...Object.keys(changed), ...deleted], updateTime: doc.updateTime });
+    const back = decodeDoc(after);
+    expect(back.constructor).toBe("c2");
+    expect(Object.prototype.hasOwnProperty.call(back, "toString")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(back, "hasOwnProperty")).toBe(false);
+    expect(back.keep).toBe("k");
   });
 
   it("relative references qualified via documentsRoot persist on create and PATCH and reopen as references", async () => {

@@ -35,16 +35,18 @@ export interface FieldDiff {
   deleted: string[];
 }
 
+const hasOwn = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
+
 /** Top-level diff: fields added/modified (with their new value) and fields removed. */
 export function diffFields(base: Obj, current: Obj): FieldDiff {
   const changed: Obj = {};
   const deleted: string[] = [];
   for (const k of Object.keys(current)) {
-    if (!(k in base) || stringifyEditorJson(base[k]) !== stringifyEditorJson(current[k])) {
+    if (!hasOwn(base, k) || stringifyEditorJson(base[k]) !== stringifyEditorJson(current[k])) {
       Object.defineProperty(changed, k, { value: current[k], enumerable: true, writable: true, configurable: true });
     }
   }
-  for (const k of Object.keys(base)) if (!(k in current)) deleted.push(k);
+  for (const k of Object.keys(base)) if (!hasOwn(current, k)) deleted.push(k);
   return { changed, deleted };
 }
 

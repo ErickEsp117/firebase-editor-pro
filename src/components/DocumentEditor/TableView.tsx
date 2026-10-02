@@ -159,7 +159,7 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
   const isArray = Array.isArray(container);
   const [key, setKey] = useState("");
   const [type, setType] = useState<ValueType>("string");
-  const dup = !isArray && isObj(container) && key in container;
+  const dup = !isArray && isObj(container) && Object.prototype.hasOwnProperty.call(container, key);
   const canAdd = isArray || (key.trim().length > 0 && !dup);
 
   return (

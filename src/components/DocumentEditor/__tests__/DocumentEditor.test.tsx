@@ -15,6 +15,7 @@ const mk = (fields: FirestoreDocument["fields"], updateTime: string): FirestoreD
 let server: FirestoreDocument;
 let writes: { url: URL; body: { fields: Record<string, unknown> } }[];
 let failNext: ApiError | null;
+let gate: Promise<void> | null;
 
 const request = async (url: string, opts?: { method?: string; body?: { fields: Record<string, unknown> } }) => {
   if (opts?.method === "PATCH") {
@@ -25,6 +26,7 @@ const request = async (url: string, opts?: { method?: string; body?: { fields: R
       failNext = null;
       throw e;
     }
+    if (gate) await gate;
     server = mk({ ...server.fields, ...opts.body!.fields } as never, "2024-02-02T00:00:00Z");
     return { data: server };
   }
@@ -44,6 +46,7 @@ beforeEach(() => {
   server = mk({ a: { stringValue: "one" }, b: { integerValue: "9007199254740993" }, c: { booleanValue: true } }, "2024-01-01T00:00:00Z");
   writes = [];
   failNext = null;
+  gate = null;
   useEditorStore.setState({ sessions: {}, view: "table", mode: "modified" });
   useConnection.setState({ phase: "connected", connection: { client: { request }, projectId: "p", clientEmail: "x" } as never });
 });
@@ -176,5 +179,49 @@ describe("DocumentEditor", () => {
     expect(screen.getByTestId("json-view")).toBeTruthy();
     expect(screen.getByTestId("json-format")).toBeTruthy();
     expect(screen.getByTestId("json-repair")).toBeTruthy();
+  });
+
+  it("keeps edits typed while a successful save is in flight and sends only their mask next", async () => {
+    mount();
+    const a = () => screen.getByTestId("row-a").querySelector("input") as HTMLInputElement;
+    let release!: () => void;
+    gate = new Promise<void>((r) => (release = r));
+    fireEvent.change(a(), { target: { value: "first" } });
+    fireEvent.blur(a());
+    fireEvent.click(screen.getByTestId("save-button"));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    fireEvent.click(screen.getByTestId("delete-c"));
+    release();
+    await waitFor(() => expect(screen.getByTestId("update-time").textContent).toContain("2024-02-02T00:00:00Z"));
+    expect(screen.queryByTestId("row-c")).toBeNull();
+    expect(a().value).toBe("first");
+    expect((screen.getByTestId("save-button") as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(screen.getByTestId("save-button"));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1].url.searchParams.getAll("updateMask.fieldPaths")).toEqual(["c"]);
+    expect(writes[1].url.searchParams.get("currentDocument.updateTime")).toBe("2024-02-02T00:00:00Z");
+    expect(Object.keys(writes[1].body.fields)).toEqual([]);
+  });
+
+  it("adds, edits and deletes fields named like inherited Object members", async () => {
+    mount();
+    for (const name of ["constructor", "toString", "hasOwnProperty"]) {
+      fireEvent.change(screen.getByTestId("add-field-name"), { target: { value: name } });
+      expect((screen.getByTestId("add-field-button") as HTMLButtonElement).disabled).toBe(false);
+      fireEvent.click(screen.getByTestId("add-field-button"));
+      expect(screen.getByTestId(`row-${name}`)).toBeTruthy();
+    }
+    fireEvent.change(screen.getByTestId("add-field-name"), { target: { value: "constructor" } });
+    expect((screen.getByTestId("add-field-button") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId("save-button"));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].url.searchParams.getAll("updateMask.fieldPaths").sort()).toEqual(["constructor", "hasOwnProperty", "toString"]);
+    expect(Object.keys(writes[0].body.fields).sort()).toEqual(["constructor", "hasOwnProperty", "toString"]);
+    await waitFor(() => expect(screen.getByTestId("update-time").textContent).toContain("2024-02-02T00:00:00Z"));
+    fireEvent.click(screen.getByTestId("delete-constructor"));
+    fireEvent.click(screen.getByTestId("save-button"));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1].url.searchParams.getAll("updateMask.fieldPaths")).toEqual(["constructor"]);
   });
 });

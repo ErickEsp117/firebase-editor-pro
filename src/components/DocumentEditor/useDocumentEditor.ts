@@ -56,8 +56,8 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
   );
 
   const accept = useCallback(
-    (doc: FirestoreDocument) => {
-      rebase(sessionKey, { baseDoc: doc, text: docToText(doc) });
+    (doc: FirestoreDocument, keepText?: string) => {
+      rebase(sessionKey, { baseDoc: doc, text: keepText ?? docToText(doc) });
       queryClient.setQueryData(["fs", api?.projectId, "doc", path], doc);
     },
     [rebase, sessionKey, queryClient, api?.projectId, path],
@@ -67,20 +67,23 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
     async (force = false) => {
       if (!api || !draft.ok) return;
       setState({ phase: "saving" });
+      const sentText = text;
       try {
         const plan = buildSavePlan(base, draft.value, mode, api.projectId ? documentsRootOf(api.projectId) : undefined);
         const res = await api.upsertDoc(path, plan.fields, {
           updateMask: plan.updateMask,
           updateTime: force ? undefined : baseDoc.updateTime,
         });
-        accept(res);
+        // Edits typed while the PATCH was in flight stay in the text; they become the next save's diff against the new base.
+        const latest = useEditorStore.getState().sessions[sessionKey]?.text;
+        accept(res, latest !== undefined && latest !== sentText ? latest : undefined);
         setForcing(false);
         setState({ phase: "saved", updateTime: res.updateTime ?? "" });
       } catch (e) {
         setState(isConflict(e) && !force ? { phase: "conflict" } : { phase: "error", message: messageOf(e) });
       }
     },
-    [api, draft, base, mode, path, baseDoc.updateTime, accept],
+    [api, draft, base, mode, path, baseDoc.updateTime, accept, text, sessionKey],
   );
 
   const reload = useCallback(async () => {
