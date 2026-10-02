@@ -1,5 +1,5 @@
 import { isLosslessNumber } from "lossless-json";
-import { decodeDoc, encodeFields, parseEditorJson, stringifyEditorJson } from "./FirestoreCodec";
+import { decodeDoc, documentsRootOf, encodeFields, parseEditorJson, stringifyEditorJson } from "./FirestoreCodec";
 import type { RestFields } from "./FirestoreCodec";
 import type { FirestoreApi, FirestoreDocument } from "./FirestoreApi";
 
@@ -32,7 +32,6 @@ type Obj = Record<string, unknown>;
 const isPlainObject = (v: unknown): v is Obj =>
   typeof v === "object" && v !== null && !Array.isArray(v) && !isLosslessNumber(v);
 
-const documentsRoot = (projectId: string) => `projects/${projectId}/databases/(default)/documents`;
 const segments = (p: string) => p.split("/").filter(Boolean);
 
 function checkId(id: string, at: string): void {
@@ -41,26 +40,10 @@ function checkId(id: string, at: string): void {
   }
 }
 
-/** Firestore REST only accepts full resource names in referenceValue; tags may carry relative paths. */
-function qualifyReferences(value: unknown, root: string): unknown {
-  if (Array.isArray(value)) return value.map((v) => qualifyReferences(v, root));
-  if (typeof value !== "object" || value === null) return value;
-  const o = value as Obj;
-  const out: Obj = {};
-  for (const k of Object.keys(o)) {
-    const v = o[k];
-    out[k] =
-      k === "referenceValue" && typeof v === "string" && !v.startsWith("projects/")
-        ? `${root}/${v.replace(/^\/+/, "")}`
-        : qualifyReferences(v, root);
-  }
-  return out;
-}
-
 function collect(docPath: string, doc: unknown, out: ImportEntry[], root: string): void {
   if (!isPlainObject(doc)) throw new ImportError("notObject", { path: docPath });
   const { [COLLECTIONS_KEY]: subs, ...data } = doc;
-  out.push({ path: docPath, fields: qualifyReferences(encodeFields(data, { acceptThirdParty: true }), root) as RestFields });
+  out.push({ path: docPath, fields: encodeFields(data, { acceptThirdParty: true, documentsRoot: root }) });
   if (subs === undefined) return;
   if (!isPlainObject(subs)) throw new ImportError("badCollections", { path: docPath });
   for (const [name, docs] of Object.entries(subs)) {
@@ -84,14 +67,14 @@ function collectCollection(collectionPath: string, docs: unknown, out: ImportEnt
 export function planDocumentImport(text: string, docPath: string, projectId = "-"): ImportEntry[] {
   if (segments(docPath).length === 0 || segments(docPath).length % 2 !== 0) throw new ImportError("badPath", { path: docPath });
   const out: ImportEntry[] = [];
-  collect(segments(docPath).join("/"), parseEditorJson(text), out, documentsRoot(projectId));
+  collect(segments(docPath).join("/"), parseEditorJson(text), out, documentsRootOf(projectId));
   return out;
 }
 
 export function planCollectionImport(text: string, collectionPath: string, projectId = "-"): ImportEntry[] {
   if (segments(collectionPath).length % 2 !== 1) throw new ImportError("badPath", { path: collectionPath });
   const out: ImportEntry[] = [];
-  collectCollection(segments(collectionPath).join("/"), parseEditorJson(text), out, documentsRoot(projectId));
+  collectCollection(segments(collectionPath).join("/"), parseEditorJson(text), out, documentsRootOf(projectId));
   return out;
 }
 

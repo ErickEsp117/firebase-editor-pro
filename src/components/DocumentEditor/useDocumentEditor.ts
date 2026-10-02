@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { decodeDoc, stringifyEditorJson, type FirestoreDocument } from "../../core";
+import { decodeDoc, documentsRootOf, stringifyEditorJson, type FirestoreDocument } from "../../core";
 import { useEditorStore } from "../../store/documentEditor";
 import { useFirestoreApi } from "../Firestore/useFirestore";
 import { buildSavePlan, docToText, hasChanges, isConflict, parseDraft, type Draft } from "./editorModel";
@@ -68,7 +68,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
       if (!api || !draft.ok) return;
       setState({ phase: "saving" });
       try {
-        const plan = buildSavePlan(base, draft.value, mode);
+        const plan = buildSavePlan(base, draft.value, mode, api.projectId ? documentsRootOf(api.projectId) : undefined);
         const res = await api.upsertDoc(path, plan.fields, {
           updateMask: plan.updateMask,
           updateTime: force ? undefined : baseDoc.updateTime,

@@ -97,6 +97,18 @@ describe.skipIf(!existsSync(keyPath))("real Firestore CRUD (project of dev-secre
     await expect(api.createDoc(guarded(coll), "lookalike", fields)).rejects.toMatchObject({ http: 400, status: "INVALID_ARGUMENT" });
   });
 
+  it("relative references qualified via documentsRoot persist on create and PATCH and reopen as references", async () => {
+    const root = `projects/${projectId}/databases/(default)/documents`;
+    const path = guarded(`${coll}/relref`);
+    created.add(path);
+    const tag = (v: string) => ({ __type__: "reference", __value__: v });
+    const doc = await api.createDoc(guarded(coll), "relref", encodeFields({ r: tag(`${coll}/doc1`) }, { documentsRoot: root }));
+    expect(decodeDoc(doc).r).toEqual(tag(`${root}/${coll}/doc1`));
+    const { fields, updateMask } = encodeDoc({ r2: tag(`${coll}/relref`) }, { documentsRoot: root });
+    const after = await api.upsertDoc(path, fields, { updateMask, updateTime: doc.updateTime });
+    expect(decodeDoc(after)).toMatchObject({ r: tag(`${root}/${coll}/doc1`), r2: tag(`${root}/${coll}/relref`) });
+  });
+
   it("create with an existing id surfaces ALREADY_EXISTS", async () => {
     await expect(api.createDoc(coll, "doc1", {})).rejects.toMatchObject({ http: 409, status: "ALREADY_EXISTS" });
   });

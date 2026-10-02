@@ -73,6 +73,15 @@ describe("DocumentEditor", () => {
     expect(screen.getByTestId("update-time").textContent).toContain("2024-02-02T00:00:00Z");
   });
 
+  it("qualifies a relative reference on save and keeps the mask unchanged", async () => {
+    mount();
+    act(() => useEditorStore.getState().setText("p/fbep_test_x/d", '{"a":"one","b":9007199254740993,"c":true,"r":{"__type__":"reference","__value__":"fbep_test_x/other"}}'));
+    fireEvent.click(screen.getByTestId("save-button"));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].url.searchParams.getAll("updateMask.fieldPaths")).toEqual(["r"]);
+    expect(writes[0].body.fields.r).toEqual({ referenceValue: "projects/p/databases/(default)/documents/fbep_test_x/other" });
+  });
+
   it("full mode sends no mask", async () => {
     useEditorStore.setState({ mode: "full" });
     mount();

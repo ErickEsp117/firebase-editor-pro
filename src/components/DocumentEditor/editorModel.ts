@@ -58,10 +58,11 @@ export interface SavePlan {
  * "modified": mask = fields present in the payload (changed ones) plus deleted ones, which are absent from the payload so Firestore removes them.
  * "full": whole editor content, no mask.
  */
-export function buildSavePlan(base: Obj, current: Obj, mode: SaveMode): SavePlan {
-  if (mode === "full") return { fields: encodeFields(current), updateMask: undefined };
+export function buildSavePlan(base: Obj, current: Obj, mode: SaveMode, documentsRoot?: string): SavePlan {
+  const opts = { documentsRoot };
+  if (mode === "full") return { fields: encodeFields(current, opts), updateMask: undefined };
   const { changed, deleted } = diffFields(base, current);
-  return { fields: encodeFields(changed), updateMask: [...Object.keys(changed), ...deleted] };
+  return { fields: encodeFields(changed, opts), updateMask: [...Object.keys(changed), ...deleted] };
 }
 
 export function hasChanges(base: Obj, current: Obj): boolean {

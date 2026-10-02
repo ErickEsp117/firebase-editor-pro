@@ -11,6 +11,7 @@ export {
   CodecError,
   encodeDoc,
   encodeFields,
+  documentsRootOf,
   decodeDoc,
   decodeFields,
   parseEditorJson,

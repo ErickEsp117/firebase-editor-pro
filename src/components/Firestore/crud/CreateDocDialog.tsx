@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiError, encodeFields } from "../../../core";
+import { ApiError, documentsRootOf, encodeFields } from "../../../core";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreNav } from "../../../store/firestoreNav";
@@ -55,7 +55,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await api.createDoc(fullCollection, id, encodeFields(draft.value));
+      await api.createDoc(fullCollection, id, encodeFields(draft.value, { documentsRoot: projectId ? documentsRootOf(projectId) : undefined }));
       await invalidateTree(queryClient, projectId);
       const nav = useFirestoreNav.getState();
       for (const key of [`c:${fullCollection}`, ...(parentDocPath ? [`d:${parentDocPath}`] : [])]) {

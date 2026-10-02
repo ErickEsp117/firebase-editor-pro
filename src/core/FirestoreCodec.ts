@@ -23,6 +23,8 @@ export interface EncodeOptions {
   fullDocument?: boolean;
   /** Also recognise Firefoo / node-firestore-import-export shapes (import only). */
   acceptThirdParty?: boolean;
+  /** `projects/<id>/databases/(default)/documents`: relative reference paths are qualified with it; full ones are untouched. */
+  documentsRoot?: string;
 }
 
 export type CodecErrorCode =
@@ -129,7 +131,7 @@ export function normalizeTimestamp(s: string): string | undefined {
   return `${m[1]}${frac ? `.${frac}` : ""}${m[3]}`;
 }
 
-function encodeTag(type: string, payload: unknown, hasPayload: boolean, path: string): RestValue {
+function encodeTag(type: string, payload: unknown, hasPayload: boolean, path: string, opts: EncodeOptions = {}): RestValue {
   switch (type) {
     case "timestamp": {
       const ts = typeof payload === "string" ? normalizeTimestamp(payload) : undefined;
@@ -149,7 +151,8 @@ function encodeTag(type: string, payload: unknown, hasPayload: boolean, path: st
     }
     case "reference":
       if (typeof payload !== "string" || payload.length === 0) throw invalidPayload(path, type, "a non-empty document path string");
-      return { referenceValue: payload };
+      // REST rejects relative referenceValue; only paths already starting with "projects/" are considered full.
+      return { referenceValue: opts.documentsRoot && !payload.startsWith("projects/") ? `${opts.documentsRoot}/${payload.replace(/^\/+/, "")}` : payload };
     case "bytes":
       if (typeof payload !== "string" || !BASE64.test(payload)) throw invalidPayload(path, type, "a standard base64 string");
       return { bytesValue: payload };
@@ -258,16 +261,18 @@ function encodeValue(v: unknown, path: string, opts: EncodeOptions): RestValue {
       if (typeof type !== "string" || !KNOWN_TYPES.has(type)) {
         throw new CodecError("unknownType", path, `unknown __type__ ${stringify(type) ?? "undefined"}`, { type: String(stringify(type)) });
       }
-      return encodeTag(type, o.__value__, hasOwn(o, "__value__"), path);
+      return encodeTag(type, o.__value__, hasOwn(o, "__value__"), path, opts);
     }
   } else if (opts.acceptThirdParty) {
     const t = thirdPartyTag(o, path);
-    if (t) return encodeTag(t.type, t.value, t.value !== undefined, path);
+    if (t) return encodeTag(t.type, t.value, t.value !== undefined, path, opts);
   }
   const fields: RestFields = {};
   for (const k of keys) setKey(fields, k, encodeValue(o[k], join(path, k), opts));
   return { mapValue: { fields } };
 }
+
+export const documentsRootOf = (projectId: string) => `projects/${projectId}/databases/(default)/documents`;
 
 export function encodeFields(editorJson: unknown, opts: EncodeOptions = {}): RestFields {
   if (!isObj(editorJson)) throw new CodecError("invalidValue", "", "a document must be a JSON object");

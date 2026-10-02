@@ -298,3 +298,22 @@ describe("editor text helpers", () => {
     expect(repairEditorJson("{a: 9007199254740993,}")).toContain("9007199254740993");
   });
 });
+
+describe("documentsRoot option", () => {
+  const ROOT = "projects/p/databases/(default)/documents";
+  const ref = (v: string) => `{"r": {"__type__": "reference", "__value__": "${v}"}}`;
+
+  it("qualifies relative references (nested too) and leaves full ones intact", () => {
+    const f = encodeFields(parseEditorJson(`{"a": {"__type__":"reference","__value__":"x/y"}, "l": [{"__type__":"reference","__value__":"/c/d"}], "m": {"k": {"__type__":"reference","__value__":"${ROOT}/z/w"}}}`), { documentsRoot: ROOT });
+    expect(f.a).toEqual({ referenceValue: `${ROOT}/x/y` });
+    expect(JSON.stringify(f.l)).toContain(`${ROOT}/c/d`);
+    expect(JSON.stringify(f.m)).toContain(`"${ROOT}/z/w"`);
+    expect(JSON.stringify(f.m)).not.toContain(`${ROOT}/${ROOT}`);
+  });
+
+  it("keeps the previous behaviour without documentsRoot and does not touch the mask", () => {
+    expect(encodeFields(parseEditorJson(ref("x/y")))).toEqual({ r: { referenceValue: "x/y" } });
+    expect(encodeDoc(parseEditorJson(ref("x/y")), { documentsRoot: ROOT, updateMask: ["r", "gone"] }).updateMask).toEqual(["r", "gone"]);
+    expect(encodeDoc(parseEditorJson(ref("x/y")), { documentsRoot: ROOT, fullDocument: true }).updateMask).toBeUndefined();
+  });
+});
