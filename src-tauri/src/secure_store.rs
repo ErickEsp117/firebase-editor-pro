@@ -100,8 +100,13 @@ fn remove_chunks(b: &dyn Backend, key: &str, m: Marker) -> Result<(), String> {
 }
 
 fn delete_with(b: &dyn Backend, key: &str) -> Result<(), String> {
-    if let Ok(Some(m)) = read_marker(b, key) {
-        remove_chunks(b, key, m)?;
+    // Only an absent marker means "nothing known to delete"; a read failure must
+    // abort before removing anything, or the chunks would be orphaned. An
+    // unparsable marker is still removed so a corrupt entry can be cleared.
+    if let Some(raw) = b.read(key)? {
+        if let Some(m) = Marker::parse(&raw) {
+            remove_chunks(b, key, m)?;
+        }
     }
     b.remove(key)
 }
@@ -264,6 +269,30 @@ mod tests {
         assert_eq!(*b.map.borrow(), before, "previous entries untouched");
         b.fail_reads.set(false);
         assert_eq!(get_with(&b, "k").unwrap().as_deref(), Some("previous"));
+    }
+
+    #[test]
+    fn read_error_on_marker_aborts_delete_without_removing() {
+        let b = Mem::default();
+        set_with(&b, "k", &"x".repeat(CHUNK_BYTES * 3)).unwrap();
+        let before = b.map.borrow().clone();
+        b.fail_reads.set(true);
+        let err = delete_with(&b, "k").unwrap_err();
+        assert!(err.contains("injected read failure"));
+        assert_eq!(*b.map.borrow(), before, "marker and chunks untouched");
+        b.fail_reads.set(false);
+        assert_eq!(get_with(&b, "k").unwrap().as_deref(), Some("x".repeat(CHUNK_BYTES * 3).as_str()));
+        delete_with(&b, "k").unwrap();
+        assert!(b.map.borrow().is_empty());
+    }
+
+    #[test]
+    fn delete_of_missing_or_corrupt_marker_succeeds() {
+        let b = Mem::default();
+        delete_with(&b, "k").unwrap();
+        b.write("k", "garbage").unwrap();
+        delete_with(&b, "k").unwrap();
+        assert!(b.map.borrow().is_empty());
     }
 
     #[test]
