@@ -122,6 +122,18 @@ describe("Firestore create/delete", () => {
     expect((post.body as { fields: unknown }).fields).toEqual({ r: { referenceValue: `${ROOT}/fbep_a/one` } });
   });
 
+  it("qualifies a relative 'projects/team' reference when creating a document", async () => {
+    mount();
+    await screen.findByTestId("collection:fbep_a");
+    fireEvent.click(screen.getByTestId("collection-add:fbep_a"));
+    fireEvent.change(screen.getByTestId("create-doc-id"), { target: { value: "withproj" } });
+    fireEvent.change(screen.getByTestId("create-doc-json"), { target: { value: '{"r": {"__type__": "reference", "__value__": "projects/team"}}' } });
+    fireEvent.click(screen.getByTestId("create-doc-submit"));
+    await waitFor(() => expect(reqs.some((r) => r.method === "POST" && !r.path.endsWith(":listCollectionIds"))).toBe(true));
+    const post = reqs.find((r) => r.method === "POST" && !r.path.endsWith(":listCollectionIds"))!;
+    expect((post.body as { fields: unknown }).fields).toEqual({ r: { referenceValue: `${ROOT}/projects/team` } });
+  });
+
   it("deletes a document only after confirming with its path", async () => {
     mount();
     fireEvent.click(await screen.findByTestId("collection:fbep_a"));

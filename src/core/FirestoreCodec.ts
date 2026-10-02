@@ -152,7 +152,7 @@ function encodeTag(type: string, payload: unknown, hasPayload: boolean, path: st
     case "reference":
       if (typeof payload !== "string" || payload.length === 0) throw invalidPayload(path, type, "a non-empty document path string");
       // REST rejects relative referenceValue; only paths already starting with "projects/" are considered full.
-      return { referenceValue: opts.documentsRoot && !payload.startsWith("projects/") ? `${opts.documentsRoot}/${payload.replace(/^\/+/, "")}` : payload };
+      return { referenceValue: opts.documentsRoot && !FULL_REFERENCE.test(payload) ? `${opts.documentsRoot}/${payload.replace(/^\/+/, "")}` : payload };
     case "bytes":
       if (typeof payload !== "string" || !BASE64.test(payload)) throw invalidPayload(path, type, "a standard base64 string");
       return { bytesValue: payload };
@@ -271,6 +271,9 @@ function encodeValue(v: unknown, path: string, opts: EncodeOptions): RestValue {
   for (const k of keys) setKey(fields, k, encodeValue(o[k], join(path, k), opts));
   return { mapValue: { fields } };
 }
+
+/** A complete Firestore resource name; lookalikes such as `projects/team` are relative paths. */
+const FULL_REFERENCE = /^projects\/[^/]+\/databases\/[^/]+\/documents\/[^/]/;
 
 export const documentsRootOf = (projectId: string) => `projects/${projectId}/databases/(default)/documents`;
 

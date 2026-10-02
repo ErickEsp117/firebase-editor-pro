@@ -311,6 +311,15 @@ describe("documentsRoot option", () => {
     expect(JSON.stringify(f.m)).not.toContain(`${ROOT}/${ROOT}`);
   });
 
+  it("qualifies relative paths starting with 'projects' and incomplete lookalikes", () => {
+    for (const v of ["projects/team", "projects/p/databases", "projects/p/databases/(default)/documents"]) {
+      const f = encodeFields(parseEditorJson(ref(v)), { documentsRoot: ROOT });
+      expect(f.r).toEqual({ referenceValue: `${ROOT}/${v}` });
+    }
+    const full = `projects/other/databases/db2/documents/a/b`;
+    expect(encodeFields(parseEditorJson(ref(full)), { documentsRoot: ROOT }).r).toEqual({ referenceValue: full });
+  });
+
   it("keeps the previous behaviour without documentsRoot and does not touch the mask", () => {
     expect(encodeFields(parseEditorJson(ref("x/y")))).toEqual({ r: { referenceValue: "x/y" } });
     expect(encodeDoc(parseEditorJson(ref("x/y")), { documentsRoot: ROOT, updateMask: ["r", "gone"] }).updateMask).toEqual(["r", "gone"]);

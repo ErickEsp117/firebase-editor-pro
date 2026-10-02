@@ -47,6 +47,7 @@ async function main() {
   const [docPath, field = "fbep_touch"] = process.argv.slice(2);
   if (!docPath) throw new Error("usage: node scripts/fs-touch.mjs <collection/doc> [fieldName]");
   const segments = docPath.split("/").filter(Boolean);
+  if (segments.some((s) => s === "." || s === "..")) throw new Error('path segments "." and ".." are not allowed');
   if (segments.length < 2 || segments.length % 2 !== 0) throw new Error("path must point at a document (even number of segments)");
   if (!segments[0].startsWith(SAFE_PREFIX)) throw new Error(`refusing to write outside ${SAFE_PREFIX}* collections`);
   if (!/^[A-Za-z_][A-Za-z_0-9]*$/.test(field)) throw new Error("fieldName must be a simple identifier");

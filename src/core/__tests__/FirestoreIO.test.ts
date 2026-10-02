@@ -52,6 +52,11 @@ describe("document import/export", () => {
     expect(JSON.stringify(e.fields.l)).toContain("projects/q/databases/(default)/documents/z/y");
   });
 
+  it("qualifies a relative path whose first segment is 'projects'", () => {
+    const [e] = planDocumentImport('{"r":{"__type__":"reference","__value__":"projects/team"}}', "x/y", "proj");
+    expect(e.fields.r).toEqual({ referenceValue: "projects/proj/databases/(default)/documents/projects/team" });
+  });
+
   it("expands __collections__ into nested entries", () => {
     const entries = planDocumentImport('{"a":1,"__collections__":{"sub":{"d1":{"b":2}}}}', "x/y");
     expect(entries.map((e) => e.path)).toEqual(["x/y", "x/y/sub/d1"]);
