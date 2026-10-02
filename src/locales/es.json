@@ -1,5 +1,7 @@
 {
-  "app": { "title": "Firebase Editor Pro" },
+  "app": {
+    "title": "Firebase Editor Pro"
+  },
   "settings": {
     "language": "Idioma",
     "theme": "Tema",
@@ -39,6 +41,14 @@
     "offline": "Sin conexión: no se pudo contactar con Google ({{cause}}).",
     "forbidden": "La cuenta de servicio no tiene permisos o la API de Firestore no está habilitada ({{cause}}).",
     "unknown": "Error inesperado: {{cause}}",
-    "fileRead": "No se pudo leer el archivo seleccionado."
+    "fileRead": "No se pudo leer el archivo seleccionado.",
+    "technicalDetails": "Detalles técnicos",
+    "keyReason": {
+      "notJson": "no es un JSON válido",
+      "notObject": "debe contener un objeto JSON",
+      "badType": "el campo «type» debe ser «service_account»",
+      "badField": "falta el campo «{{field}}» o no es válido",
+      "badPem": "el campo «{{field}}» no es una clave PEM PKCS#8"
+    }
   }
 }

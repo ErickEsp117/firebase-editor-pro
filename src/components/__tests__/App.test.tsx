@@ -47,6 +47,12 @@ describe("App", () => {
     fireEvent.click(await screen.findByTestId("import-key"));
     const alert = await screen.findByTestId("connection-error");
     expect(alert.textContent).toContain("no es válido");
+    const main = alert.querySelector("span")!.textContent!;
+    expect(main).toContain("no es un JSON válido");
+    expect(main).not.toMatch(/\b(key file|not valid|JSON object|missing|invalid field)\b/i);
+    const tech = screen.getByTestId("connection-error-technical");
+    expect(tech.textContent).toContain("Detalles técnicos");
+    expect(tech.textContent).toContain("key file is not valid JSON");
     expect(store.size).toBe(0);
     expect((screen.getByTestId("import-key") as HTMLButtonElement).disabled).toBe(false);
   });

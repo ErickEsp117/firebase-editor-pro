@@ -1,3 +1,4 @@
+mod files;
 mod jwt;
 mod secure_store;
 
@@ -23,6 +24,11 @@ fn secure_store_delete(key: String) -> Result<(), String> {
     secure_store::delete(&key)
 }
 
+#[tauri::command]
+fn read_text_file(path: String) -> Result<files::TextFile, String> {
+    files::read_text_file(&path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -38,7 +44,8 @@ pub fn run() {
             sign_jwt,
             secure_store_get,
             secure_store_set,
-            secure_store_delete
+            secure_store_delete,
+            read_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -31,10 +31,13 @@ describe.skipIf(!existsSync(keyPath))("real auth + transport (project of dev-sec
     expect(res.data.collectionIds).toEqual(expect.arrayContaining(["users"]));
   });
 
-  it("re-mints transparently after simulated token expiry", async () => {
+  it("re-mints through the real expiry check when the cached token is expired", async () => {
     const { auth, client, listUrl } = setup();
     const first = await auth.getAccessToken();
-    auth.invalidate();
+    // A real JWT can't be dated into the future (Google rejects it), so expire the cached token instead.
+    const cache = (auth as unknown as { cached: { expiresAtMs: number } | null }).cached;
+    expect(cache).not.toBeNull();
+    cache!.expiresAtMs = Date.now() - 1000;
     const res = await client.request(listUrl, { method: "POST", body: {} });
     expect(res.status).toBe(200);
     expect(await auth.getAccessToken()).not.toBe(first);

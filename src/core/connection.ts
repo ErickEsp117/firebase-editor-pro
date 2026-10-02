@@ -2,7 +2,7 @@ import { getPlatform } from "../platform";
 import type { Platform } from "../platform/types";
 import { ApiClient } from "./ApiClient";
 import { ApiError } from "./ApiError";
-import { KeyFileError, ServiceAccountAuth } from "./ServiceAccountAuth";
+import { KeyFileError, ServiceAccountAuth, type KeyFileReason } from "./ServiceAccountAuth";
 
 export const CREDENTIAL_KEY = "service-account";
 
@@ -19,6 +19,7 @@ export class ConnectionError extends Error {
   constructor(
     readonly kind: ConnectionErrorKind,
     readonly detail: string,
+    readonly reason?: { code: KeyFileReason; field?: string },
   ) {
     super(detail);
     this.name = "ConnectionError";
@@ -45,7 +46,7 @@ export async function listRootCollections(conn: Pick<Connection, "client" | "pro
 
 export function classifyError(e: unknown): ConnectionError {
   if (e instanceof ConnectionError) return e;
-  if (e instanceof KeyFileError) return new ConnectionError("keyInvalid", e.message);
+  if (e instanceof KeyFileError) return new ConnectionError("keyInvalid", e.message, { code: e.reason, field: e.field });
   if (e instanceof ApiError) {
     if (e.http === 0) return new ConnectionError("offline", e.message);
     if (e.http === 403 || e.status === "PERMISSION_DENIED") return new ConnectionError("forbidden", e.message);

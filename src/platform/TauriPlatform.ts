@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { pickJsonFileViaInput } from "./pickFile";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { PickedFile, Platform } from "./types";
 
 export class TauriPlatform implements Platform {
@@ -24,7 +24,13 @@ export class TauriPlatform implements Platform {
     delete: (key: string) => invoke<void>("secure_store_delete", { key }),
   };
 
-  pickJsonFile(): Promise<PickedFile | null> {
-    return pickJsonFileViaInput();
+  async pickJsonFile(): Promise<PickedFile | null> {
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (typeof path !== "string") return null;
+    return invoke<PickedFile>("read_text_file", { path });
   }
 }

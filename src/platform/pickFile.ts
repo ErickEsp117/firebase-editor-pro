@@ -1,9 +1,6 @@
 import type { PickedFile } from "./types";
 
-/**
- * Opens a native file chooser through a transient `<input type="file">`.
- * Reading through the DOM avoids needing a filesystem plugin scope in Tauri.
- */
+/** Browser-mode picker: a transient `<input type="file">` read through the DOM. */
 export function pickJsonFileViaInput(): Promise<PickedFile | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement("input");

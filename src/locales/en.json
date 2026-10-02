@@ -1,5 +1,7 @@
 {
-  "app": { "title": "Firebase Editor Pro" },
+  "app": {
+    "title": "Firebase Editor Pro"
+  },
   "settings": {
     "language": "Language",
     "theme": "Theme",
@@ -39,6 +41,14 @@
     "offline": "Offline: could not reach Google ({{cause}}).",
     "forbidden": "The service account lacks permissions or the Firestore API is not enabled ({{cause}}).",
     "unknown": "Unexpected error: {{cause}}",
-    "fileRead": "The selected file could not be read."
+    "fileRead": "The selected file could not be read.",
+    "technicalDetails": "Technical details",
+    "keyReason": {
+      "notJson": "it is not valid JSON",
+      "notObject": "it must contain a JSON object",
+      "badType": "field \"type\" must be \"service_account\"",
+      "badField": "field \"{{field}}\" is missing or invalid",
+      "badPem": "field \"{{field}}\" is not a PEM PKCS#8 key"
+    }
   }
 }

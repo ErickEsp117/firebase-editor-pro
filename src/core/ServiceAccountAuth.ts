@@ -18,8 +18,14 @@ export interface ServiceAccountKey {
   token_uri: string;
 }
 
+export type KeyFileReason = "notJson" | "notObject" | "badType" | "badField" | "badPem";
+
 export class KeyFileError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: KeyFileReason,
+    readonly field?: string,
+  ) {
     super(message);
     this.name = "KeyFileError";
   }
@@ -31,16 +37,16 @@ export function parseKeyJson(text: string): ServiceAccountKey {
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new KeyFileError("key file is not valid JSON");
+    throw new KeyFileError("key file is not valid JSON", "notJson");
   }
-  if (typeof raw !== "object" || raw === null) throw new KeyFileError("key file must be a JSON object");
+  if (typeof raw !== "object" || raw === null) throw new KeyFileError("key file must be a JSON object", "notObject");
   const o = raw as Record<string, unknown>;
-  if (o.type !== "service_account") throw new KeyFileError('field "type" must be "service_account"');
+  if (o.type !== "service_account") throw new KeyFileError('field "type" must be "service_account"', "badType", "type");
   for (const f of ["project_id", "private_key", "client_email", "token_uri"] as const) {
-    if (typeof o[f] !== "string" || o[f] === "") throw new KeyFileError(`missing or invalid field "${f}"`);
+    if (typeof o[f] !== "string" || o[f] === "") throw new KeyFileError(`missing or invalid field "${f}"`, "badField", f);
   }
   if (!(o.private_key as string).includes("BEGIN PRIVATE KEY")) {
-    throw new KeyFileError('field "private_key" is not a PEM PKCS#8 key');
+    throw new KeyFileError('field "private_key" is not a PEM PKCS#8 key', "badPem", "private_key");
   }
   return o as unknown as ServiceAccountKey;
 }
