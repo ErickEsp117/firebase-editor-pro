@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 export function TechnicalDetails({ text, testId }: { text: string; testId: string }) {
   const { t } = useTranslation();
   return (
-    <details className="opacity-80" data-testid={testId}>
+    <details data-testid={testId}>
       <summary>{t("errors.technicalDetails")}</summary>
       <code className="whitespace-pre-wrap break-words">{text}</code>
     </details>

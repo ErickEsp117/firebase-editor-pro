@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { exportCollection, exportDocument } from "../../../core";
 import { getPlatform } from "../../../platform";
@@ -19,11 +19,12 @@ export function ExportDialog({ scope, path }: Props) {
   const api = useFirestoreApi();
   const close = useCrudDialog((s) => s.close);
   const [status, setStatus] = useState<Status>({ phase: "running", count: 0 });
-  const started = useRef(false);
-
+  // Each mount runs its own export; closing the dialog aborts it, so no further reads happen and no save
+  // dialog appears later. (StrictMode's extra mount aborts the first run before it saves anything.)
   useEffect(() => {
-    if (!api || started.current) return;
-    started.current = true;
+    if (!api) return;
+    const ctrl = new AbortController();
+    const live = () => !ctrl.signal.aborted;
     const leaf = path.slice(path.lastIndexOf("/") + 1);
     const name = `${leaf}.json`;
     void (async () => {
@@ -33,28 +34,32 @@ export function ExportDialog({ scope, path }: Props) {
         if (scope === "doc") {
           text = await exportDocument(api, path);
         } else {
-          const res = await exportCollection(api, path, (n) => setStatus({ phase: "running", count: n }));
+          const res = await exportCollection(api, path, (n) => {
+            if (live()) setStatus({ phase: "running", count: n });
+          }, ctrl.signal);
           text = res.text;
           count = res.docs;
         }
+        if (!live()) return;
         const saved = await getPlatform().saveTextFile(name, text);
-        setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
+        if (live()) setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
       } catch (e) {
-        setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
+        if (live()) setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
       }
     })();
+    return () => ctrl.abort();
   }, [api, path, scope]);
 
   return (
-    <Modal titleId="export-title" testId="export-dialog" title={scope === "doc" ? t("io.exportTitleDoc") : t("io.exportTitleColl")}>
-      <p className="break-all font-mono text-xs text-slate-500">{path}</p>
+    <Modal onClose={close} titleId="export-title" testId="export-dialog" title={scope === "doc" ? t("io.exportTitleDoc") : t("io.exportTitleColl")}>
+      <p className="break-all font-mono text-xs text-fg-muted">{path}</p>
       {status.phase === "running" && (
         <p role="status" data-testid="export-progress" className="text-sm">
           {t("io.exporting", { path, count: status.count })}
         </p>
       )}
       {status.phase === "done" && (
-        <p role="status" data-testid="export-done" className="text-sm text-green-800 dark:text-green-300">
+        <p role="status" data-testid="export-done" className="text-sm text-success">
           {t("io.exportDone", { count: status.count, name: status.name })}
         </p>
       )}

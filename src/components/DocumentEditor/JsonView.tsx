@@ -2,20 +2,22 @@ import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { linter, lintGutter } from "@codemirror/lint";
 import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { formatEditorJson, repairEditorJson } from "../../core";
+import { useResolvedTheme } from "../../store/useResolvedTheme";
 import { useSettings } from "../../store/settings";
+import { editorPhrases, editorScheme, editorTheme } from "../editorTheme";
 
 interface Props {
   text: string;
   onChange(text: string): void;
+  /** Repair runs in the editor so its failure shows next to Format's (toolbar and shortcut). */
+  onRepair(): void;
 }
 
-export function JsonView({ text, onChange }: Props) {
+export function JsonView({ text, onChange, onRepair }: Props) {
   const { t } = useTranslation();
-  const theme = useSettings((s) => s.theme);
-  const [actionFailed, setActionFailed] = useState(false);
+  const theme = useResolvedTheme();
 
   const viewRef = useRef<EditorView | null>(null);
 
@@ -34,34 +36,21 @@ export function JsonView({ text, onChange }: Props) {
     }
   }, [text]);
 
-  const extensions = useMemo(() => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping], []);
-  const dark = theme === "dark" || (theme === "system" && typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
-
-  const run = (fn: (s: string) => string) => {
-    try {
-      onChange(fn(text));
-      setActionFailed(false);
-    } catch {
-      setActionFailed(true);
-    }
-  };
+  const dark = theme === "dark";
+  const language = useSettings((s) => s.language);
+  const extensions = useMemo(
+    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark), editorPhrases(language)],
+    [dark, language],
+  );
 
   return (
     <div data-testid="json-view" className="space-y-2">
       <div className="flex gap-2">
-        <button type="button" data-testid="json-format" onClick={() => run(formatEditorJson)} className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600">
-          {t("editor.format")}
-        </button>
-        <button type="button" data-testid="json-repair" onClick={() => run(repairEditorJson)} className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600">
+        <button type="button" data-testid="json-repair" onClick={onRepair} className="btn">
           {t("editor.repair")}
         </button>
-        {actionFailed && (
-          <span role="alert" data-testid="json-action-error" className="self-center text-xs text-red-700 dark:text-red-300">
-            {t("editor.actionFailed")}
-          </span>
-        )}
       </div>
-      <div data-testid="json-editor" className="overflow-hidden rounded border border-slate-300 text-sm dark:border-slate-600">
+      <div data-testid="json-editor" className="overflow-hidden rounded-md border border-line text-sm">
         <CodeMirror
           value={text}
           onChange={(value) => {
@@ -71,7 +60,7 @@ export function JsonView({ text, onChange }: Props) {
             viewRef.current = view;
           }}
           extensions={extensions}
-          theme={dark ? "dark" : "light"}
+          theme="none"
           minHeight="16rem"
           maxHeight="32rem"
           aria-label={t("editor.jsonEditor")}

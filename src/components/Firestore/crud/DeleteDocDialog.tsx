@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
+import { useEditorStore } from "../../../store/documentEditor";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { useFirestoreApi } from "../useFirestore";
 import { DialogError, type DialogFailure } from "./DialogError";
@@ -26,6 +27,8 @@ export function DeleteDocDialog({ path }: { path: string }) {
       await api.deleteDoc(path);
       if (useFirestoreNav.getState().selectedDoc === path) useFirestoreNav.getState().select(null);
       queryClient.removeQueries({ queryKey: ["fs", projectId, "doc", path] });
+      // A draft of a deleted document can never be saved; keeping it would block account actions as "unsaved".
+      if (projectId) useEditorStore.getState().drop(projectId, path);
       await invalidateTree(queryClient, projectId);
       close();
     } catch (e) {
@@ -35,7 +38,8 @@ export function DeleteDocDialog({ path }: { path: string }) {
   };
 
   return (
-    <Modal titleId="delete-doc-title" testId="delete-doc-dialog" title={t("crud.deleteDocTitle")}>
+    <Modal onClose={close} busy={busy} titleId="delete-doc-title" testId="delete-doc-dialog" title={t("crud.deleteDocTitle")}
+      returnFocus={() => document.querySelector<HTMLElement>(`[data-testid="collection:${path.slice(0, path.lastIndexOf("/"))}"]`)}>
       <p className="break-all text-sm" data-testid="delete-doc-body">
         {t("crud.deleteDocBody", { path })}
       </p>

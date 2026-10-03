@@ -4,7 +4,10 @@ import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
+import { useResolvedTheme } from "../../store/useResolvedTheme";
 import { useSettings } from "../../store/settings";
+import { editorPhrases, editorScheme, editorTheme } from "../editorTheme";
 
 interface Props {
   text: string;
@@ -13,8 +16,10 @@ interface Props {
 
 export function TemplateEditor({ text, onChange }: Props) {
   const { t } = useTranslation();
-  const theme = useSettings((s) => s.theme);
-  const [formatError, setFormatError] = useState(false);
+  const theme = useResolvedTheme();
+  // The text Format failed on; the error stays only until that text changes (edit, reload, rollback).
+  const [failedOn, setFailedOn] = useState<string | null>(null);
+  const formatError = failedOn !== null && failedOn === text;
   const viewRef = useRef<EditorView | null>(null);
 
   useEffect(
@@ -32,32 +37,37 @@ export function TemplateEditor({ text, onChange }: Props) {
     }
   }, [text]);
 
-  const extensions = useMemo(() => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping], []);
-  const dark =
-    theme === "dark" || (theme === "system" && typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+  const dark = theme === "dark";
+  const language = useSettings((s) => s.language);
+  const extensions = useMemo(
+    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark), editorPhrases(language)],
+    [dark, language],
+  );
 
   const format = () => {
     try {
       onChange(JSON.stringify(JSON.parse(text), null, 2));
-      setFormatError(false);
+      setFailedOn(null);
     } catch {
-      setFormatError(true);
+      setFailedOn(text);
     }
   };
+  // ⌘/Ctrl+Shift+F runs exactly what the Format button runs, including its error.
+  useShortcutActions("remoteConfig", { format });
 
   return (
     <div data-testid="rc-json-view" className="space-y-2">
       <div className="flex items-center gap-2">
-        <button type="button" data-testid="rc-format" onClick={format} className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600">
+        <button type="button" data-testid="rc-format" title={withShortcut(t("rc.format"), "format")} onClick={format} className="btn">
           {t("rc.format")}
         </button>
         {formatError && (
-          <span role="alert" data-testid="rc-format-error" className="text-xs text-red-700 dark:text-red-300">
+          <span role="alert" data-testid="rc-format-error" className="text-xs text-danger ">
             {t("rc.formatFailed")}
           </span>
         )}
       </div>
-      <div data-testid="rc-editor" className="overflow-hidden rounded border border-slate-300 text-sm dark:border-slate-600">
+      <div data-testid="rc-editor" className="overflow-hidden rounded-md border border-line text-sm">
         <CodeMirror
           value={text}
           onChange={(value) => {
@@ -67,7 +77,7 @@ export function TemplateEditor({ text, onChange }: Props) {
             viewRef.current = view;
           }}
           extensions={extensions}
-          theme={dark ? "dark" : "light"}
+          theme="none"
           minHeight="20rem"
           maxHeight="36rem"
           aria-label={t("rc.editorLabel")}

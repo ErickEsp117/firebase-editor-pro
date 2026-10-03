@@ -2,14 +2,16 @@ import { useTranslation } from "react-i18next";
 import { useSettings, type Language, type ThemeMode } from "../store/settings";
 
 const selectCls =
-  "rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800";
+  "rounded-md border border-line bg-surface px-2 py-1 text-sm";
 
-export function SettingsBar() {
+/** Language and theme selectors; `stacked` is the sidebar layout (one labeled row per setting). */
+export function SettingsBar({ stacked = false }: { stacked?: boolean }) {
   const { t } = useTranslation();
   const { language, theme, setLanguage, setTheme } = useSettings();
+  const labelCls = `flex items-center gap-2${stacked ? " justify-between" : ""}`;
   return (
-    <div className="flex items-center gap-4 text-sm">
-      <label className="flex items-center gap-2">
+    <div data-testid="settings-bar" className={stacked ? "flex flex-col gap-2 text-sm" : "flex items-center gap-4 text-sm"}>
+      <label className={labelCls}>
         {t("settings.language")}
         <select
           data-testid="language-select"
@@ -21,7 +23,7 @@ export function SettingsBar() {
           <option value="en">English</option>
         </select>
       </label>
-      <label className="flex items-center gap-2">
+      <label className={labelCls}>
         {t("settings.theme")}
         <select
           data-testid="theme-select"

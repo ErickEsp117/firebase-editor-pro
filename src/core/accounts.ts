@@ -185,6 +185,10 @@ export async function removeAccount(
 ): Promise<{ index: AccountsIndex; orphaned: boolean }> {
   const index = (await readIndex(platform)) ?? emptyIndex();
   if (!index.accounts.some((a) => a.id === id)) return { index, orphaned: false };
+  const removed = index.accounts.find((a) => a.id === id)!;
+  // First, so a failure leaves the account listed (the user can retry) instead of letting the next load
+  // migrate the legacy copy back. The index still references sa:<id>, so a crash here loses nothing.
+  await dropLegacyCopy(platform, removed);
   const accounts = index.accounts.filter((a) => a.id !== id);
   const activeId = index.activeId === id ? (accounts[0]?.id ?? null) : index.activeId;
   const next: AccountsIndex = { version: 1, activeId, accounts };
@@ -195,6 +199,23 @@ export async function removeAccount(
   } catch {
     return { index: next, orphaned: true };
   }
+}
+
+/**
+ * A legacy `service-account` entry whose delete failed during migration would migrate the same key again
+ * on the next load, bringing a removed account back. An unreadable legacy entry is left alone; a failed
+ * delete of a matching one propagates so the removal does not happen half-way.
+ */
+async function dropLegacyCopy(platform: Platform, removed: AccountMeta): Promise<void> {
+  let key: ServiceAccountKey;
+  try {
+    const legacy = await platform.secureStore.get(LEGACY_CREDENTIAL_KEY);
+    if (!legacy) return;
+    key = parseKeyJson(legacy);
+  } catch {
+    return;
+  }
+  if (sameIdentity(removed, key)) await platform.secureStore.delete(LEGACY_CREDENTIAL_KEY);
 }
 
 /** Offline: builds the connection from the stored credential of an account. */
@@ -227,7 +248,15 @@ export async function importAccount(
     const index = await readIndexOrEmpty(platform);
     const existing = index.accounts.find((a) => sameIdentity(a, parsed));
     if (existing) {
-      const connection = await connectAccount(platform, existing.id);
+      let connection: Connection;
+      try {
+        connection = await connectAccount(platform, existing.id);
+      } catch {
+        // The stored credential is missing or unreadable: verify the key the user just picked and store
+        // it again, so re-importing repairs the account instead of failing forever.
+        connection = await verifyKey(keyText, platform, fileName);
+        await platform.secureStore.set(accountSecretKey(existing.id), keyText);
+      }
       const res = await addAccount(keyText, platform);
       return { ...res, connection };
     }

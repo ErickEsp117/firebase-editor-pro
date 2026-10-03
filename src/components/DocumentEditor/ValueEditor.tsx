@@ -40,7 +40,7 @@ export function ValueEditor({ value, label, onChange }: Props) {
         />
       );
     case "null":
-      return <span className="font-mono text-xs text-slate-500">null</span>;
+      return <span className="font-mono text-xs text-fg-muted">null</span>;
     case "integer":
     case "double": {
       if (tag && (tag.type === "nan" || tag.type === "infinity" || tag.type === "-infinity")) {

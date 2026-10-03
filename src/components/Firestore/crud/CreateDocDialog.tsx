@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, documentsRootOf, encodeFields } from "../../../core";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
+import { useArea } from "../../../store/rcEditor";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { parseDraft } from "../../DocumentEditor/editorModel";
 import { useFirestoreApi } from "../useFirestore";
@@ -16,7 +17,7 @@ interface Props {
   collectionPath: string | null;
 }
 
-const FIELD = "w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono text-sm dark:border-slate-600 dark:bg-slate-900";
+const FIELD = "w-full rounded border border-line bg-surface px-2 py-1 font-mono text-sm ";
 
 export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
   const { t } = useTranslation();
@@ -62,6 +63,8 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
         if (!nav.expanded[key]) nav.toggle(key);
       }
       select(path);
+      // The tree is also reachable from Remote Config; show the new document where it opens.
+      useArea.getState().setArea("firestore");
       close();
     } catch (e) {
       setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? { key: "crud.alreadyExists", params: { path }, cause: e } : { key: "crud.createError", cause: e });
@@ -70,25 +73,25 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
   };
 
   return (
-    <Modal titleId="create-doc-title" testId="create-doc-dialog" title={title}>
-      {needsCollection && <p className="text-xs text-slate-500">{t("crud.createCollectionHint")}</p>}
+    <Modal onClose={close} busy={busy} titleId="create-doc-title" testId="create-doc-dialog" title={title}>
+      {needsCollection && <p className="text-xs text-fg-muted">{t("crud.createCollectionHint")}</p>}
       {needsCollection && (
         <label className="block text-sm">
           {t("crud.collectionId")}
           <input data-testid="create-collection-id" className={FIELD} value={collId} onChange={(e) => setCollId(e.target.value)} autoFocus />
-          {collId !== "" && collError && <span className="text-xs text-red-700 dark:text-red-300">{collError}</span>}
+          {collId !== "" && collError && <span className="text-xs text-danger ">{collError}</span>}
         </label>
       )}
       <label className="block text-sm">
         {t("crud.documentId")}
         <input data-testid="create-doc-id" className={FIELD} value={docId} onChange={(e) => setDocId(e.target.value)} autoFocus={!needsCollection} />
-        <span className="text-xs text-slate-500">{idError ?? t("crud.documentIdHint")}</span>
+        <span className="text-xs text-fg-muted">{idError ?? t("crud.documentIdHint")}</span>
       </label>
       <label className="block text-sm">
         {t("crud.initialContent")}
         <textarea data-testid="create-doc-json" className={`${FIELD} h-40`} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />
         {draftError && (
-          <span data-testid="create-doc-json-error" className="text-xs text-red-700 dark:text-red-300">
+          <span data-testid="create-doc-json-error" className="text-xs text-danger ">
             {draftError}
           </span>
         )}
@@ -98,7 +101,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
         <button type="button" data-testid="create-doc-cancel" className={BTN} disabled={busy} onClick={close}>
           {t("connection.cancel")}
         </button>
-        <button type="button" data-testid="create-doc-submit" className="rounded bg-blue-700 px-3 py-1 text-sm text-white disabled:opacity-50" disabled={busy || invalid} onClick={() => void submit()}>
+        <button type="button" data-testid="create-doc-submit" className="btn-primary" disabled={busy || invalid} onClick={() => void submit()}>
           {busy ? t("crud.creating") : t("crud.create")}
         </button>
       </div>

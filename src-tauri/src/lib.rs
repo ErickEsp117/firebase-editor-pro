@@ -1,3 +1,4 @@
+mod appearance;
 mod files;
 mod jwt;
 mod secure_store;
@@ -8,7 +9,16 @@ mod native_http_tests;
 use serde_json::Value;
 
 #[tauri::command]
-fn sign_jwt(private_key_pem: String, header_json: Value, claims_json: Value) -> Result<String, String> {
+fn native_appearance() -> appearance::NativeAppearance {
+    appearance::current()
+}
+
+#[tauri::command]
+fn sign_jwt(
+    private_key_pem: String,
+    header_json: Value,
+    claims_json: Value,
+) -> Result<String, String> {
     jwt::sign(&private_key_pem, header_json, claims_json)
 }
 
@@ -54,6 +64,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
+            native_appearance,
             sign_jwt,
             secure_store_get,
             secure_store_set,

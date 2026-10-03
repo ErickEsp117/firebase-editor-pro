@@ -10,11 +10,11 @@ interface Props {
 }
 
 const BADGE: Record<ValueType, string> = {
-  string: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  integer: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  string: "bg-success/10 text-success ",
+  integer: "bg-selection text-accent ",
   double: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
-  boolean: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  null: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+  boolean: "bg-warning/10 text-warning ",
+  null: "bg-hover text-fg ",
   timestamp: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   reference: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
   geopoint: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
@@ -42,7 +42,7 @@ export function TableView({ value, onChange }: Props) {
     <div data-testid="table-view" className="space-y-2">
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
-          <tr className="text-left text-xs text-slate-500">
+          <tr className="text-left text-xs text-fg-muted">
             <th className="w-1/4 pb-1">{t("editor.colKey")}</th>
             <th className="w-24 pb-1">{t("editor.colType")}</th>
             <th className="pb-1">{t("editor.colValue")}</th>
@@ -52,7 +52,7 @@ export function TableView({ value, onChange }: Props) {
         <tbody>
           {keys.length === 0 && (
             <tr>
-              <td colSpan={4} className="py-2 text-slate-500" data-testid="table-empty">
+              <td colSpan={4} className="py-2 text-fg-muted" data-testid="table-empty">
                 {t("editor.noFields")}
               </td>
             </tr>
@@ -92,13 +92,14 @@ function Row({ root, path, name, depth, apply }: RowProps) {
 
   return (
     <>
-      <tr data-testid={`row-${testKey}`} className="border-t border-slate-200 align-top dark:border-slate-700">
+      <tr data-testid={`row-${testKey}`} className="border-t border-line align-top ">
         <td className="py-1 pr-2 font-mono text-xs" style={{ paddingLeft: depth * 16 }}>
           {container ? (
             <button
               type="button"
               aria-expanded={open}
               aria-label={t("editor.toggleNode", { name })}
+              title={t("editor.toggleNode", { name })}
               data-testid={`toggle-${testKey}`}
               onClick={() => setOpen(!open)}
               className="mr-1 inline-block w-4 text-center"
@@ -115,7 +116,7 @@ function Row({ root, path, name, depth, apply }: RowProps) {
         </td>
         <td className="py-1 pr-2">
           {container ? (
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-fg-muted">
               {t(type === "array" ? "editor.itemCount" : "editor.fieldCount", { count: entries.length })}
             </span>
           ) : (
@@ -126,9 +127,10 @@ function Row({ root, path, name, depth, apply }: RowProps) {
           <button
             type="button"
             aria-label={t("editor.deleteEntry", { name })}
+            title={t("editor.deleteEntry", { name })}
             data-testid={`delete-${testKey}`}
             onClick={() => apply((r) => deleteAt(r, path))}
-            className="rounded px-1.5 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+            className="rounded px-1.5 text-danger hover:bg-danger/10 "
           >
             ✕
           </button>
@@ -172,7 +174,7 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
           data-testid={`${testId}-name`}
           value={key}
           onChange={(e) => setKey(e.target.value)}
-          className="rounded border border-slate-300 px-1.5 py-0.5 font-mono dark:border-slate-600 dark:bg-slate-900"
+          className="rounded border border-line px-1.5 py-0.5 font-mono "
         />
       )}
       <select
@@ -180,7 +182,7 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
         data-testid={`${testId}-type`}
         value={type}
         onChange={(e) => setType(e.target.value as ValueType)}
-        className="rounded border border-slate-300 px-1 py-0.5 dark:border-slate-600 dark:bg-slate-900"
+        className="rounded border border-line px-1 py-0.5 "
       >
         {VALUE_TYPES.map((ty) => (
           <option key={ty} value={ty}>
@@ -196,11 +198,11 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
           onAdd(isArray ? undefined : key, defaultValue(type));
           setKey("");
         }}
-        className="rounded border border-slate-300 px-2 py-0.5 disabled:opacity-50 dark:border-slate-600"
+        className="rounded border border-line px-2 py-0.5 disabled:opacity-50 "
       >
         {t(isArray ? "editor.addItem" : "editor.addField")}
       </button>
-      {dup && <span role="alert" className="text-red-700 dark:text-red-300">{t("editor.duplicateField")}</span>}
+      {dup && <span role="alert" className="text-danger ">{t("editor.duplicateField")}</span>}
     </div>
   );
 }

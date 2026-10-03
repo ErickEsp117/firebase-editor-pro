@@ -18,7 +18,7 @@ export function ErrorNotice({ error, summary, onRetry, testId = "error-notice", 
   const kind = apiErrorKind(error);
   const technical = technicalText(error);
   return (
-    <div role="alert" data-testid={testId} data-error-kind={kind} className="space-y-1 text-sm text-red-700 dark:text-red-300">
+    <div role="alert" data-testid={testId} data-error-kind={kind} className="space-y-1 text-sm text-danger ">
       {summary && <p className="font-medium">{summary}</p>}
       <p data-testid={`${testId}-message`}>{describeError(t, error)}</p>
       {technical && <TechnicalDetails text={technical} testId={`${testId}-technical`} />}

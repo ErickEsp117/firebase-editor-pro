@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ACCOUNTS_KEY, LEGACY_CREDENTIAL_KEY } from "../../core/accounts";
+import { listRootCollections } from "../../core/connection";
+import { FirestoreApi } from "../../core/FirestoreApi";
+import { RemoteConfigApi } from "../../core/RemoteConfigApi";
 import { setPlatformForTests } from "../../platform";
 import type { Platform } from "../../platform/types";
 import { useConnection } from "../connection";
@@ -270,6 +273,55 @@ describe("switchTo", () => {
     expect(useEditorStore.getState().sessions).toEqual({});
     expect(useRcEditor.getState().session).toBeNull();
   });
+
+  it("sends every later request with the new account's project and token (VAL-ACCT-010)", async () => {
+    const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString("base64url");
+    const calls: { url: string; auth: string | null }[] = [];
+    setPlatformForTests({
+      mode: "browser",
+      // The JWT payload carries the account's client_email, so the token endpoint answer can differ per account.
+      signJwtRsa: async (_pem: string, header: unknown, claims: unknown) => `${b64(header)}.${b64(claims)}.sig`,
+      secureStore: {
+        get: async (k: string) => data.get(k) ?? null,
+        set: async (k: string, v: string) => void data.set(k, v),
+        delete: async (k: string) => void data.delete(k),
+      },
+      pickJsonFile: async () => picked,
+    } as unknown as Platform);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).includes("oauth2")) {
+          const assertion = new URLSearchParams(String(init?.body)).get("assertion") ?? "";
+          const iss = JSON.parse(Buffer.from(assertion.split(".")[1], "base64url").toString()).iss;
+          return new Response(JSON.stringify({ access_token: `tok:${iss}`, expires_in: 3600 }), { status: 200 });
+        }
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        calls.push({ url: String(url), auth: headers.Authorization ?? null });
+        if (String(url).includes("remoteConfig")) {
+          return new Response(JSON.stringify({ parameters: {}, version: { versionNumber: "1" } }), { status: 200, headers: { ETag: "etag-1" } });
+        }
+        return new Response(JSON.stringify({ collectionIds: ["users"] }), { status: 200 });
+      }),
+    );
+    const [a] = await addTwo(); // proj-b stays active after adding the second key
+    const baseline = calls.length;
+    await useConnection.getState().switchTo(a.id);
+    const conn = useConnection.getState().connection!;
+    await listRootCollections(conn);
+    // The same constructions the Firestore and Remote Config views make from the active connection.
+    await new FirestoreApi(conn.client, conn.projectId).listCollectionIds();
+    await new RemoteConfigApi(conn.client, conn.projectId).getTemplate();
+    const afterSwitch = calls.slice(baseline);
+    expect(afterSwitch.some((c) => c.url.includes("firestore.googleapis.com"))).toBe(true);
+    expect(afterSwitch.some((c) => c.url.includes("/projects/proj-a/remoteConfig"))).toBe(true);
+    for (const c of afterSwitch) {
+      expect(c.url).toContain("proj-a");
+      expect(c.url).not.toContain("proj-b");
+      expect(c.auth).toBe("Bearer tok:sa@proj-a.iam.gserviceaccount.com");
+    }
+    expect(afterSwitch.some((c) => c.auth === "Bearer tok:sa@proj-b.iam.gserviceaccount.com")).toBe(false);
+  });
 });
 
 describe("signOut", () => {
@@ -347,6 +399,34 @@ describe("remove", () => {
     expect(s).toMatchObject({ phase: "welcome", connection: null });
     expect(s.error?.kind).toBe("keyUnreadable");
     expect(s.accounts.map((x) => x.id)).toEqual([a.id]);
+  });
+
+  it("flags orphaned when the credential delete fails after the index was updated", async () => {
+    const [a, b] = await addTwo();
+    setPlatformForTests({
+      mode: "browser",
+      signJwtRsa: async () => "a.b.c",
+      secureStore: {
+        get: async (k: string) => data.get(k) ?? null,
+        set: async (k: string, v: string) => void data.set(k, v),
+        delete: async (k: string) => {
+          if (k === `sa:${a.id}`) throw new Error("keychain unavailable");
+          data.delete(k);
+        },
+      },
+      pickJsonFile: async () => picked,
+    } as unknown as Platform);
+    await useConnection.getState().remove(a.id);
+    const s = useConnection.getState();
+    // The account is gone from the list and the index, but the credential survived and is reported.
+    expect(s.orphaned).toBe(a.id);
+    expect(s.accounts.map((x) => x.id)).toEqual([b.id]);
+    expect(storedIndex().accounts.map((x: { id: string }) => x.id)).toEqual([b.id]);
+    expect(data.has(`sa:${a.id}`)).toBe(true);
+    expect(s.activeId).toBe(b.id);
+    expect(s.connection?.projectId).toBe("proj-b");
+    useConnection.getState().clearError();
+    expect(useConnection.getState().orphaned).toBeNull();
   });
 });
 

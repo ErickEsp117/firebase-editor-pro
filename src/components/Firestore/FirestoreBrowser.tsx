@@ -1,62 +1,86 @@
+import { FolderPlus, Upload, RotateCw } from "lucide-react";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useConnection } from "../../store/connection";
 import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
+import { documentUnsaved } from "../../store/unsavedChanges";
 import { CrudDialogs } from "./crud/CrudDialogs";
 import { DocumentView } from "./DocumentView";
 import { CollectionList } from "./TreeNodes";
 
-export function FirestoreBrowser() {
-  const { t } = useTranslation();
-  const projectId = useConnection((s) => s.connection?.projectId);
-  const queryClient = useQueryClient();
-  const fetching = useIsFetching({ queryKey: ["fs", projectId] }) > 0;
+export function FirestoreBrowser({ showSidebar = true }: { showSidebar?: boolean }) {
   const reset = useFirestoreNav((s) => s.reset);
-  const openDialog = useCrudDialog((s) => s.open);
   const closeDialog = useCrudDialog((s) => s.close);
 
   useEffect(() => reset, [reset]);
   useEffect(() => closeDialog, [closeDialog]);
 
   return (
-    <div className="grid min-h-[60vh] grid-cols-[22rem_1fr] gap-4">
-      <aside data-testid="sidebar" className="overflow-auto rounded border border-slate-200 p-2 dark:border-slate-700">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="font-medium">{t("connection.collections")}</h3>
-          <button
-            type="button"
-            data-testid="new-collection"
-            onClick={() => openDialog({ kind: "create", parentDocPath: "", collectionPath: null })}
-            className="ml-auto mr-2 rounded border border-slate-400 px-2 py-0.5 text-xs"
-          >
-            {t("crud.newCollection")}
-          </button>
-          <button
-            type="button"
-            data-testid="import-collection"
-            onClick={() => openDialog({ kind: "import", scope: "collection", path: "" })}
-            className="mr-2 rounded border border-slate-400 px-2 py-0.5 text-xs"
-          >
-            {t("io.importCollection")}
-          </button>
-          <button
-            type="button"
-            data-testid="refresh"
-            disabled={fetching}
-            onClick={() => void queryClient.invalidateQueries({ queryKey: ["fs", projectId] })}
-            className="rounded border border-slate-400 px-2 py-0.5 text-xs disabled:opacity-50"
-          >
-            {fetching ? t("firestore.refreshing") : t("firestore.refresh")}
-          </button>
-        </div>
-        <CollectionList docPath="" />
-      </aside>
+    <div className={showSidebar ? "grid min-h-[60vh] grid-cols-[22rem_1fr] gap-4" : "min-w-0"}>
+      {showSidebar && <aside data-testid="sidebar" className="overflow-auto rounded border border-line p-2"><FirestoreSidebar /></aside>}
       <section data-testid="document-panel" className="min-w-0">
         <DocumentView />
       </section>
       <CrudDialogs />
     </div>
+  );
+}
+
+export function FirestoreSidebar() {
+  const { t } = useTranslation();
+  const projectId = useConnection((s) => s.connection?.projectId);
+  const queryClient = useQueryClient();
+  const fetching = useIsFetching({ queryKey: ["fs", projectId] }) > 0;
+  const openDialog = useCrudDialog((s) => s.open);
+  // Refreshes the tree, its pages and a clean open document. A document with unsaved edits is left to its
+  // editor, which asks before discarding them (the shortcut reaches both), so a failed or 404 refetch can
+  // never replace the editor that holds the draft.
+  const refresh = () => {
+    const open = useFirestoreNav.getState().selectedDoc;
+    const keep = open && projectId && documentUnsaved(projectId, open) ? open : null;
+    void queryClient.invalidateQueries({
+      queryKey: ["fs", projectId],
+      predicate: (q) => !(keep && q.queryKey[2] === "doc" && q.queryKey[3] === keep),
+    });
+  };
+  useShortcutActions("firestore", { reload: refresh });
+  return (
+      <div data-testid="firestore-tree">
+        <div className="mb-1 flex flex-wrap items-center gap-1 justify-between">
+          <h3 className="text-xs text-fg-muted">{t("connection.collections")}</h3>
+          <button
+            type="button"
+            data-testid="new-collection"
+            aria-label={t("crud.newCollection")} title={t("crud.newCollection")}
+            onClick={() => openDialog({ kind: "create", parentDocPath: "", collectionPath: null })}
+            className="icon-button ml-auto"
+          >
+            <FolderPlus size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            data-testid="import-collection"
+            aria-label={t("io.importCollection")} title={t("io.importCollection")}
+            onClick={() => openDialog({ kind: "import", scope: "collection", path: "" })}
+            className="icon-button"
+          >
+            <Upload size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            data-testid="refresh"
+            aria-label={t("firestore.refresh")} title={withShortcut(t("firestore.refresh"), "reload")}
+            disabled={fetching}
+            onClick={refresh}
+            className="icon-button disabled:opacity-50"
+          >
+            <RotateCw size={15} aria-hidden="true" className={fetching ? "animate-spin" : ""} />
+          </button>
+        </div>
+        <CollectionList docPath="" />
+      </div>
   );
 }

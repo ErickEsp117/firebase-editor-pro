@@ -1,3 +1,4 @@
+import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +19,7 @@ type Dialog =
   | { kind: "reload" }
   | { kind: "rollback"; version: RemoteConfigVersion };
 
-const BTN = "rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 dark:border-slate-600";
+const BTN = "btn";
 
 export function RemoteConfigView() {
   const { t } = useTranslation();
@@ -58,6 +59,21 @@ export function RemoteConfigView() {
     setDialogError({ kind: "publishFailed", error: outcome.error });
   };
 
+  // ⌘/Ctrl+S only ever opens the publish confirmation; publishing always needs its explicit button.
+  // Format is registered by the template editor so the shortcut and its button share one code path.
+  useShortcutActions("remoteConfig", {
+    save: () => { if (rc.session && !working && rc.draft.ok) { setDialogError(null); setDialog({ kind: "publish" }); } },
+    reload: () => {
+      if (working) return;
+      // Without a loaded template there is nothing to discard: retry the download instead of queuing a dialog.
+      if (!rc.session) {
+        if (rc.loadError) rc.retryLoad();
+        return;
+      }
+      if (rc.dirty) setDialog({ kind: "reload" });
+      else void rc.reload(false);
+    },
+  });
   const session = rc.session;
   if (rc.loadError) {
     return (
@@ -77,7 +93,7 @@ export function RemoteConfigView() {
 
   return (
     <div data-testid="rc-view" className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted ">
         <span data-testid="rc-etag" className="font-mono">
           {t("rc.etag", { etag: session.etag })}
         </span>
@@ -90,13 +106,13 @@ export function RemoteConfigView() {
           </span>
         )}
         {rc.dirty && (
-          <span data-testid="rc-dirty" className="text-amber-700 dark:text-amber-300">
+          <span data-testid="rc-dirty" className="text-warning ">
             {t("rc.unpublished")}
           </span>
         )}
       </div>
       {counts && counts.parameters === 0 && (
-        <p data-testid="rc-empty-hint" className="text-sm text-slate-600 dark:text-slate-400">
+        <p data-testid="rc-empty-hint" className="text-sm text-fg-muted ">
           {t("rc.emptyHint")}
         </p>
       )}
@@ -108,7 +124,8 @@ export function RemoteConfigView() {
         <button
           type="button"
           data-testid="rc-publish"
-          className="rounded bg-blue-700 px-3 py-1 text-sm text-white disabled:opacity-50"
+          title={withShortcut(t("rc.publish"), "save")}
+          className="btn-primary"
           disabled={working || !rc.draft.ok}
           onClick={() => {
             setDialogError(null);
@@ -120,6 +137,7 @@ export function RemoteConfigView() {
         <button
           type="button"
           data-testid="rc-reload"
+          title={withShortcut(t("rc.reloadTemplate"), "reload")}
           className={BTN}
           disabled={working}
           onClick={() => (rc.dirty ? setDialog({ kind: "reload" }) : void rc.reload(false))}
@@ -132,7 +150,7 @@ export function RemoteConfigView() {
       </div>
 
       {!rc.draft.ok && (
-        <div role="alert" data-testid="rc-draft-error" className="text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-draft-error" className="text-sm text-danger ">
           <p>{t("rc.publishBlocked")}</p>
           <IssueList issues={rc.draft.issues} testId="rc-draft-error" />
         </div>
@@ -140,7 +158,7 @@ export function RemoteConfigView() {
       <ValidationMessage validation={rc.validation} />
       {rc.notice && <Notice notice={rc.notice} onDismiss={rc.dismissNotice} />}
       {rc.actionError && (
-        <div role="alert" data-testid="rc-action-error" className="text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-action-error" className="text-sm text-danger ">
           <ErrorMessage text={t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })} error={rc.actionError.error} testId="rc-action-error" />
         </div>
       )}
@@ -208,12 +226,12 @@ export function RemoteConfigView() {
         >
           <p className="text-sm">{t("rc.rollbackBody", { version: dialog.version.versionNumber })}</p>
           {rc.dirty && (
-            <p role="alert" data-testid="rc-rollback-dirty" className="text-sm text-amber-700 dark:text-amber-300">
+            <p role="alert" data-testid="rc-rollback-dirty" className="text-sm text-warning ">
               {t("rc.rollbackDirty")}
             </p>
           )}
           {rc.actionError && (
-            <div role="alert" className="text-sm text-red-700 dark:text-red-300">
+            <div role="alert" className="text-sm text-danger ">
               <ErrorMessage text={t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })} error={rc.actionError.error} testId="rc-rollback-error" />
             </div>
           )}
@@ -228,13 +246,13 @@ function ValidationMessage({ validation }: { validation: ReturnType<typeof useRc
   if (!validation) return null;
   if (validation.kind === "valid") {
     return (
-      <p role="status" data-testid="rc-validation-ok" className="text-sm text-emerald-700 dark:text-emerald-300">
+      <p role="status" data-testid="rc-validation-ok" className="text-sm text-success ">
         {t("rc.validationOk")}
       </p>
     );
   }
   return (
-    <div role="alert" data-testid="rc-validation-error" className="text-sm text-red-700 dark:text-red-300">
+    <div role="alert" data-testid="rc-validation-error" className="text-sm text-danger ">
       {validation.kind === "local" && (
         <>
           <p>{t("rc.validationLocal")}</p>
@@ -271,10 +289,10 @@ function Notice({ notice, onDismiss }: { notice: RcNotice; onDismiss(): void }) 
       break;
   }
   return (
-    <div role="status" data-testid="rc-notice" data-kind={notice.kind} className="flex flex-wrap items-center gap-2 text-sm text-emerald-700 dark:text-emerald-300">
+    <div role="status" data-testid="rc-notice" data-kind={notice.kind} className="flex flex-wrap items-center gap-2 text-sm text-success ">
       <span>{text}</span>
       {notice.kind === "reapplied" && notice.overridden.length > 0 && (
-        <span role="alert" data-testid="rc-overridden" className="text-amber-700 dark:text-amber-300">
+        <span role="alert" data-testid="rc-overridden" className="text-warning ">
           {t("rc.overridden", { names: notice.overridden.join(", ") })}
         </span>
       )}

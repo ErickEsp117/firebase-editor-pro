@@ -33,7 +33,9 @@ fn read_request_head(stream: &mut TcpStream) -> String {
 fn header_value(head: &str, name: &str) -> Option<String> {
     head.lines().skip(1).find_map(|line| {
         let (k, v) = line.split_once(':')?;
-        k.trim().eq_ignore_ascii_case(name).then(|| v.trim().to_string())
+        k.trim()
+            .eq_ignore_ascii_case(name)
+            .then(|| v.trim().to_string())
     })
 }
 
@@ -103,7 +105,9 @@ fn plugin_http_client_advertises_gzip_keeps_etag_and_decompresses() {
 }
 
 fn env_key_path() -> Option<String> {
-    std::env::var("FBEP_TEST_KEY").ok().filter(|v| !v.is_empty())
+    std::env::var("FBEP_TEST_KEY")
+        .ok()
+        .filter(|v| !v.is_empty())
 }
 
 fn form_encode(pairs: &[(&str, &str)]) -> String {
@@ -182,8 +186,8 @@ fn native_real_remote_config_template_has_etag_and_list_versions_ok() {
                 .await
                 .expect("token exchange request failed");
             let token_status = resp.status().as_u16();
-            let body: Value = serde_json::from_str(&resp.text().await.unwrap_or_default())
-                .unwrap_or(Value::Null);
+            let body: Value =
+                serde_json::from_str(&resp.text().await.unwrap_or_default()).unwrap_or(Value::Null);
             let token = body
                 .get("access_token")
                 .and_then(Value::as_str)
@@ -227,7 +231,10 @@ fn native_real_remote_config_template_has_etag_and_list_versions_ok() {
     assert_eq!(token_status, 200, "token exchange status");
     assert!(!token.is_empty(), "token exchange returned no access_token");
     assert_eq!(template_status, 200, "remoteConfig template status");
-    assert!(has_etag, "remoteConfig template response lacks a non-empty ETag");
+    assert!(
+        has_etag,
+        "remoteConfig template response lacks a non-empty ETag"
+    );
     assert_eq!(versions_status, 200, "listVersions status");
     println!(
         "native_real: token={token_status} template={template_status} etag_present={has_etag} listVersions={versions_status}"

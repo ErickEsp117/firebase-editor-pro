@@ -1,4 +1,5 @@
 import type { Platform } from "../platform/types";
+import { reportReachable } from "./networkStatus";
 
 export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -30,15 +31,25 @@ export interface Transport {
 export function createTransport(opts: TransportOptions = {}): Transport {
   const mode = opts.platform?.mode ?? "browser";
   const useProxy = opts.useProxy ?? (mode === "browser" && typeof window !== "undefined");
+  const send: FetchFn = async (target, init) => {
+    if (opts.fetch) return opts.fetch(target, init);
+    if (mode === "tauri") {
+      const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+      return tauriFetch(target, init);
+    }
+    return globalThis.fetch(target, init);
+  };
   return {
     fetch: async (url, init) => {
-      const target = mapUrl(url, useProxy);
-      if (opts.fetch) return opts.fetch(target, init);
-      if (mode === "tauri") {
-        const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-        return tauriFetch(target, init);
+      try {
+        const res = await send(mapUrl(url, useProxy), init);
+        reportReachable(true);
+        return res;
+      } catch (e) {
+        // An aborted request says nothing about the network (DOMException is not always an Error subclass).
+        if ((e as { name?: unknown } | null)?.name !== "AbortError") reportReachable(false);
+        throw e;
       }
-      return globalThis.fetch(target, init);
     },
   };
 }

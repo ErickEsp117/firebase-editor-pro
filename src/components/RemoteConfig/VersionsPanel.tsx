@@ -34,18 +34,18 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
           data-testid="rc-versions-refresh"
           disabled={query.isFetching}
           onClick={() => void query.refetch()}
-          className="rounded border border-slate-400 px-2 py-0.5 text-xs disabled:opacity-50"
+          className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
         >
           {query.isFetching ? t("firestore.refreshing") : t("firestore.refresh")}
         </button>
       </div>
       {query.isPending && (
-        <p role="status" data-testid="rc-versions-loading" className="text-xs text-slate-500">
+        <p role="status" data-testid="rc-versions-loading" className="text-xs text-fg-muted">
           {t("rc.versionsLoading")}
         </p>
       )}
       {query.isError && (
-        <div role="alert" data-testid="rc-versions-error" className="text-xs text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-versions-error" className="text-xs text-danger ">
           <p>
             {t("rc.versionsError", { message: describeError(t, query.error) })}
             <button type="button" className="ml-2 underline" onClick={() => void query.refetch()}>
@@ -56,7 +56,7 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
         </div>
       )}
       {query.isSuccess && versions.length === 0 && (
-        <p data-testid="rc-versions-empty" className="text-xs text-slate-500">
+        <p data-testid="rc-versions-empty" className="text-xs text-fg-muted">
           {t("rc.versionsEmpty")}
         </p>
       )}
@@ -64,7 +64,7 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
         <div className="overflow-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700">
+              <tr className="border-b border-line ">
                 <th className="py-1 pr-2">{t("rc.colVersion")}</th>
                 <th className="py-1 pr-2">{t("rc.colDate")}</th>
                 <th className="py-1 pr-2">{t("rc.colOrigin")}</th>
@@ -76,11 +76,11 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
               {versions.map((v) => {
                 const current = v.versionNumber === currentVersion;
                 return (
-                  <tr key={v.versionNumber} data-testid={`rc-version-${v.versionNumber}`} className="border-b border-slate-100 align-top dark:border-slate-800">
+                  <tr key={v.versionNumber} data-testid={`rc-version-${v.versionNumber}`} className="border-b border-line align-top ">
                     <td className="py-1 pr-2 font-mono">
                       {v.versionNumber}
                       {current && (
-                        <span data-testid="rc-version-current" className="ml-1 rounded bg-emerald-100 px-1 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                        <span data-testid="rc-version-current" className="ml-1 rounded bg-success/10 px-1 text-success ">
                           {t("rc.current")}
                         </span>
                       )}
@@ -88,8 +88,8 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
                     <td className="py-1 pr-2">{formatDate(v.updateTime)}</td>
                     <td className="py-1 pr-2">{v.updateOrigin ? t(`rc.origins.${v.updateOrigin}`, { defaultValue: v.updateOrigin }) : "—"}</td>
                     <td className="py-1 pr-2 break-words">
-                      {v.description || <span className="text-slate-400">—</span>}
-                      {v.rollbackSource && <span className="block text-slate-500">{t("rc.rollbackOf", { version: v.rollbackSource })}</span>}
+                      {v.description || <span className="text-fg-muted">—</span>}
+                      {v.rollbackSource && <span className="block text-fg-muted">{t("rc.rollbackOf", { version: v.rollbackSource })}</span>}
                     </td>
                     <td className="py-1">
                       <button
@@ -97,7 +97,7 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
                         data-testid={`rc-rollback-${v.versionNumber}`}
                         disabled={busy || current}
                         onClick={() => onRollback(v)}
-                        className="rounded border border-slate-400 px-2 py-0.5 disabled:opacity-40"
+                        className="rounded border border-line px-2 py-0.5 disabled:opacity-40"
                       >
                         {t("rc.rollback")}
                       </button>
@@ -115,7 +115,7 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
           data-testid="rc-versions-more"
           disabled={query.isFetchingNextPage}
           onClick={() => void query.fetchNextPage()}
-          className="rounded border border-slate-400 px-2 py-0.5 text-xs disabled:opacity-50"
+          className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
         >
           {query.isFetchingNextPage ? t("firestore.loadingMore") : t("firestore.loadMore")}
         </button>

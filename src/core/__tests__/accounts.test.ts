@@ -266,6 +266,41 @@ describe("remove", () => {
 });
 
 describe("legacy migration", () => {
+  it("a removed account does not come back from a legacy entry whose delete failed during migration", async () => {
+    const { p, data, failures } = mockPlatform();
+    data.set(LEGACY_CREDENTIAL_KEY, keyJson());
+    failures.push({ op: "delete", key: LEGACY_CREDENTIAL_KEY });
+    const migrated = await loadAccounts(p);
+    expect(data.has(LEGACY_CREDENTIAL_KEY)).toBe(true);
+    await removeAccount(p, migrated.accounts[0].id);
+    expect(data.has(LEGACY_CREDENTIAL_KEY)).toBe(false);
+    const reloaded = await loadAccounts(p);
+    expect(reloaded.accounts).toEqual([]);
+    expect(reloaded.activeId).toBeNull();
+  });
+
+  it("keeps the account listed when its legacy copy cannot be deleted, so the removal can be retried", async () => {
+    const { p, data, failures, index } = mockPlatform();
+    data.set(LEGACY_CREDENTIAL_KEY, keyJson());
+    failures.push({ op: "delete", key: LEGACY_CREDENTIAL_KEY });
+    const migrated = await loadAccounts(p);
+    const id = migrated.accounts[0].id;
+    failures.push({ op: "delete", key: LEGACY_CREDENTIAL_KEY });
+    await expect(removeAccount(p, id)).rejects.toThrow("injected failure");
+    expect(index().accounts.map((a: { id: string }) => a.id)).toEqual([id]);
+    expect(data.has(accountSecretKey(id))).toBe(true);
+    await removeAccount(p, id);
+    expect((await loadAccounts(p)).accounts).toEqual([]);
+  });
+
+  it("removing another account leaves an unrelated legacy entry alone", async () => {
+    const { p, data } = mockPlatform();
+    const b = await addAccount(keyB(), p);
+    data.set(LEGACY_CREDENTIAL_KEY, "not json");
+    await removeAccount(p, b.account.id);
+    expect(data.get(LEGACY_CREDENTIAL_KEY)).toBe("not json");
+  });
+
   it("moves the legacy credential into an account, writing before deleting", async () => {
     const { p, data, log, index } = mockPlatform();
     data.set(LEGACY_CREDENTIAL_KEY, keyJson());
@@ -408,6 +443,29 @@ describe("importAccount", () => {
     expect(again.duplicate).toBe(true);
     expect(again.account.id).toBe(first.account.id);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("re-importing the same key repairs a missing stored credential after verifying it", async () => {
+    vi.stubGlobal("fetch", ok());
+    const { p, data } = mockPlatform();
+    const first = await importAccount(keyJson(), p);
+    data.delete(accountSecretKey(first.account.id));
+    await expect(connectAccount(p, first.account.id)).rejects.toMatchObject({ kind: "keyUnreadable" });
+    const again = await importAccount(keyJson(), p);
+    expect(again.duplicate).toBe(true);
+    expect(again.account.id).toBe(first.account.id);
+    expect(again.connection.projectId).toBe("proj-a");
+    expect(data.get(accountSecretKey(first.account.id))).toBe(keyJson());
+  });
+
+  it("does not repair a missing credential with a key Google rejects", async () => {
+    vi.stubGlobal("fetch", ok());
+    const { p, data } = mockPlatform();
+    const first = await importAccount(keyJson(), p);
+    data.delete(accountSecretKey(first.account.id));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 })));
+    await expect(importAccount(keyJson(), p)).rejects.toMatchObject({ kind: "rejected" });
+    expect(data.has(accountSecretKey(first.account.id))).toBe(false);
   });
 
   it("reports local key errors with the file name and stores nothing", async () => {

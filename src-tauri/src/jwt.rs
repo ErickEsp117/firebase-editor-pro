@@ -42,7 +42,12 @@ mod tests {
     fn signs_verifiable_rs256_token_with_kid() {
         let (key, pem) = test_keypair();
         let claims = json!({"iss": "svc@test", "aud": "https://example.test/token", "iat": 1, "exp": 4102444800u64});
-        let token = sign(&pem, json!({"alg": "RS256", "typ": "JWT", "kid": "abc123"}), claims).unwrap();
+        let token = sign(
+            &pem,
+            json!({"alg": "RS256", "typ": "JWT", "kid": "abc123"}),
+            claims,
+        )
+        .unwrap();
 
         let header = decode_header(&token).unwrap();
         assert_eq!(header.alg, Algorithm::RS256);
@@ -51,7 +56,12 @@ mod tests {
         let pub_pem = key.to_public_key().to_pkcs1_pem(LineEnding::LF).unwrap();
         let mut v = Validation::new(Algorithm::RS256);
         v.set_audience(&["https://example.test/token"]);
-        let data = decode::<Value>(&token, &DecodingKey::from_rsa_pem(pub_pem.as_bytes()).unwrap(), &v).unwrap();
+        let data = decode::<Value>(
+            &token,
+            &DecodingKey::from_rsa_pem(pub_pem.as_bytes()).unwrap(),
+            &v,
+        )
+        .unwrap();
         assert_eq!(data.claims["iss"], "svc@test");
     }
 
@@ -64,7 +74,15 @@ mod tests {
 
     #[test]
     fn invalid_pem_returns_controlled_error_without_leaking_input() {
-        let err = sign(&format!("-----BEGIN {} KEY-----\nSECRETJUNK\n-----END PRIVATE KEY-----", "PRIVATE"), json!({}), json!({})).unwrap_err();
+        let err = sign(
+            &format!(
+                "-----BEGIN {} KEY-----\nSECRETJUNK\n-----END PRIVATE KEY-----",
+                "PRIVATE"
+            ),
+            json!({}),
+            json!({}),
+        )
+        .unwrap_err();
         assert_eq!(err, "invalid private key PEM");
         assert!(!err.contains("SECRETJUNK"));
         assert!(sign("not a pem", json!({}), json!({})).is_err());

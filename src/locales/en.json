@@ -25,7 +25,17 @@
     "switchTo": "Switch to {{project}}",
     "connectWith": "Connect with {{project}}",
     "add": "Add key",
-    "duplicate": "This key was already saved: the existing account was selected ({{project}})."
+    "duplicate": "This key was already saved: the existing account was selected ({{project}}).",
+    "unsavedTitle": "Discard unsaved changes?",
+    "unsavedBody": "You have unsaved changes in a document or in the Remote Config template. Switching accounts will discard them.",
+    "unsavedConfirm": "Discard and switch",
+    "unsavedWarning": "You have unsaved changes that will be discarded.",
+    "remove": "Delete key",
+    "removeFor": "Delete the key for {{project}}",
+    "removeTitle": "Delete the key for {{project}}?",
+    "removeBody": "The account will be removed from the list and its credential will be deleted from secure storage (the system keychain). This cannot be undone.",
+    "removeConfirm": "Yes, delete key",
+    "orphaned": "The account was removed from the list, but its credential could not be deleted from the keychain/storage."
   },
   "connection": {
     "importing": "Verifying credential…",
@@ -40,6 +50,7 @@
     "disconnect": "Sign out",
     "disconnectTitle": "Sign out?",
     "disconnectBody": "The saved key stays in the keychain, so you can reconnect later without importing it again.",
+    "disconnectDirtyBody": "You have unsaved changes that will be discarded. Your saved keys stay in the keychain, so you can reconnect later without importing them again.",
     "disconnectConfirm": "Yes, sign out",
     "cancel": "Cancel",
     "dismiss": "Dismiss"
@@ -149,7 +160,9 @@
     "reload": "Reload",
     "force": "Force save",
     "forceConfirm": "Yes, overwrite",
-    "forceWarning": "This will save without checking for newer changes and may overwrite them."
+    "forceWarning": "This will save without checking for newer changes and may overwrite them.",
+    "reloadFailed": "Could not reload the document: {{message}}",
+    "viewMode": "Document view"
   },
   "codec": {
     "errors": {
@@ -335,5 +348,13 @@
     "conditionCount_one": "{{count}} condition",
     "conditionCount_other": "{{count}} conditions",
     "unpublished": "Unpublished changes"
+  },
+  "layout": {
+    "resizeSidebar": "Resize sidebar",
+    "saved": "All changes saved",
+    "template": "Template",
+    "connected": "Connected · {{project}}",
+    "offline": "Offline · {{project}}",
+    "sidebar": "Sidebar"
   }
 }

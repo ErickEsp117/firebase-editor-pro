@@ -21,13 +21,13 @@ export function ErrorBanner({ error, onDismiss }: { error: ConnectionError; onDi
     <div
       role="alert"
       data-testid="connection-error"
-      className="flex items-start justify-between gap-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+      className="flex items-start justify-between gap-4 rounded border border-danger bg-danger/10 p-3 text-sm text-danger "
     >
-      <div>
+      <div className="min-w-0 break-words">
         <span data-testid="connection-error-message">{text}</span>
         {technical && <TechnicalDetails text={technical} testId="connection-error-technical" />}
       </div>
-      <button type="button" className="underline" onClick={onDismiss}>
+      <button type="button" className="shrink-0 underline" onClick={onDismiss}>
         {t("connection.dismiss")}
       </button>
     </div>

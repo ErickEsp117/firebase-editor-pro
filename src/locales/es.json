@@ -25,7 +25,17 @@
     "switchTo": "Cambiar a {{project}}",
     "connectWith": "Conectar con {{project}}",
     "add": "Añadir key",
-    "duplicate": "Esta key ya estaba guardada: se seleccionó la cuenta existente ({{project}})."
+    "duplicate": "Esta key ya estaba guardada: se seleccionó la cuenta existente ({{project}}).",
+    "unsavedTitle": "¿Descartar los cambios sin guardar?",
+    "unsavedBody": "Tienes cambios sin guardar en un documento o en la plantilla de Remote Config. Si cambias de cuenta, se descartarán.",
+    "unsavedConfirm": "Descartar y cambiar",
+    "unsavedWarning": "Tienes cambios sin guardar que se descartarán.",
+    "remove": "Eliminar key",
+    "removeFor": "Eliminar la key de {{project}}",
+    "removeTitle": "¿Eliminar la key de {{project}}?",
+    "removeBody": "La cuenta se quitará de la lista y su credencial se borrará del almacenamiento seguro (el llavero del sistema). Esta acción no se puede deshacer.",
+    "removeConfirm": "Sí, eliminar key",
+    "orphaned": "La cuenta se quitó de la lista, pero no se pudo borrar la credencial del llavero/almacenamiento."
   },
   "connection": {
     "importing": "Verificando credencial…",
@@ -40,6 +50,7 @@
     "disconnect": "Cerrar sesión",
     "disconnectTitle": "¿Cerrar sesión?",
     "disconnectBody": "La key guardada se conserva en el llavero, así que podrás volver a conectar sin importarla otra vez.",
+    "disconnectDirtyBody": "Tienes cambios sin guardar que se descartarán. Las keys guardadas se conservan en el llavero, así que podrás volver a conectar sin importarlas otra vez.",
     "disconnectConfirm": "Sí, cerrar sesión",
     "cancel": "Cancelar",
     "dismiss": "Descartar"
@@ -149,7 +160,9 @@
     "reload": "Recargar",
     "force": "Forzar guardado",
     "forceConfirm": "Sí, sobrescribir",
-    "forceWarning": "Se guardará sin comprobar cambios más recientes y puede sobrescribirlos."
+    "forceWarning": "Se guardará sin comprobar cambios más recientes y puede sobrescribirlos.",
+    "reloadFailed": "No se pudo recargar el documento: {{message}}",
+    "viewMode": "Vista del documento"
   },
   "codec": {
     "errors": {
@@ -335,5 +348,13 @@
     "conditionCount_one": "{{count}} condición",
     "conditionCount_other": "{{count}} condiciones",
     "unpublished": "Cambios sin publicar"
+  },
+  "layout": {
+    "resizeSidebar": "Cambiar ancho de la barra lateral",
+    "saved": "Todos los cambios guardados",
+    "template": "Plantilla",
+    "connected": "Conectado · {{project}}",
+    "offline": "Sin conexión · {{project}}",
+    "sidebar": "Barra lateral"
   }
 }
