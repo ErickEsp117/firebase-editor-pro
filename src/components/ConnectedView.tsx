@@ -1,13 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FirestoreBrowser } from "./Firestore/FirestoreBrowser";
+import { RemoteConfigView } from "./RemoteConfig/RemoteConfigView";
 import { useConnection } from "../store/connection";
+import { useArea, type Area } from "../store/rcEditor";
+
+const AREAS: { area: Area; testId: string; label: string }[] = [
+  { area: "firestore", testId: "nav-firestore", label: "nav.firestore" },
+  { area: "remoteConfig", testId: "nav-remote-config", label: "nav.remoteConfig" },
+];
 
 export function ConnectedView() {
   const { t } = useTranslation();
   const connection = useConnection((s) => s.connection);
   const disconnect = useConnection((s) => s.disconnect);
+  const area = useArea((s) => s.area);
+  const setArea = useArea((s) => s.setArea);
   const [confirming, setConfirming] = useState(false);
+  const [visitedRc, setVisitedRc] = useState(area === "remoteConfig");
+
+  useEffect(() => () => setArea("firestore"), [setArea]);
+
+  const openArea = (next: Area) => {
+    if (next === "remoteConfig") setVisitedRc(true);
+    setArea(next);
+  };
 
   if (!connection) return null;
 
@@ -19,7 +36,31 @@ export function ConnectedView() {
       <p className="text-sm text-slate-600 dark:text-slate-400">
         {t("connection.serviceAccount", { email: connection.clientEmail })}
       </p>
-      <FirestoreBrowser />
+      <nav aria-label={t("nav.areas")} className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+        {AREAS.map((a) => (
+          <button
+            key={a.area}
+            type="button"
+            data-testid={a.testId}
+            aria-current={area === a.area ? "page" : undefined}
+            onClick={() => openArea(a.area)}
+            className={`-mb-px border-b-2 px-3 py-1.5 text-sm ${
+              area === a.area ? "border-blue-700 font-semibold" : "border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+            }`}
+          >
+            {t(a.label)}
+          </button>
+        ))}
+      </nav>
+      {/* Both areas stay mounted once opened (just hidden) so an open document and its unsaved edits survive switching. */}
+      <div data-testid="area-firestore" hidden={area !== "firestore"}>
+        <FirestoreBrowser />
+      </div>
+      {visitedRc && (
+        <div data-testid="area-remote-config" hidden={area !== "remoteConfig"}>
+          <RemoteConfigView />
+        </div>
+      )}
       <button
         type="button"
         data-testid="disconnect"
