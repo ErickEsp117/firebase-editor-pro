@@ -20,7 +20,7 @@ Release builds are **not code-signed**, so each operating system shows a warning
 
 #### The keychain password prompt
 
-The first time a version of the app reads your saved keys, macOS asks for your **login keychain password** ("Firebase Editor Pro wants to use your confidential information…"). Enter it and click **Always Allow**. Because release builds are not signed with an Apple Developer ID, macOS treats every new version as a different app and asks once again after each update; reopening the same version does not ask.
+The first time a version of the app reads your saved keys, macOS asks for your **login keychain password** ("Firebase Editor Pro wants to use your confidential information…"). Enter it and click **Always Allow**. Release builds from GitHub Actions are not signed with an Apple certificate, so macOS treats every new version as a different app and asks once again after each update; reopening the same version does not ask. Builds signed with your own Apple certificate do not have this problem (see *Signed builds without keychain prompts* below).
 
 All saved keys live in a single keychain item, so after **Always Allow** it is one prompt per update and none when you reopen the same version. Choosing **Allow** (the default button) instead makes macOS ask again on every later change, such as switching or adding an account.
 
@@ -126,6 +126,17 @@ npm run tauri build -- --bundles nsis                            # Windows NSIS 
 ```
 
 On macOS, `CI=true` skips the Finder styling step of the `.dmg` bundler, which fails in headless shells. Bundles are written under `src-tauri/target/<target>/release/bundle/`.
+
+#### Signed builds without keychain prompts
+
+macOS remembers **Always Allow** for an app signed with an Apple-issued certificate across every later build signed by the same team, so the keychain password prompt appears only once. A free **Apple Development** certificate is enough for builds you use on your own Mac (Xcode > Settings > Accounts > Manage Certificates > + Apple Development). Find its exact name and build with it:
+
+```bash
+security find-identity -v -p codesigning
+APPLE_SIGNING_IDENTITY="Apple Development: Your Name (XXXXXXXXXX)" CI=true npm run tauri build -- --target universal-apple-darwin
+```
+
+The first signed build asks once (macOS also asks once to let `codesign` use the certificate during the build); choose **Always Allow**. To give the app to other people without prompts or the Gatekeeper warning, sign it with a **Developer ID Application** certificate (paid Apple Developer Program) and notarize it; the Apple Development certificate is meant for development only. The identity name is personal, so it is passed through the environment instead of `tauri.conf.json`, and the GitHub release workflow stays unsigned.
 
 ### Release
 
