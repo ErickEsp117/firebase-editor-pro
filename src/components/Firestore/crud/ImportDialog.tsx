@@ -5,10 +5,9 @@ import { planCollectionImport, planDocumentImport, runImport, type ImportEntry }
 import { getPlatform } from "../../../platform";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
-import { describeError } from "../../errors/describeError";
 import { useFirestoreApi } from "../useFirestore";
+import { DialogError, type DialogFailure } from "./DialogError";
 import { invalidateTree } from "./invalidate";
-import { ioErrorMessage } from "./ioErrors";
 import { BTN, Modal } from "./Modal";
 
 interface Props {
@@ -29,7 +28,7 @@ export function ImportDialog({ scope, path }: Props) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ written: number; total: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DialogFailure | null>(null);
   const [doneCount, setDoneCount] = useState<number | null>(null);
 
   const pick = async () => {
@@ -41,7 +40,7 @@ export function ImportDialog({ scope, path }: Props) {
       setFileName(file.name);
       setDoneCount(null);
     } catch (e) {
-      setError(t("io.fileError", { message: ioErrorMessage(t, e) }));
+      setError({ key: "io.fileError", cause: e });
     }
   };
 
@@ -50,7 +49,7 @@ export function ImportDialog({ scope, path }: Props) {
     setError(null);
     setDoneCount(null);
     if (!text.trim()) {
-      setError(t("io.empty"));
+      setError({ key: "io.empty" });
       return;
     }
     let entries: ImportEntry[];
@@ -58,7 +57,7 @@ export function ImportDialog({ scope, path }: Props) {
       const dest = target.trim().replace(/^\/+|\/+$/g, "");
       entries = scope === "doc" ? planDocumentImport(text, dest, api.projectId) : planCollectionImport(text, dest, api.projectId);
     } catch (e) {
-      setError(t("io.invalidNothingWritten", { message: ioErrorMessage(t, e) }));
+      setError({ key: "io.invalidNothingWritten", cause: e });
       return;
     }
     setBusy(true);
@@ -71,7 +70,7 @@ export function ImportDialog({ scope, path }: Props) {
       });
       setDoneCount(written);
     } catch (e) {
-      setError(t("io.importWriteError", { written, total: entries.length, message: describeError(t, e) }));
+      setError({ key: "io.importWriteError", params: { written, total: entries.length }, cause: e });
     } finally {
       setBusy(false);
       setProgress(null);
@@ -109,11 +108,7 @@ export function ImportDialog({ scope, path }: Props) {
           {t("io.importDone", { count: doneCount })}
         </p>
       )}
-      {error && (
-        <p role="alert" data-testid="import-error" className="text-sm text-red-700 dark:text-red-300">
-          {error}
-        </p>
-      )}
+      {error && <DialogError failure={error} testId="import-error" />}
       <div className="flex justify-end gap-2">
         <button type="button" data-testid="import-close" className={BTN} disabled={busy} onClick={close}>
           {t("io.close")}

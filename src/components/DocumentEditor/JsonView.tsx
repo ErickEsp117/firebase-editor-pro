@@ -15,7 +15,7 @@ interface Props {
 export function JsonView({ text, onChange }: Props) {
   const { t } = useTranslation();
   const theme = useSettings((s) => s.theme);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionFailed, setActionFailed] = useState(false);
 
   const viewRef = useRef<EditorView | null>(null);
 
@@ -40,9 +40,9 @@ export function JsonView({ text, onChange }: Props) {
   const run = (fn: (s: string) => string) => {
     try {
       onChange(fn(text));
-      setActionError(null);
+      setActionFailed(false);
     } catch {
-      setActionError(t("editor.actionFailed"));
+      setActionFailed(true);
     }
   };
 
@@ -55,9 +55,9 @@ export function JsonView({ text, onChange }: Props) {
         <button type="button" data-testid="json-repair" onClick={() => run(repairEditorJson)} className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600">
           {t("editor.repair")}
         </button>
-        {actionError && (
+        {actionFailed && (
           <span role="alert" data-testid="json-action-error" className="self-center text-xs text-red-700 dark:text-red-300">
-            {actionError}
+            {t("editor.actionFailed")}
           </span>
         )}
       </div>

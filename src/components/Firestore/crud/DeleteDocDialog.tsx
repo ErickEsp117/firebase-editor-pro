@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreNav } from "../../../store/firestoreNav";
-import { describeError } from "../../errors/describeError";
 import { useFirestoreApi } from "../useFirestore";
+import { DialogError, type DialogFailure } from "./DialogError";
 import { invalidateTree } from "./invalidate";
 import { BTN, BTN_DANGER, Modal } from "./Modal";
 
@@ -16,7 +16,7 @@ export function DeleteDocDialog({ path }: { path: string }) {
   const projectId = useConnection((s) => s.connection?.projectId);
   const close = useCrudDialog((s) => s.close);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DialogFailure | null>(null);
 
   const confirm = async () => {
     if (!api) return;
@@ -29,7 +29,7 @@ export function DeleteDocDialog({ path }: { path: string }) {
       await invalidateTree(queryClient, projectId);
       close();
     } catch (e) {
-      setError(t("crud.deleteError", { message: describeError(t, e) }));
+      setError({ key: "crud.deleteError", cause: e });
       setBusy(false);
     }
   };
@@ -39,11 +39,7 @@ export function DeleteDocDialog({ path }: { path: string }) {
       <p className="break-all text-sm" data-testid="delete-doc-body">
         {t("crud.deleteDocBody", { path })}
       </p>
-      {error && (
-        <p role="alert" data-testid="delete-error" className="text-sm text-red-700 dark:text-red-300">
-          {error}
-        </p>
-      )}
+      {error && <DialogError failure={error} testId="delete-error" />}
       <div className="flex justify-end gap-2">
         <button type="button" data-testid="delete-cancel" className={BTN} disabled={busy} onClick={close}>
           {t("connection.cancel")}

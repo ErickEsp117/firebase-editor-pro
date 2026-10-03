@@ -6,8 +6,8 @@ import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { parseDraft } from "../../DocumentEditor/editorModel";
-import { describeError } from "../../errors/describeError";
 import { useFirestoreApi } from "../useFirestore";
+import { DialogError, type DialogFailure } from "./DialogError";
 import { autoId, invalidateTree } from "./invalidate";
 import { BTN, Modal } from "./Modal";
 
@@ -29,7 +29,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
   const [docId, setDocId] = useState("");
   const [text, setText] = useState("{}");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DialogFailure | null>(null);
 
   const needsCollection = collectionPath === null;
   const collName = needsCollection ? collId.trim() : collectionPath;
@@ -64,7 +64,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
       select(path);
       close();
     } catch (e) {
-      setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? t("crud.alreadyExists", { path }) : t("crud.createError", { message: describeError(t, e) }));
+      setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? { key: "crud.alreadyExists", params: { path } } : { key: "crud.createError", cause: e });
       setBusy(false);
     }
   };
@@ -93,11 +93,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
           </span>
         )}
       </label>
-      {error && (
-        <p role="alert" data-testid="create-doc-error" className="text-sm text-red-700 dark:text-red-300">
-          {error}
-        </p>
-      )}
+      {error && <DialogError failure={error} testId="create-doc-error" />}
       <div className="flex justify-end gap-2">
         <button type="button" data-testid="create-doc-cancel" className={BTN} disabled={busy} onClick={close}>
           {t("connection.cancel")}

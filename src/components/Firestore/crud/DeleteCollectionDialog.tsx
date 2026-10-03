@@ -7,6 +7,7 @@ import { useFirestoreNav } from "../../../store/firestoreNav";
 import { describeError, technicalText } from "../../errors/describeError";
 import { TechnicalDetails } from "../../errors/TechnicalDetails";
 import { useFirestoreApi } from "../useFirestore";
+import { DialogError, type DialogFailure } from "./DialogError";
 import { invalidateTree } from "./invalidate";
 import { BTN, BTN_DANGER, Modal } from "./Modal";
 
@@ -18,7 +19,7 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
   const close = useCrudDialog((s) => s.close);
   const [busy, setBusy] = useState(false);
   const [deleted, setDeleted] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<DialogFailure | null>(null);
 
   const count = useQuery({
     queryKey: ["crud-count", projectId, path],
@@ -41,7 +42,7 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
       await invalidateTree(queryClient, projectId);
       close();
     } catch (e) {
-      setError(t("crud.deleteError", { message: describeError(t, e) }));
+      setError({ key: "crud.deleteError", cause: e });
       setBusy(false);
       void invalidateTree(queryClient, projectId);
     }
@@ -69,11 +70,7 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
           {t("crud.deleteCollProgress", { deleted, count: count.data ?? 0 })}
         </p>
       )}
-      {error && (
-        <p role="alert" data-testid="delete-error" className="text-sm text-red-700 dark:text-red-300">
-          {error}
-        </p>
-      )}
+      {error && <DialogError failure={error} testId="delete-error" />}
       <div className="flex justify-end gap-2">
         <button type="button" data-testid="delete-cancel" className={BTN} disabled={busy} onClick={close}>
           {t("connection.cancel")}

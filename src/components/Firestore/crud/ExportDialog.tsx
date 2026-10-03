@@ -4,7 +4,7 @@ import { exportCollection, exportDocument } from "../../../core";
 import { getPlatform } from "../../../platform";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreApi } from "../useFirestore";
-import { ioErrorMessage } from "./ioErrors";
+import { DialogError, type DialogFailure } from "./DialogError";
 import { BTN, Modal } from "./Modal";
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   path: string;
 }
 
-type Status = { phase: "running"; count: number } | { phase: "done"; count: number; name: string } | { phase: "cancelled" } | { phase: "error"; message: string };
+type Status = { phase: "running"; count: number } | { phase: "done"; count: number; name: string } | { phase: "cancelled" } | { phase: "error"; failure: DialogFailure };
 
 export function ExportDialog({ scope, path }: Props) {
   const { t } = useTranslation();
@@ -40,10 +40,10 @@ export function ExportDialog({ scope, path }: Props) {
         const saved = await getPlatform().saveTextFile(name, text);
         setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
       } catch (e) {
-        setStatus({ phase: "error", message: ioErrorMessage(t, e) });
+        setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
       }
     })();
-  }, [api, path, scope, t]);
+  }, [api, path, scope]);
 
   return (
     <Modal titleId="export-title" testId="export-dialog" title={scope === "doc" ? t("io.exportTitleDoc") : t("io.exportTitleColl")}>
@@ -63,11 +63,7 @@ export function ExportDialog({ scope, path }: Props) {
           {t("io.exportCancelled")}
         </p>
       )}
-      {status.phase === "error" && (
-        <p role="alert" data-testid="export-error" className="text-sm text-red-700 dark:text-red-300">
-          {t("io.exportError", { message: status.message })}
-        </p>
-      )}
+      {status.phase === "error" && <DialogError failure={status.failure} testId="export-error" />}
       <div className="flex justify-end">
         <button type="button" data-testid="export-close" className={BTN} onClick={close}>
           {t("io.close")}
