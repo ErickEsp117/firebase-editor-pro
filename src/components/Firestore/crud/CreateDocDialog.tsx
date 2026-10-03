@@ -64,7 +64,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
       select(path);
       close();
     } catch (e) {
-      setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? { key: "crud.alreadyExists", params: { path } } : { key: "crud.createError", cause: e });
+      setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? { key: "crud.alreadyExists", params: { path }, cause: e } : { key: "crud.createError", cause: e });
       setBusy(false);
     }
   };

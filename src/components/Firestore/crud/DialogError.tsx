@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { technicalText } from "../../errors/describeError";
+import { diagnosticText } from "../../errors/describeError";
 import { TechnicalDetails } from "../../errors/TechnicalDetails";
 import { ioErrorMessage } from "./ioErrors";
 
@@ -16,7 +16,7 @@ export interface DialogFailure {
 
 export function DialogError({ failure, testId }: { failure: DialogFailure; testId: string }) {
   const { t } = useTranslation();
-  const technical = technicalText(failure.cause);
+  const technical = diagnosticText(failure.cause);
   const message = failure.cause === undefined ? undefined : ioErrorMessage(t, failure.cause);
   return (
     <div role="alert" className="space-y-1 text-sm text-red-700 dark:text-red-300">

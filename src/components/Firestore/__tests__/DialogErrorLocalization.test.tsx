@@ -74,13 +74,18 @@ describe("dialog errors are stored as data and translated at render time", () =>
   });
 
   it("CreateDocDialog ALREADY_EXISTS message follows the language", async () => {
-    request.mockRejectedValue(new ApiError(409, "ALREADY_EXISTS", "exists"));
+    const rawExists = "Document already exists: projects/p/databases/(default)/documents/fbep_x/one";
+    request.mockRejectedValue(new ApiError(409, "ALREADY_EXISTS", rawExists));
     mountWith(<CreateDocDialog parentDocPath="" collectionPath="fbep_x" />);
     fireEvent.change(screen.getByTestId("create-doc-id"), { target: { value: "one" } });
     fireEvent.click(screen.getByTestId("create-doc-submit"));
     expect((await screen.findByTestId("create-doc-error")).textContent).toBe(tIn("es")("crud.alreadyExists", { path: "fbep_x/one" }));
+    const details = screen.getByTestId("create-doc-error-technical");
+    expect(details.textContent).toContain(rawExists);
+    expect(details.textContent).toContain("ALREADY_EXISTS");
     await switchTo("en");
     expect(screen.getByTestId("create-doc-error").textContent).toBe(tIn("en")("crud.alreadyExists", { path: "fbep_x/one" }));
+    expect(screen.getByTestId("create-doc-error-technical").textContent).toContain(rawExists);
   });
 
   it("DeleteDocDialog follows the language and keeps the raw text in technical details", async () => {
@@ -132,6 +137,25 @@ describe("dialog errors are stored as data and translated at render time", () =>
     expect(es).toContain("No se escribió nada");
     await switchTo("en");
     expect(screen.getByTestId("import-error").textContent).toContain("Nothing was written");
+  });
+
+  it.each([
+    ["document", "doc" as const, "c/d"],
+    ["collection", "collection" as const, "c"],
+  ])("ImportDialog malformed %s JSON keeps the parser text in technical details and the main message localized", async (_n, scope, path) => {
+    mountWith(<ImportDialog scope={scope} path={path} />);
+    fireEvent.change(screen.getByTestId("import-json"), { target: { value: '{"a":' } });
+    fireEvent.click(screen.getByTestId("import-submit"));
+    const main = await screen.findByTestId("import-error");
+    const parserText = (screen.getByTestId("import-error-technical").textContent ?? "").replace(i18n.t("errors.technicalDetails"), "").trim();
+    expect(parserText.length).toBeGreaterThan(0);
+    expect(main.textContent).toContain(tIn("es")("codec.errors.invalidJson", { path: "" }));
+    expect(main.textContent).not.toContain(parserText);
+    await switchTo("en");
+    const after = screen.getByTestId("import-error").textContent ?? "";
+    expect(after).toContain(tIn("en")("codec.errors.invalidJson", { path: "" }));
+    expect(after).not.toContain(parserText);
+    expect(screen.getByTestId("import-error-technical").textContent).toContain(parserText);
   });
 
   it("ExportDialog follows the language", async () => {
