@@ -37,10 +37,10 @@
   "errors": {
     "keyInvalid": "El archivo key.json no es válido: {{detail}}",
     "keyUnreadable": "No se pudo leer la clave privada del archivo. Comprueba que sea el key.json original.",
-    "rejected": "Google rechazó la credencial ({{cause}}). Comprueba que la clave no esté revocada y que el archivo sea el correcto.",
-    "offline": "Sin conexión: no se pudo contactar con Google ({{cause}}).",
-    "forbidden": "Permiso denegado: la cuenta de servicio no tiene un rol IAM necesario o la API de Firestore no está habilitada en Google Cloud. Concede el rol (por ejemplo Cloud Datastore User) o habilita la API y reintenta. ({{cause}})",
-    "unknown": "Error inesperado: {{cause}}",
+    "rejected": "Google rechazó la credencial. Comprueba que la clave no esté revocada y que el archivo sea el correcto.",
+    "offline": "Sin conexión: no se pudo contactar con Google. Comprueba tu conexión a internet y reintenta.",
+    "forbidden": "Permiso denegado: la cuenta de servicio no tiene un rol IAM necesario o la API de Firestore no está habilitada en Google Cloud. Concede el rol (por ejemplo Cloud Datastore User) o habilita la API y reintenta.",
+    "unknown": "Error inesperado. Los detalles técnicos muestran lo que informó el sistema.",
     "fileRead": "No se pudo leer el archivo seleccionado.",
     "technicalDetails": "Detalles técnicos",
     "keyReason": {
@@ -56,7 +56,8 @@
       "forbidden": "Permiso denegado (403). A la cuenta de servicio le falta un rol IAM necesario (por ejemplo Cloud Datastore User para Firestore o Firebase Remote Config Admin para Remote Config) o la API no está habilitada en Google Cloud. Concede el rol o habilita la API en la consola de Google Cloud y reintenta.",
       "notFound": "No encontrado (404): el elemento no existe (puede haberse borrado o la versión ya no está disponible).",
       "rateLimited": "Google está limitando las peticiones (429). Espera un momento y reintenta.",
-      "server": "Google tuvo un problema temporal (5xx). Reintenta en unos instantes."
+      "server": "Google tuvo un problema temporal (5xx). Reintenta en unos instantes.",
+      "other": "Google rechazó la solicitud (HTTP {{http}}, {{status}})."
     },
     "offlineBanner": "Sin conexión. Los cambios del editor se conservan; las acciones volverán a funcionar cuando regrese la conexión.",
     "offlineRetry": "Reintentar ahora"
@@ -258,10 +259,10 @@
     "publishBlocked": "Publicar está bloqueado hasta que la plantilla sea válida:",
     "validationOk": "La plantilla es válida. No se publicó nada.",
     "validationLocal": "La plantilla tiene problemas:",
-    "validationServer": "Remote Config rechazó la plantilla: {{message}}",
+    "validationServer": "Remote Config rechazó la plantilla. Los detalles técnicos muestran el motivo que indicó Google.",
     "validationConflict": "La plantilla cambió en Remote Config desde que la cargaste. Recárgala o publica para resolver el conflicto.",
     "issues": {
-      "invalidJson": "El JSON no es válido: {{message}}",
+      "invalidJson": "El JSON no es válido. Los detalles técnicos muestran dónde falla.",
       "notObject": "La plantilla debe ser un objeto JSON.",
       "conditionsNotArray": "\"conditions\" debe ser una lista.",
       "parametersNotObject": "\"parameters\" debe ser un objeto.",

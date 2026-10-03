@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { describeError } from "../errors/describeError";
+import { describeError, technicalText } from "../errors/describeError";
+import { TechnicalDetails } from "../errors/TechnicalDetails";
 import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
 import { isMissing, relativePath, useCollectionIds, useDocsPage } from "./useFirestore";
@@ -8,7 +9,19 @@ function Chevron({ open }: { open: boolean }) {
   return <span aria-hidden="true" className="inline-block w-4 text-center">{open ? "▾" : "▸"}</span>;
 }
 
-function Status({ children, error, onRetry, testId }: { children: string; error?: boolean; onRetry?: () => void; testId?: string }) {
+function Status({
+  children,
+  error,
+  onRetry,
+  testId,
+  technical,
+}: {
+  children: string;
+  error?: boolean;
+  onRetry?: () => void;
+  testId?: string;
+  technical?: string | null;
+}) {
   const { t } = useTranslation();
   return (
     <div
@@ -22,6 +35,7 @@ function Status({ children, error, onRetry, testId }: { children: string; error?
           {t("connection.retry")}
         </button>
       )}
+      {technical && <TechnicalDetails text={technical} testId={`${testId}-technical`} />}
     </div>
   );
 }
@@ -33,7 +47,7 @@ export function CollectionList({ docPath }: { docPath: string }) {
   if (ids.isPending) return <Status testId="collections-loading">{t("connection.collectionsLoading")}</Status>;
   if (ids.isError)
     return (
-      <Status error testId="collections-error" onRetry={() => void ids.refetch()}>
+      <Status error testId="collections-error" onRetry={() => void ids.refetch()} technical={technicalText(ids.error)}>
         {t("connection.collectionsError", { message: describeError(t, ids.error) })}
       </Status>
     );
@@ -124,7 +138,7 @@ function DocList({ collectionPath }: { collectionPath: string }) {
   if (query.isPending) return <Status testId="docs-loading">{t("firestore.docsLoading")}</Status>;
   if (query.isError)
     return (
-      <Status error testId="docs-error" onRetry={() => void query.refetch()}>
+      <Status error testId="docs-error" onRetry={() => void query.refetch()} technical={technicalText(query.error)}>
         {t("firestore.docsError", { message: describeError(t, query.error) })}
       </Status>
     );

@@ -37,10 +37,10 @@
   "errors": {
     "keyInvalid": "The key.json file is not valid: {{detail}}",
     "keyUnreadable": "The private key in the file could not be read. Make sure it is the original key.json.",
-    "rejected": "Google rejected the credential ({{cause}}). Check that the key has not been revoked and that the file is the right one.",
-    "offline": "Offline: could not reach Google ({{cause}}).",
-    "forbidden": "Permission denied: the service account is missing a required IAM role or the Firestore API is not enabled in Google Cloud. Grant the role (for example Cloud Datastore User) or enable the API, then retry. ({{cause}})",
-    "unknown": "Unexpected error: {{cause}}",
+    "rejected": "Google rejected the credential. Check that the key has not been revoked and that the file is the right one.",
+    "offline": "Offline: could not reach Google. Check your internet connection and retry.",
+    "forbidden": "Permission denied: the service account is missing a required IAM role or the Firestore API is not enabled in Google Cloud. Grant the role (for example Cloud Datastore User) or enable the API, then retry.",
+    "unknown": "Unexpected error. The technical details show what the system reported.",
     "fileRead": "The selected file could not be read.",
     "technicalDetails": "Technical details",
     "keyReason": {
@@ -56,7 +56,8 @@
       "forbidden": "Permission denied (403). The service account is missing a required IAM role (for example Cloud Datastore User for Firestore, or Firebase Remote Config Admin for Remote Config) or the API is not enabled in Google Cloud. Grant the role or enable the API in the Google Cloud console, then retry.",
       "notFound": "Not found (404): the item does not exist (it may have been deleted or the version is no longer available).",
       "rateLimited": "Google is limiting requests (429). Wait a moment and retry.",
-      "server": "Google had a temporary problem (5xx). Retry in a few moments."
+      "server": "Google had a temporary problem (5xx). Retry in a few moments.",
+      "other": "Google rejected the request (HTTP {{http}}, {{status}})."
     },
     "offlineBanner": "You are offline. Changes in the editor are kept; actions will work again when the connection returns.",
     "offlineRetry": "Retry now"
@@ -258,10 +259,10 @@
     "publishBlocked": "Publishing is blocked until the template is valid:",
     "validationOk": "The template is valid. Nothing was published.",
     "validationLocal": "The template has problems:",
-    "validationServer": "Remote Config rejected the template: {{message}}",
+    "validationServer": "Remote Config rejected the template. The technical details show the reason Google gave.",
     "validationConflict": "The template changed in Remote Config since you loaded it. Reload it or publish to resolve the conflict.",
     "issues": {
-      "invalidJson": "The JSON is not valid: {{message}}",
+      "invalidJson": "The JSON is not valid. The technical details show where it fails.",
       "notObject": "The template must be a JSON object.",
       "conditionsNotArray": "\"conditions\" must be a list.",
       "parametersNotObject": "\"parameters\" must be an object.",

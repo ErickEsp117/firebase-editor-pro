@@ -58,7 +58,7 @@ describe("i18n audit", () => {
 
   it("defines every dynamic key family the UI builds at runtime", () => {
     const families: Record<string, string[]> = {
-      "errors.api": ["offline", "unauthenticated", "forbidden", "notFound", "rateLimited", "server"],
+      "errors.api": ["offline", "unauthenticated", "forbidden", "notFound", "rateLimited", "server", "other"],
       "errors": ["keyInvalid", "keyUnreadable", "rejected", "offline", "forbidden", "unknown", "fileRead"],
       "errors.keyReason": ["notJson", "notObject", "badType", "badField", "badPem"],
       "editor.types": ["string", "integer", "double", "boolean", "null", "timestamp", "reference", "geopoint", "bytes", "array", "map"],

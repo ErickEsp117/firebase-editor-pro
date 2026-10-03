@@ -32,6 +32,13 @@ function wrap(ui: React.ReactNode) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
+/** The visible text of an alert without its collapsed technical-details disclosure. */
+function mainText(el: HTMLElement): string {
+  const copy = el.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("details").forEach((d) => d.remove());
+  return copy.textContent ?? "";
+}
+
 beforeEach(() => {
   useSettings.getState().setLanguage("es");
   useFirestoreNav.getState().reset();
@@ -49,10 +56,11 @@ describe("network failure", () => {
     });
     wrap(<FirestoreBrowser />);
     const err = await screen.findByTestId("collections-error");
-    expect(err.textContent).toContain("Sin conexión");
-    expect(err.textContent).not.toContain("Failed to fetch");
+    expect(mainText(err)).toContain("Sin conexión");
+    expect(mainText(err)).not.toContain("Failed to fetch");
+    expect(screen.getByTestId("collections-error-technical").textContent).toContain("Failed to fetch");
     act(() => useSettings.getState().setLanguage("en"));
-    expect(screen.getByTestId("collections-error").textContent).toContain("No connection");
+    expect(mainText(screen.getByTestId("collections-error"))).toContain("No connection");
     down = false;
     fireEvent.click(screen.getByText("Retry"));
     await screen.findByTestId("collection:users");
@@ -130,8 +138,9 @@ describe("403 explainer", () => {
     fireEvent.blur(input);
     fireEvent.click(screen.getByTestId("save-button"));
     const err = await screen.findByTestId("save-error");
-    expect(err.textContent).toContain("Permiso denegado");
-    expect(err.textContent).not.toContain("The caller does not have permission");
+    expect(mainText(err)).toContain("Permiso denegado");
+    expect(mainText(err)).not.toContain("The caller does not have permission");
+    expect(screen.getByTestId("save-error-technical").textContent).toContain("The caller does not have permission");
   });
 
   it("Remote Config load failure with 403 offers a working retry", async () => {

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { describeError } from "../errors/describeError";
+import { describeError, technicalText } from "../errors/describeError";
+import { TechnicalDetails } from "../errors/TechnicalDetails";
 import { useEditorStore } from "../../store/documentEditor";
 import type { Draft } from "./editorModel";
 import type { SaveState } from "./useDocumentEditor";
@@ -74,9 +75,10 @@ export function SaveBar({ draft, dirty, canSave, state, updateTime, onSave, onDi
         </p>
       )}
       {state.phase === "error" && (
-        <p role="alert" data-testid="save-error" className="text-sm text-red-700 dark:text-red-300">
-          {t("editor.saveFailed", { message: describeError(t, state.error) })}
-        </p>
+        <div role="alert" data-testid="save-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
+          <p data-testid="save-error-message">{t("editor.saveFailed", { message: describeError(t, state.error) })}</p>
+          {technicalText(state.error) && <TechnicalDetails text={technicalText(state.error)!} testId="save-error-technical" />}
+        </div>
       )}
     </div>
   );

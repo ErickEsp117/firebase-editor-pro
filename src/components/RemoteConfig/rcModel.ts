@@ -6,6 +6,8 @@ type Obj = Record<string, unknown>;
 export interface RcIssue {
   key: string;
   params?: Record<string, string>;
+  /** Raw parser or service text (usually English); only ever shown inside labeled technical details. */
+  detail?: string;
 }
 
 export type RcDraft =
@@ -77,7 +79,7 @@ export function parseTemplateText(text: string): RcDraft {
   try {
     value = JSON.parse(text);
   } catch (e) {
-    return { ok: false, issues: [{ key: "rc.issues.invalidJson", params: { message: e instanceof Error ? e.message : String(e) } }] };
+    return { ok: false, issues: [{ key: "rc.issues.invalidJson", detail: e instanceof Error ? e.message : String(e) }] };
   }
   if (!isObj(value)) return { ok: false, issues: [{ key: "rc.issues.notObject" }] };
   const issues = checkTemplate(value);

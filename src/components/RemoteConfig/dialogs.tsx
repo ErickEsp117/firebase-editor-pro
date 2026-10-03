@@ -6,7 +6,7 @@ export const MAX_DESCRIPTION = 1024;
 
 interface PublishProps {
   busy: boolean;
-  error: string | null;
+  error: ReactNode;
   initial: string;
   onPublish(description: string): void;
   onCancel(): void;
@@ -30,9 +30,9 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
         />
       </label>
       {error && (
-        <p role="alert" data-testid="rc-publish-error" className="text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-publish-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
           {error}
-        </p>
+        </div>
       )}
       <div className="flex justify-end gap-2">
         <button type="button" data-testid="rc-publish-cancel" className={BTN} disabled={busy} onClick={onCancel}>
@@ -54,7 +54,7 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
 
 interface ConflictProps {
   busy: boolean;
-  error: string | null;
+  error: ReactNode;
   onReload(): void;
   onForce(): void;
   onCancel(): void;
@@ -72,9 +72,9 @@ export function RcConflictDialog({ busy, error, onReload, onForce, onCancel }: C
         </p>
       )}
       {error && (
-        <p role="alert" data-testid="rc-conflict-error" className="text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-conflict-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
           {error}
-        </p>
+        </div>
       )}
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" data-testid="rc-conflict-cancel" className={BTN} disabled={busy} onClick={onCancel}>

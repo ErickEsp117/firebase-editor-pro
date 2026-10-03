@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
-import { apiErrorKind, type RemoteConfigVersion } from "../../core";
+import type { RemoteConfigVersion } from "../../core";
 import { useRcEditor } from "../../store/rcEditor";
 import { ErrorNotice } from "../errors/ErrorNotice";
 import { ioErrorMessage } from "../Firestore/crud/ioErrors";
 import { PublishDialog, RcConfirmDialog, RcConflictDialog } from "./dialogs";
-import { countEntries, type RcIssue } from "./rcModel";
+import { countEntries } from "./rcModel";
+import { ErrorMessage, FailureBody, IssueList, rejectionText, type RcFailure } from "./rcErrors";
 import { TemplateEditor } from "./TemplateEditor";
 import { useRcController, type RcNotice } from "./useRemoteConfig";
 import { VersionsPanel } from "./VersionsPanel";
@@ -18,12 +18,6 @@ type Dialog =
   | { kind: "reload" }
   | { kind: "rollback"; version: RemoteConfigVersion };
 
-/** Only a real API rejection reads as "the template was rejected"; offline, permission and similar failures are explained on their own. */
-function rejectionText(t: TFunction, error: unknown): string {
-  const message = ioErrorMessage(t, error);
-  return apiErrorKind(error) === "other" ? t("rc.validationServer", { message }) : message;
-}
-
 const BTN = "rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 dark:border-slate-600";
 
 export function RemoteConfigView() {
@@ -32,7 +26,7 @@ export function RemoteConfigView() {
   const rc = useRcController();
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [description, setDescription] = useState("");
-  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<RcFailure | null>(null);
 
   // Disconnecting unmounts this view; the next connection must start from a fresh download.
   useEffect(
@@ -43,7 +37,6 @@ export function RemoteConfigView() {
     [queryClient],
   );
 
-  const issueText = (issue: RcIssue) => t(issue.key, issue.params);
   const close = () => {
     setDialog(null);
     setDialogError(null);
@@ -60,9 +53,9 @@ export function RemoteConfigView() {
     }
     if (outcome.kind === "conflict") return setDialog({ kind: "conflict" });
     if (outcome.kind === "invalid") {
-      return setDialogError(outcome.error !== undefined ? rejectionText(t, outcome.error) : outcome.issues.map(issueText).join(" "));
+      return setDialogError(outcome.error !== undefined ? { kind: "rejected", error: outcome.error } : { kind: "issues", issues: outcome.issues });
     }
-    setDialogError(t("rc.publishFailed", { message: ioErrorMessage(t, outcome.error) }));
+    setDialogError({ kind: "publishFailed", error: outcome.error });
   };
 
   const session = rc.session;
@@ -79,6 +72,7 @@ export function RemoteConfigView() {
     );
   }
 
+  const failureView = (testId: string) => dialogError && <FailureBody failure={dialogError} testId={testId} />;
   const counts = rc.draft.ok ? countEntries(rc.draft.template) : null;
 
   return (
@@ -140,19 +134,15 @@ export function RemoteConfigView() {
       {!rc.draft.ok && (
         <div role="alert" data-testid="rc-draft-error" className="text-sm text-red-700 dark:text-red-300">
           <p>{t("rc.publishBlocked")}</p>
-          <ul className="list-disc pl-5">
-            {rc.draft.issues.map((issue, i) => (
-              <li key={i}>{issueText(issue)}</li>
-            ))}
-          </ul>
+          <IssueList issues={rc.draft.issues} testId="rc-draft-error" />
         </div>
       )}
-      <ValidationMessage validation={rc.validation} issueText={issueText} />
+      <ValidationMessage validation={rc.validation} />
       {rc.notice && <Notice notice={rc.notice} onDismiss={rc.dismissNotice} />}
       {rc.actionError && (
-        <p role="alert" data-testid="rc-action-error" className="text-sm text-red-700 dark:text-red-300">
-          {t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })}
-        </p>
+        <div role="alert" data-testid="rc-action-error" className="text-sm text-red-700 dark:text-red-300">
+          <ErrorMessage text={t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })} error={rc.actionError.error} testId="rc-action-error" />
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]">
@@ -171,7 +161,7 @@ export function RemoteConfigView() {
       {dialog?.kind === "publish" && (
         <PublishDialog
           busy={rc.busy === "publish"}
-          error={dialogError}
+          error={failureView("rc-publish-error")}
           initial={description}
           onPublish={(desc) => void publish(desc, false)}
           onCancel={close}
@@ -180,7 +170,7 @@ export function RemoteConfigView() {
       {dialog?.kind === "conflict" && (
         <RcConflictDialog
           busy={working}
-          error={dialogError}
+          error={failureView("rc-conflict-error")}
           onCancel={close}
           onReload={async () => {
             setDialogError(null);
@@ -223,9 +213,9 @@ export function RemoteConfigView() {
             </p>
           )}
           {rc.actionError && (
-            <p role="alert" className="text-sm text-red-700 dark:text-red-300">
-              {t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })}
-            </p>
+            <div role="alert" className="text-sm text-red-700 dark:text-red-300">
+              <ErrorMessage text={t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })} error={rc.actionError.error} testId="rc-rollback-error" />
+            </div>
           )}
         </RcConfirmDialog>
       )}
@@ -233,13 +223,7 @@ export function RemoteConfigView() {
   );
 }
 
-function ValidationMessage({
-  validation,
-  issueText,
-}: {
-  validation: ReturnType<typeof useRcController>["validation"];
-  issueText(issue: RcIssue): string;
-}) {
+function ValidationMessage({ validation }: { validation: ReturnType<typeof useRcController>["validation"] }) {
   const { t } = useTranslation();
   if (!validation) return null;
   if (validation.kind === "valid") {
@@ -254,14 +238,10 @@ function ValidationMessage({
       {validation.kind === "local" && (
         <>
           <p>{t("rc.validationLocal")}</p>
-          <ul className="list-disc pl-5">
-            {validation.issues.map((issue, i) => (
-              <li key={i}>{issueText(issue)}</li>
-            ))}
-          </ul>
+          <IssueList issues={validation.issues} testId="rc-validation-error" />
         </>
       )}
-      {validation.kind === "server" && <p>{rejectionText(t, validation.error)}</p>}
+      {validation.kind === "server" && <ErrorMessage text={rejectionText(t, validation.error)} error={validation.error} testId="rc-validation-error" />}
       {validation.kind === "conflict" && <p>{t("rc.validationConflict")}</p>}
     </div>
   );

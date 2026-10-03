@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { ApiError, apiErrorKind } from "../../core";
-import { describeError } from "./describeError";
+import { apiErrorKind } from "../../core";
+import { describeError, technicalText } from "./describeError";
+import { TechnicalDetails } from "./TechnicalDetails";
 
 interface Props {
   error: unknown;
@@ -15,20 +16,12 @@ interface Props {
 export function ErrorNotice({ error, summary, onRetry, testId = "error-notice", retryTestId }: Props) {
   const { t } = useTranslation();
   const kind = apiErrorKind(error);
-  const apiError = error instanceof ApiError ? error : null;
+  const technical = technicalText(error);
   return (
     <div role="alert" data-testid={testId} data-error-kind={kind} className="space-y-1 text-sm text-red-700 dark:text-red-300">
       {summary && <p className="font-medium">{summary}</p>}
       <p data-testid={`${testId}-message`}>{describeError(t, error)}</p>
-      {apiError && kind !== "other" && (
-        <details className="opacity-80">
-          <summary>{t("errors.technicalDetails")}</summary>
-          <code data-testid={`${testId}-technical`}>
-            {apiError.http > 0 ? `HTTP ${apiError.http} ` : ""}
-            {apiError.status}: {apiError.message}
-          </code>
-        </details>
-      )}
+      {technical && <TechnicalDetails text={technical} testId={`${testId}-technical`} />}
       {onRetry && (
         <button type="button" data-testid={retryTestId ?? `${testId}-retry`} className="underline" onClick={onRetry}>
           {t("connection.retry")}

@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { RemoteConfigApi, RemoteConfigVersion } from "../../core";
-import { describeError } from "../errors/describeError";
+import { describeError, technicalText } from "../errors/describeError";
+import { TechnicalDetails } from "../errors/TechnicalDetails";
 import { useRcVersions } from "./useRemoteConfig";
 
 interface Props {
@@ -44,12 +45,15 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
         </p>
       )}
       {query.isError && (
-        <p role="alert" data-testid="rc-versions-error" className="text-xs text-red-700 dark:text-red-300">
-          {t("rc.versionsError", { message: describeError(t, query.error) })}
-          <button type="button" className="ml-2 underline" onClick={() => void query.refetch()}>
-            {t("connection.retry")}
-          </button>
-        </p>
+        <div role="alert" data-testid="rc-versions-error" className="text-xs text-red-700 dark:text-red-300">
+          <p>
+            {t("rc.versionsError", { message: describeError(t, query.error) })}
+            <button type="button" className="ml-2 underline" onClick={() => void query.refetch()}>
+              {t("connection.retry")}
+            </button>
+          </p>
+          {technicalText(query.error) && <TechnicalDetails text={technicalText(query.error)!} testId="rc-versions-error-technical" />}
+        </div>
       )}
       {query.isSuccess && versions.length === 0 && (
         <p data-testid="rc-versions-empty" className="text-xs text-slate-500">

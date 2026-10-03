@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreNav } from "../../../store/firestoreNav";
-import { describeError } from "../../errors/describeError";
+import { describeError, technicalText } from "../../errors/describeError";
+import { TechnicalDetails } from "../../errors/TechnicalDetails";
 import { useFirestoreApi } from "../useFirestore";
 import { invalidateTree } from "./invalidate";
 import { BTN, BTN_DANGER, Modal } from "./Modal";
@@ -50,9 +51,10 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
     <Modal titleId="delete-coll-title" testId="delete-collection-dialog" title={t("crud.deleteCollTitle")}>
       {count.isPending && <p data-testid="delete-coll-counting" className="text-sm">{t("crud.deleteCollCounting", { path })}</p>}
       {count.isError && (
-        <p role="alert" data-testid="delete-coll-count-error" className="text-sm text-red-700 dark:text-red-300">
-          {t("crud.countError", { message: describeError(t, count.error) })}
-        </p>
+        <div role="alert" data-testid="delete-coll-count-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
+          <p>{t("crud.countError", { message: describeError(t, count.error) })}</p>
+          {technicalText(count.error) && <TechnicalDetails text={technicalText(count.error)!} testId="delete-coll-count-error-technical" />}
+        </div>
       )}
       {count.data !== undefined && (
         <>
