@@ -1,4 +1,5 @@
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
@@ -34,3 +35,36 @@ export const editorTheme = [tokenTheme, syntaxHighlighting(jsonHighlight)];
 
 /** Tells CodeMirror's base styles (scrollbars, panels) which scheme is active. */
 export const editorScheme = (dark: boolean) => EditorView.darkTheme.of(dark);
+
+/** CodeMirror's own UI text (fold tooltips, search panel, lint panel) in Spanish; English is built in. */
+const SPANISH_PHRASES: Record<string, string> = {
+  "Fold line": "Plegar línea",
+  "Unfold line": "Desplegar línea",
+  "folded code": "código plegado",
+  unfold: "desplegar",
+  Find: "Buscar",
+  Replace: "Reemplazar",
+  next: "siguiente",
+  previous: "anterior",
+  all: "todo",
+  "match case": "mayúsculas/minúsculas",
+  regexp: "expresión regular",
+  "by word": "palabra completa",
+  replace: "reemplazar",
+  "replace all": "reemplazar todo",
+  close: "cerrar",
+  "current match": "coincidencia actual",
+  "on line": "en la línea",
+  "replaced $ matches": "$ coincidencias reemplazadas",
+  "replaced match on line $": "coincidencia reemplazada en la línea $",
+  "Go to line": "Ir a la línea",
+  go: "ir",
+  to: "a",
+  Diagnostics: "Diagnósticos",
+  "No diagnostics": "Sin diagnósticos",
+  "Selection deleted": "Selección eliminada",
+  "Control character": "Carácter de control",
+  Completions: "Sugerencias",
+};
+
+export const editorPhrases = (language: string) => EditorState.phrases.of(language === "es" ? SPANISH_PHRASES : {});

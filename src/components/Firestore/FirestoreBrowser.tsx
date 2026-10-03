@@ -6,6 +6,7 @@ import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useConnection } from "../../store/connection";
 import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
+import { documentUnsaved } from "../../store/unsavedChanges";
 import { CrudDialogs } from "./crud/CrudDialogs";
 import { DocumentView } from "./DocumentView";
 import { CollectionList } from "./TreeNodes";
@@ -34,9 +35,17 @@ export function FirestoreSidebar() {
   const queryClient = useQueryClient();
   const fetching = useIsFetching({ queryKey: ["fs", projectId] }) > 0;
   const openDialog = useCrudDialog((s) => s.open);
-  // Refreshes the tree, its pages and the open document; a dirty document keeps its draft (the editor
-  // asks before discarding it when the shortcut also reaches it).
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ["fs", projectId] });
+  // Refreshes the tree, its pages and a clean open document. A document with unsaved edits is left to its
+  // editor, which asks before discarding them (the shortcut reaches both), so a failed or 404 refetch can
+  // never replace the editor that holds the draft.
+  const refresh = () => {
+    const open = useFirestoreNav.getState().selectedDoc;
+    const keep = open && projectId && documentUnsaved(projectId, open) ? open : null;
+    void queryClient.invalidateQueries({
+      queryKey: ["fs", projectId],
+      predicate: (q) => !(keep && q.queryKey[2] === "doc" && q.queryKey[3] === keep),
+    });
+  };
   useShortcutActions("firestore", { reload: refresh });
   return (
       <div data-testid="firestore-tree">

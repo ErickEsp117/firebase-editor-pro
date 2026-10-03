@@ -186,11 +186,13 @@ export async function removeAccount(
   const index = (await readIndex(platform)) ?? emptyIndex();
   if (!index.accounts.some((a) => a.id === id)) return { index, orphaned: false };
   const removed = index.accounts.find((a) => a.id === id)!;
+  // First, so a failure leaves the account listed (the user can retry) instead of letting the next load
+  // migrate the legacy copy back. The index still references sa:<id>, so a crash here loses nothing.
+  await dropLegacyCopy(platform, removed);
   const accounts = index.accounts.filter((a) => a.id !== id);
   const activeId = index.activeId === id ? (accounts[0]?.id ?? null) : index.activeId;
   const next: AccountsIndex = { version: 1, activeId, accounts };
   await writeIndex(platform, next);
-  await dropLegacyCopy(platform, removed);
   try {
     await platform.secureStore.delete(accountSecretKey(id));
     return { index: next, orphaned: false };
@@ -201,15 +203,19 @@ export async function removeAccount(
 
 /**
  * A legacy `service-account` entry whose delete failed during migration would migrate the same key again
- * on the next load, bringing a removed account back. Best effort: an unreadable legacy entry is left alone.
+ * on the next load, bringing a removed account back. An unreadable legacy entry is left alone; a failed
+ * delete of a matching one propagates so the removal does not happen half-way.
  */
 async function dropLegacyCopy(platform: Platform, removed: AccountMeta): Promise<void> {
+  let key: ServiceAccountKey;
   try {
     const legacy = await platform.secureStore.get(LEGACY_CREDENTIAL_KEY);
-    if (legacy && sameIdentity(removed, parseKeyJson(legacy))) await platform.secureStore.delete(LEGACY_CREDENTIAL_KEY);
+    if (!legacy) return;
+    key = parseKeyJson(legacy);
   } catch {
-    // Nothing else depends on it; a later removal retries.
+    return;
   }
+  if (sameIdentity(removed, key)) await platform.secureStore.delete(LEGACY_CREDENTIAL_KEY);
 }
 
 /** Offline: builds the connection from the stored credential of an account. */

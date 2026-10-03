@@ -13,9 +13,9 @@ export function accentContrast(hex: string): "#000000" | "#ffffff" {
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   };
   const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  // macOS draws white text on its saturated accents (blue, purple, pink, red, graphite); only the light
-  // ones (yellow, orange, green) would leave white text below 2.5:1, so they get dark text.
-  return luminance > 0.4 ? "#000000" : "#ffffff";
+  // White while it keeps at least 3:1 (macOS blue, purple, pink, red, graphite); the light accents
+  // (orange, yellow, green) get dark text instead.
+  return 1.05 / (luminance + 0.05) >= 3 ? "#ffffff" : "#000000";
 }
 
 /** Writes the system accent (and its readable text color) as tokens, or falls back to the CSS defaults. */

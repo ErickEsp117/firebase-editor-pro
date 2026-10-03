@@ -81,8 +81,10 @@ export function AccountSwitcher({ sidebar = false }: { sidebar?: boolean }) {
                     data-testid={`account-item:${a.id}`}
                     aria-current={isActive ? "true" : undefined}
                     aria-label={isActive ? undefined : t("accounts.switchTo", { project: a.projectId })}
-                    disabled={busy || isActive}
-                    onClick={() => requestSwitch(a.id)}
+                    // The active account stays focusable (aria-disabled) so keyboard users reach it and its badge.
+                    disabled={busy}
+                    aria-disabled={isActive || undefined}
+                    onClick={() => { if (!isActive) requestSwitch(a.id); }}
                     className={`flex min-w-0 w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left ${isActive ? "bg-selection" : "hover:bg-hover"}`}
                   >
                     <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent text-on-accent">{a.projectId.slice(0, 1).toUpperCase()}</span>

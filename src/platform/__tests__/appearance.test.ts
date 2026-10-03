@@ -70,6 +70,10 @@ describe("system accent resolution (VAL-UI-004)", () => {
     expect(accentContrast("#8E8E93")).toBe("#ffffff");
     expect(accentContrast("#FF9500")).toBe("#000000");
     expect(accentContrast("#28CD41")).toBe("#000000");
+    // The actual macOS orange and green controlAccentColor values.
+    expect(accentContrast("#F7821B")).toBe("#000000");
+    expect(accentContrast("#62BA46")).toBe("#000000");
+    expect(accentContrast("#0A84FF")).toBe("#ffffff");
     expect(accentContrast("#953D96")).toBe("#ffffff");
   });
 });

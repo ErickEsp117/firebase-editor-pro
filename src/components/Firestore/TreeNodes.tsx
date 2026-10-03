@@ -175,12 +175,13 @@ function DocNode({ path, missing }: { path: string; missing: boolean }) {
   const selected = useFirestoreNav((s) => s.selectedDoc === path);
   // Like a macOS source list: the selection is filled with the accent only while its area is shown.
   const inFirestore = useArea((s) => s.area === "firestore");
+  const accentSel = selected && inFirestore;
   const toggle = useFirestoreNav((s) => s.toggle);
   const select = useFirestoreNav((s) => s.select);
   const id = path.slice(path.lastIndexOf("/") + 1);
   return (
     <li data-testid={`doc-node:${path}`} data-missing={missing || undefined}>
-      <div className={`flex items-center rounded-md ${selected ? (inFirestore ? "bg-accent text-on-accent" : "bg-selection") : "hover:bg-hover"}`}>
+      <div className={`flex items-center rounded-md ${accentSel ? "bg-accent text-on-accent" : selected ? "bg-selection" : "hover:bg-hover"}`}>
         <button
           type="button"
           aria-expanded={open}
@@ -197,12 +198,12 @@ function DocNode({ path, missing }: { path: string; missing: boolean }) {
           data-testid={`doc:${path}`}
           aria-current={selected ? "true" : undefined}
           onClick={() => { useArea.getState().setArea("firestore"); select(path); }}
-          className={`flex min-w-0 flex-1 items-center gap-1.5 truncate py-1 text-left ${missing ? "italic opacity-70" : ""}`}
+          className={`flex min-w-0 flex-1 items-center gap-1.5 truncate py-1 text-left ${missing ? (accentSel ? "italic" : "italic opacity-70") : ""}`}
         >
           <FileText size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" /><span className="truncate">{id}</span>
         </button>
         {missing && (
-          <span data-testid={`missing-badge:${path}`} title={t("firestore.missingHint")} className="mr-1 rounded bg-warning/10 px-1 text-[10px] text-warning">
+          <span data-testid={`missing-badge:${path}`} title={t("firestore.missingHint")} className={`mr-1 rounded px-1 text-[10px] ${accentSel ? "bg-on-accent/20 text-on-accent" : "bg-warning/10 text-warning"}`}>
             {t("firestore.missing")}
           </span>
         )}

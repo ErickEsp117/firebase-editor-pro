@@ -18,6 +18,12 @@ function templateDirty({ baseText, text }: RcSession): boolean {
   return !sameTemplate(draft.template, base);
 }
 
+/** True when the open document `path` has a draft or an uncommitted table cell (only the open one has cells). */
+export function documentUnsaved(projectId: string, path: string): boolean {
+  const session = useEditorStore.getState().sessions[`${projectId}/${path}`];
+  return !!session && (hasPendingInputs() || documentDirty(session));
+}
+
 /**
  * True when the Remote Config draft or any open document draft differs from its server baseline, or a
  * table cell still holds an uncommitted edit. Same comparison the editors use for their dirty indicators.

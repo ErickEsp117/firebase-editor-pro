@@ -68,3 +68,20 @@ it("keeps the technical details summary reachable with Tab", () => {
   fireEvent.keyDown(document.activeElement!, { key: "Tab" });
   expect(document.activeElement?.tagName).toBe("SUMMARY");
 });
+
+it("a dialog that replaces another returns focus to the first dialog's opener", () => {
+  const publish = document.createElement("button");
+  document.body.append(publish); publish.focus();
+  function Chain({ step }: { step: "publish" | "conflict" | "none" }) {
+    if (step === "publish") return <Modal titleId="p" testId="publish" title="Publish" onClose={() => undefined}><button>Confirm publish</button></Modal>;
+    if (step === "conflict") return <Modal titleId="c" testId="conflict" title="Conflict" onClose={() => undefined}><button>Cancel</button></Modal>;
+    return null;
+  }
+  const view = render(<Chain step="publish" />);
+  expect(document.activeElement).toBe(screen.getByText("Confirm publish"));
+  view.rerender(<Chain step="conflict" />);
+  expect(document.activeElement).toBe(screen.getByText("Cancel"));
+  view.rerender(<Chain step="none" />);
+  expect(document.activeElement).toBe(publish);
+  publish.remove();
+});

@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { decodeDoc, documentsRootOf, stringifyEditorJson, type FirestoreDocument } from "../../core";
 import { useEditorStore } from "../../store/documentEditor";
+import { usePendingInputs } from "../../store/pendingInputs";
 import { useFirestoreApi } from "../Firestore/useFirestore";
 import { buildSavePlan, docToText, hasChanges, isConflict, parseDraft, type Draft } from "./editorModel";
 import type { Obj } from "./valueTypes";
@@ -91,6 +92,8 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
     setState({ phase: "reloading" });
     try {
       accept(await api.getDoc(path));
+      // The server copy replaces every local edit, including cells that were never committed.
+      usePendingInputs.getState().resetAll();
       setState({ phase: "idle" });
     } catch (e) {
       setState({ phase: "reloadError", error: e });
@@ -99,6 +102,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
 
   const discard = useCallback(() => {
     updateText(docToText(baseDoc));
+    usePendingInputs.getState().resetAll();
     setState({ phase: "idle" });
   }, [updateText, baseDoc]);
 

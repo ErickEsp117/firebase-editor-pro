@@ -22,25 +22,30 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
   const ed = useDocumentEditor(path, serverDoc);
   const pendingInput = usePendingInputs((s) => Object.keys(s.ids).length > 0);
   const [reloadPending, setReloadPending] = useState(false);
-  const [jsonActionFailed, setJsonActionFailed] = useState(false);
+  // The text a Format/Repair failed on; the error stays only until that text changes.
+  const [failedOn, setFailedOn] = useState<string | null>(null);
+  const jsonActionFailed = failedOn !== null && failedOn === ed.text;
   const openDialog = useCrudDialog((s) => s.open);
 
   // Format and Repair report failures the same way from the toolbar, the JSON view and the shortcut.
   const runJson = (fn: (text: string) => string) => {
     try {
       ed.updateText(fn(ed.text));
-      setJsonActionFailed(false);
+      setFailedOn(null);
     } catch {
-      setJsonActionFailed(true);
+      setFailedOn(ed.text);
     }
   };
   const format = () => runJson(formatEditorJson);
-  const reload = () => (ed.dirty || hasPendingInputs() ? setReloadPending(true) : void ed.reload());
+  const reload = () => {
+    if (ed.state.phase === "reloading") return;
+    if (ed.dirty || hasPendingInputs()) setReloadPending(true);
+    else void ed.reload();
+  };
+  // The same reload as the toolbar button: the tree refresh skips a document with unsaved edits.
   useShortcutActions("firestore", {
     save: () => { if (ed.canSave) void ed.save(); },
-    // The tree's reload refetches a clean document too; here only a draft needs the user's decision.
-    reload: () => { if (ed.dirty || hasPendingInputs()) setReloadPending(true); },
-    format,
+    reload, format,
   });
 
   const tab = (v: EditorView, label: string) => (
@@ -68,7 +73,7 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
           {tab("table", t("editor.viewTable"))}
         </div>
         <div className="flex items-center gap-1">
-          <IconButton data-testid="document-reload" label={t("editor.reload")} shortcut="reload" disabled={ed.state.phase === "reloading"} onClick={reload}>
+          <IconButton data-testid="document-reload" label={t("editor.reload")} shortcut="reload" aria-disabled={ed.state.phase === "reloading"} onClick={reload}>
             <RotateCw size={16} aria-hidden="true" className={ed.state.phase === "reloading" ? "animate-spin" : ""} />
           </IconButton>
           <IconButton data-testid="json-format" label={t("editor.format")} shortcut="format" onClick={format}><Braces size={16} aria-hidden="true" /></IconButton>

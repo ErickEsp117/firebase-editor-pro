@@ -15,6 +15,8 @@ interface Props {
 
 /** Open dialogs, bottom first. Only the topmost one handles Escape, Tab and focus containment. */
 const stack: HTMLElement[] = [];
+/** The control that opened each open dialog, so a dialog that replaces another can return focus there. */
+const openers = new WeakMap<HTMLElement, HTMLElement | null>();
 
 const FOCUSABLE =
   'summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
@@ -31,16 +33,20 @@ function focusableIn(panel: HTMLElement): HTMLElement[] {
 /** Shared modal: keep focus inside it and restore the invoking control on dismissal. */
 export function Modal({ titleId, testId, title, children, onClose, busy = false, role = "alertdialog", returnFocus }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  // Read while rendering, before React applies autoFocus to a field inside the dialog.
-  const [opener] = useState(() => {
+  // Read while rendering, before React applies autoFocus to a field inside the dialog. When this dialog
+  // replaces one that is still open (publish -> conflict), that dialog's opener is the fallback.
+  const [{ opener, inherited }] = useState(() => {
     const active = document.activeElement;
-    return active instanceof HTMLElement && active !== document.body ? active : null;
+    const own = active instanceof HTMLElement && active !== document.body ? active : null;
+    const host = own ? stack.find((panel) => panel.contains(own)) : undefined;
+    return { opener: own, inherited: host ? (openers.get(host) ?? null) : null };
   });
   const current = useRef({ onClose, busy, returnFocus });
   useEffect(() => { current.current = { onClose, busy, returnFocus }; }, [onClose, busy, returnFocus]);
   useEffect(() => {
     const panel = ref.current!;
     stack.push(panel);
+    openers.set(panel, inherited ?? opener);
     const isTop = () => stack.at(-1) === panel;
     if (!panel.contains(document.activeElement)) (focusableIn(panel)[0] ?? panel).focus();
     const keydown = (event: KeyboardEvent) => {
@@ -68,10 +74,10 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
       document.removeEventListener("keydown", keydown, true);
       document.removeEventListener("focusin", contain);
       stack.splice(stack.indexOf(panel), 1);
-      const usable = opener?.isConnected && !(opener as HTMLButtonElement).disabled ? opener : null;
+      const usable = [opener, inherited].find((el) => el?.isConnected && !(el as HTMLButtonElement).disabled) ?? null;
       (usable ?? current.current.returnFocus?.())?.focus();
     };
-  }, [opener]);
+  }, [opener, inherited]);
   return createPortal(
     <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div ref={ref} tabIndex={-1} role={role} aria-modal="true" aria-labelledby={titleId}

@@ -5,7 +5,8 @@ import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useResolvedTheme } from "../../store/useResolvedTheme";
-import { editorScheme, editorTheme } from "../editorTheme";
+import { useSettings } from "../../store/settings";
+import { editorPhrases, editorScheme, editorTheme } from "../editorTheme";
 
 interface Props {
   text: string;
@@ -36,9 +37,10 @@ export function JsonView({ text, onChange, onRepair }: Props) {
   }, [text]);
 
   const dark = theme === "dark";
+  const language = useSettings((s) => s.language);
   const extensions = useMemo(
-    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark)],
-    [dark],
+    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark), editorPhrases(language)],
+    [dark, language],
   );
 
   return (

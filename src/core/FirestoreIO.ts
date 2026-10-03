@@ -114,14 +114,17 @@ async function exportCollectionTree(
   collectionPath: string,
   counter: { docs: number },
   onProgress?: (docs: number) => void,
+  signal?: AbortSignal,
 ): Promise<Obj> {
   const result: Obj = {};
   let pageToken: string | undefined;
   do {
+    signal?.throwIfAborted();
     const page = await api.listDocs(collectionPath, { pageSize: 100, pageToken, showMissing: true });
     for (const d of page.documents) {
       const docPath = relative(d.name);
       const id = docPath.slice(docPath.lastIndexOf("/") + 1);
+      signal?.throwIfAborted();
       const subNames = await api.listAllCollectionIds(docPath);
       // A "missing" document (no timestamps) only matters as the parent of subcollections.
       const missing = !d.createTime && !d.updateTime;
@@ -129,7 +132,7 @@ async function exportCollectionTree(
       const entry: Obj = decodeDoc(d);
       if (subNames.length > 0) {
         const subs: Obj = {};
-        for (const name of subNames) subs[name] = await exportCollectionTree(api, `${docPath}/${name}`, counter, onProgress);
+        for (const name of subNames) subs[name] = await exportCollectionTree(api, `${docPath}/${name}`, counter, onProgress, signal);
         entry[COLLECTIONS_KEY] = subs;
       }
       result[id] = entry;
@@ -147,8 +150,10 @@ export async function exportCollection(
   api: Pick<FirestoreApi, "listDocs" | "listAllCollectionIds">,
   collectionPath: string,
   onProgress?: (docs: number) => void,
+  /** Stops reading further pages and subcollections once aborted (the dialog was closed). */
+  signal?: AbortSignal,
 ): Promise<{ text: string; docs: number }> {
   const counter = { docs: 0 };
-  const tree = await exportCollectionTree(api, collectionPath, counter, onProgress);
+  const tree = await exportCollectionTree(api, collectionPath, counter, onProgress, signal);
   return { text: stringifyEditorJson(tree), docs: counter.docs };
 }

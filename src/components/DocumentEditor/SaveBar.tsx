@@ -63,7 +63,7 @@ export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDi
           {t("editor.invalidBlocked")} {t(draft.error.key, draft.error.params)}
         </p>
       )}
-      {state.phase === "saved" && (
+      {state.phase === "saved" && !dirty && !pending && (
         <p role="status" data-testid="save-status" className="text-sm text-success ">
           {t("editor.saved", { time: state.updateTime })}
         </p>

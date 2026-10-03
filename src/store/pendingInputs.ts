@@ -6,11 +6,16 @@ import { create } from "zustand";
  */
 interface PendingInputsState {
   ids: Record<string, true>;
+  /** Bumped to make every cell drop its uncommitted draft (Discard, or a confirmed reload). */
+  epoch: number;
   mark(id: string, pending: boolean): void;
+  resetAll(): void;
 }
 
 export const usePendingInputs = create<PendingInputsState>((set) => ({
   ids: {},
+  epoch: 0,
+  resetAll: () => set((s) => ({ ids: {}, epoch: s.epoch + 1 })),
   mark: (id, pending) =>
     set((s) => {
       if (Boolean(s.ids[id]) === pending) return s;

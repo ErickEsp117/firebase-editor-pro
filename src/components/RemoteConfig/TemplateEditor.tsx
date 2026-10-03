@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useResolvedTheme } from "../../store/useResolvedTheme";
-import { editorScheme, editorTheme } from "../editorTheme";
+import { useSettings } from "../../store/settings";
+import { editorPhrases, editorScheme, editorTheme } from "../editorTheme";
 
 interface Props {
   text: string;
@@ -16,7 +17,9 @@ interface Props {
 export function TemplateEditor({ text, onChange }: Props) {
   const { t } = useTranslation();
   const theme = useResolvedTheme();
-  const [formatError, setFormatError] = useState(false);
+  // The text Format failed on; the error stays only until that text changes (edit, reload, rollback).
+  const [failedOn, setFailedOn] = useState<string | null>(null);
+  const formatError = failedOn !== null && failedOn === text;
   const viewRef = useRef<EditorView | null>(null);
 
   useEffect(
@@ -35,17 +38,18 @@ export function TemplateEditor({ text, onChange }: Props) {
   }, [text]);
 
   const dark = theme === "dark";
+  const language = useSettings((s) => s.language);
   const extensions = useMemo(
-    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark)],
-    [dark],
+    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark), editorPhrases(language)],
+    [dark, language],
   );
 
   const format = () => {
     try {
       onChange(JSON.stringify(JSON.parse(text), null, 2));
-      setFormatError(false);
+      setFailedOn(null);
     } catch {
-      setFormatError(true);
+      setFailedOn(text);
     }
   };
   // ⌘/Ctrl+Shift+F runs exactly what the Format button runs, including its error.

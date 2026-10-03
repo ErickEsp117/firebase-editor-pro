@@ -62,7 +62,7 @@ function Shell() {
     <div className="flex h-screen flex-col text-fg">
       {showConnected ? <ConnectedView key={activeId ?? "none"} /> : (
         <div className="flex h-full flex-col bg-surface">
-          <header className="welcome-toolbar editor-toolbar flex items-center justify-between gap-4 px-6" data-tauri-drag-region="deep">
+          <header className="welcome-toolbar editor-toolbar justify-between" data-tauri-drag-region="deep">
             <h1 className="font-semibold">{t("app.title")}</h1><SettingsBar />
           </header>
           <OfflineBanner />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { exportCollection, exportDocument } from "../../../core";
 import { getPlatform } from "../../../platform";
@@ -19,19 +19,12 @@ export function ExportDialog({ scope, path }: Props) {
   const api = useFirestoreApi();
   const close = useCrudDialog((s) => s.close);
   const [status, setStatus] = useState<Status>({ phase: "running", count: 0 });
-  const started = useRef(false);
-  // Closing the dialog while the export runs abandons it: no save dialog appears later for it.
-  const open = useRef(true);
+  // Each mount runs its own export; closing the dialog aborts it, so no further reads happen and no save
+  // dialog appears later. (StrictMode's extra mount aborts the first run before it saves anything.)
   useEffect(() => {
-    open.current = true;
-    return () => {
-      open.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!api || started.current) return;
-    started.current = true;
+    if (!api) return;
+    const ctrl = new AbortController();
+    const live = () => !ctrl.signal.aborted;
     const leaf = path.slice(path.lastIndexOf("/") + 1);
     const name = `${leaf}.json`;
     void (async () => {
@@ -42,18 +35,19 @@ export function ExportDialog({ scope, path }: Props) {
           text = await exportDocument(api, path);
         } else {
           const res = await exportCollection(api, path, (n) => {
-            if (open.current) setStatus({ phase: "running", count: n });
-          });
+            if (live()) setStatus({ phase: "running", count: n });
+          }, ctrl.signal);
           text = res.text;
           count = res.docs;
         }
-        if (!open.current) return;
+        if (!live()) return;
         const saved = await getPlatform().saveTextFile(name, text);
-        if (open.current) setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
+        if (live()) setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
       } catch (e) {
-        if (open.current) setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
+        if (live()) setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
       }
     })();
+    return () => ctrl.abort();
   }, [api, path, scope]);
 
   return (

@@ -181,13 +181,16 @@ export const useConnection = create<ConnectionState>((set, get) => ({
       set({ phase: previousPhase, accounts: index.accounts, duplicateOf: null });
       return;
     }
-    discardEditorSessions();
+    // Discard in the same tick as the state that leaves the removed account, like switchTo: discarding
+    // before the await would let the still-mounted view refetch with the removed key into a fresh cache.
     if (index.activeId === null) {
+      discardEditorSessions();
       set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: null, duplicateOf: null });
       return;
     }
     try {
       const connection = await connectAccount(platform, index.activeId);
+      discardEditorSessions();
       set({
         phase: "connected",
         accounts: index.accounts,
@@ -197,6 +200,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
         duplicateOf: null,
       });
     } catch (e) {
+      discardEditorSessions();
       set({
         phase: "welcome",
         accounts: index.accounts,

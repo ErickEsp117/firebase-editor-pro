@@ -38,7 +38,8 @@ export function DeleteDocDialog({ path }: { path: string }) {
   };
 
   return (
-    <Modal onClose={close} busy={busy} titleId="delete-doc-title" testId="delete-doc-dialog" title={t("crud.deleteDocTitle")}>
+    <Modal onClose={close} busy={busy} titleId="delete-doc-title" testId="delete-doc-dialog" title={t("crud.deleteDocTitle")}
+      returnFocus={() => document.querySelector<HTMLElement>(`[data-testid="collection:${path.slice(0, path.lastIndexOf("/"))}"]`)}>
       <p className="break-all text-sm" data-testid="delete-doc-body">
         {t("crud.deleteDocBody", { path })}
       </p>

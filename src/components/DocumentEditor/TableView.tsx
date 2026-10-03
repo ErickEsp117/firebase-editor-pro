@@ -99,6 +99,7 @@ function Row({ root, path, name, depth, apply }: RowProps) {
               type="button"
               aria-expanded={open}
               aria-label={t("editor.toggleNode", { name })}
+              title={t("editor.toggleNode", { name })}
               data-testid={`toggle-${testKey}`}
               onClick={() => setOpen(!open)}
               className="mr-1 inline-block w-4 text-center"
@@ -126,6 +127,7 @@ function Row({ root, path, name, depth, apply }: RowProps) {
           <button
             type="button"
             aria-label={t("editor.deleteEntry", { name })}
+            title={t("editor.deleteEntry", { name })}
             data-testid={`delete-${testKey}`}
             onClick={() => apply((r) => deleteAt(r, path))}
             className="rounded px-1.5 text-danger hover:bg-danger/10 "

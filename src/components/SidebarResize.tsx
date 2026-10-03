@@ -7,7 +7,7 @@ export function SidebarResize() {
   const setWidth = useSettings((s) => s.setSidebarWidth);
   return <div role="separator" aria-orientation="vertical" aria-label={t("layout.resizeSidebar")} title={t("layout.resizeSidebar")}
     aria-valuemin={SIDEBAR_MIN} aria-valuemax={SIDEBAR_MAX} aria-valuenow={width} tabIndex={0} data-testid="sidebar-resize"
-    className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-accent/40 focus-visible:bg-accent/40"
+    className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize touch-none hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none"
     onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); }}
     onPointerMove={(event) => {
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {

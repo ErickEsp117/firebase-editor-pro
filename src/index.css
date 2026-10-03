@@ -5,14 +5,14 @@
   color-scheme: light;
   --panel: #f7f7f8;
   --danger: #b4232a;
-  --warning: #8a5700;
+  --warning: #7a4c00;
   --success: #187640;
   --radius: 6px;
   --surface: #ffffff;            /* content pane, always opaque */
   --sidebar-bg: #f2f2f4;         /* solid fallback (browser mode, Win10) */
   --toolbar-bg: var(--surface);
   --text: #1d1d1f;
-  --text-secondary: rgb(0 0 0 / 0.55);
+  --text-secondary: rgb(0 0 0 / 0.62);
   --border: rgb(0 0 0 / 0.1);
   --hover: rgb(0 0 0 / 0.05);
   --accent: #007aff;             /* overridden inline by native accent */

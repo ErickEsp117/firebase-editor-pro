@@ -175,3 +175,46 @@ it("every icon-only control has a name and a translated tooltip with its shortcu
   act(() => useSettings.getState().setLanguage("es"));
   expect(screen.getByTestId("save-button").getAttribute("title")).toBe("Guardar (⌘S)");
 });
+
+it("Ctrl+S saves a dirty document on Windows (and ⌘S does not)", async () => {
+  vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+  useFirestoreNav.setState({ expanded: {}, selectedDoc: "fbep_test_keys/d" });
+  mount();
+  await screen.findByTestId("document-editor");
+  act(() => useEditorStore.getState().setText("p/fbep_test_keys/d", '{"a":"windows"}'));
+  expect(press({ key: "s", metaKey: true }).defaultPrevented).toBe(false);
+  await new Promise((r) => setTimeout(r, 10));
+  expect(count((c) => c.method === "PATCH")).toBe(0);
+  expect(press({ key: "s", ctrlKey: true }).defaultPrevented).toBe(true);
+  await waitFor(() => expect(count((c) => c.method === "PATCH")).toBe(1));
+  expect(JSON.stringify(calls.find((c) => c.method === "PATCH")!.body)).toContain("windows");
+});
+
+it("⌘R on a document with a draft asks first and never refetches it behind the editor", async () => {
+  useFirestoreNav.setState({ expanded: {}, selectedDoc: "fbep_test_keys/d" });
+  mount();
+  await screen.findByTestId("document-editor");
+  act(() => useEditorStore.getState().setText("p/fbep_test_keys/d", '{"a":"draft"}'));
+  const gets = docGets();
+  press({ key: "r", metaKey: true });
+  await screen.findByTestId("reload-document-dialog");
+  await new Promise((r) => setTimeout(r, 20));
+  expect(docGets()).toBe(gets);
+  fireEvent.click(screen.getByTestId("reload-document-cancel"));
+  expect(useEditorStore.getState().sessions["p/fbep_test_keys/d"].text).toBe('{"a":"draft"}');
+  expect(screen.getByTestId("document-editor")).toBeTruthy();
+});
+
+it("Discard also drops an invalid, uncommitted table cell", async () => {
+  doc = { ...doc, fields: { a: { stringValue: "one" }, n: { integerValue: "5" } } };
+  useFirestoreNav.setState({ expanded: {}, selectedDoc: "fbep_test_keys/d" });
+  mount();
+  await screen.findByTestId("document-editor");
+  act(() => useEditorStore.getState().setText("p/fbep_test_keys/d", '{"a":"changed","n":5}'));
+  const cell = screen.getByTestId("row-n").querySelector("input")!;
+  fireEvent.change(cell, { target: { value: "5x" } });
+  expect(screen.getByTestId("status-save").textContent).toBe("Unsaved changes");
+  fireEvent.click(screen.getByTestId("discard-button"));
+  await waitFor(() => expect((screen.getByTestId("row-n").querySelector("input") as HTMLInputElement).value).toBe("5"));
+  expect(screen.getByTestId("status-save").textContent).toBe("All changes saved");
+});

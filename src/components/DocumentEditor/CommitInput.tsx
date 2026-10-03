@@ -14,8 +14,11 @@ interface Props {
 export function CommitInput({ value, onCommit, validate, label, testId, className = "" }: Props) {
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
-  if (seen !== value) {
+  const epoch = usePendingInputs((s) => s.epoch);
+  const [seenEpoch, setSeenEpoch] = useState(epoch);
+  if (seen !== value || seenEpoch !== epoch) {
     setSeen(value);
+    setSeenEpoch(epoch);
     setDraft(value);
   }
   const valid = !validate || validate(draft);
