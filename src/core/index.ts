@@ -7,6 +7,15 @@ export { importKey, restoreConnection, forgetConnection, verifyKey, listRootColl
 export type { Connection, ConnectionErrorKind } from "./connection";
 export { FirestoreApi, fieldPath } from "./FirestoreApi";
 export type { FirestoreDocument, ListOptions, Precondition, UpsertOptions, DocsPage, CollectionIdsPage } from "./FirestoreApi";
+export { RemoteConfigApi, RemoteConfigConflictError, isRemoteConfigConflict } from "./RemoteConfigApi";
+export type {
+  RemoteConfigTemplate,
+  RemoteConfigVersion,
+  TemplateWithEtag,
+  VersionsPage,
+  PublishOptions,
+  DefaultsFormat,
+} from "./RemoteConfigApi";
 export {
   CodecError,
   encodeDoc,
