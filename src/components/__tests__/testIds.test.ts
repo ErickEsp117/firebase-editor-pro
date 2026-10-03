@@ -28,7 +28,8 @@ function extract(text: string): { statics: Set<string>; patterns: Set<string> } 
 }
 
 function baseline(): { statics: string[]; patterns: string[] } {
-  const text = readFileSync(join(root, "docs/testid-baseline.md"), "utf8");
+  // Windows checkouts may convert the baseline to CRLF line endings.
+  const text = readFileSync(join(root, "docs/testid-baseline.md"), "utf8").replace(/\r\n/g, "\n");
   const blocks = [...text.matchAll(/```text\n([\s\S]*?)```/g)].map((m) => m[1].split("\n").filter(Boolean));
   return { statics: blocks[0], patterns: blocks[1] };
 }
