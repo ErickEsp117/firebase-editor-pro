@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { RotateCw, Braces, Upload } from "lucide-react";
 import { useShortcutActions } from "../../hooks/shortcuts";
 import { formatEditorJson, repairEditorJson } from "../../core";
@@ -15,7 +15,7 @@ import { SaveBar, SaveButton } from "./SaveBar";
 import { TableView } from "./TableView";
 import { useDocumentEditor } from "./useDocumentEditor";
 
-export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: FirestoreDocument }) {
+export function DocumentEditor({ path, serverDoc, actions }: { path: string; serverDoc: FirestoreDocument; actions?: ReactNode }) {
   const { t } = useTranslation();
   const view = useEditorStore((s) => s.view);
   const setView = useEditorStore((s) => s.setView);
@@ -74,13 +74,24 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
         </div>
         <div className="flex items-center gap-1">
           <IconButton data-testid="document-reload" label={t("editor.reload")} shortcut="reload" aria-disabled={ed.state.phase === "reloading"} onClick={reload}>
-            <RotateCw size={16} aria-hidden="true" className={ed.state.phase === "reloading" ? "animate-spin" : ""} />
+            <RotateCw size={18} aria-hidden="true" className={ed.state.phase === "reloading" ? "animate-spin" : ""} />
           </IconButton>
-          <IconButton data-testid="json-format" label={t("editor.format")} shortcut="format" onClick={format}><Braces size={16} aria-hidden="true" /></IconButton>
-          <IconButton data-testid="export-document" label={t("io.exportDocument")} onClick={() => openDialog({ kind: "export", scope: "doc", path })}><Upload size={16} aria-hidden="true" /></IconButton>
+          <IconButton data-testid="json-format" label={t("editor.format")} shortcut="format" onClick={format}><Braces size={18} aria-hidden="true" /></IconButton>
+          <IconButton data-testid="export-document" label={t("io.exportDocument")} onClick={() => openDialog({ kind: "export", scope: "doc", path })}><Upload size={18} aria-hidden="true" /></IconButton>
         </div>
         <SaveButton canSave={ed.canSave} state={ed.state} onSave={() => void ed.save()} />
       </div>
+      <SaveBar
+        draft={ed.draft}
+        dirty={ed.dirty}
+        pending={pendingInput}
+        canSave={ed.canSave}
+        state={ed.state}
+        updateTime={ed.updateTime}
+        onSave={() => void ed.save()}
+        onDiscard={ed.discard}
+        actions={actions}
+      />
       <div className="panel-body space-y-3">
         {jsonActionFailed && (
           <p role="alert" data-testid="json-action-error" className="text-sm text-danger">
@@ -98,16 +109,6 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
         ) : (
           <JsonView text={ed.text} onChange={ed.updateText} onRepair={() => runJson(repairEditorJson)} />
         )}
-        <SaveBar
-          draft={ed.draft}
-          dirty={ed.dirty}
-          pending={pendingInput}
-          canSave={ed.canSave}
-          state={ed.state}
-          updateTime={ed.updateTime}
-          onSave={() => void ed.save()}
-          onDiscard={ed.discard}
-        />
       </div>
       {reloadPending && <ConfirmDialog testId="reload-document" title={t("accounts.unsavedTitle")} confirmLabel={t("editor.reload")}
         onCancel={() => setReloadPending(false)} onConfirm={() => { setReloadPending(false); void ed.reload(); }}>

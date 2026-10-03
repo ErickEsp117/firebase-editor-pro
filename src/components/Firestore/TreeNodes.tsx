@@ -9,7 +9,7 @@ import { isMissing, relativePath, useCollectionIds, useDocsPage } from "./useFir
 
 function Chevron({ open }: { open: boolean }) {
   const Icon = open ? ChevronDown : ChevronRight;
-  return <Icon aria-hidden="true" size={14} strokeWidth={1.75} className="shrink-0" />;
+  return <Icon aria-hidden="true" size={15} strokeWidth={1.75} className="shrink-0" />;
 }
 
 function Status({
@@ -82,7 +82,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           onClick={() => toggle(key)}
           className="flex min-w-0 flex-1 items-center px-1 py-1 text-left"
         >
-          <Chevron open={open} /><Folder size={15} strokeWidth={1.75} className="mx-1 shrink-0" aria-hidden="true" />
+          <Chevron open={open} /><Folder size={16} strokeWidth={1.75} className="mx-1 shrink-0" aria-hidden="true" />
           <span className="truncate">{name}</span>
         </button>
         <button
@@ -93,7 +93,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           onClick={() => openDialog({ kind: "create", parentDocPath, collectionPath: path })}
           className="tree-actions px-1 text-sm"
         >
-          <Plus size={13} aria-hidden="true" />
+          <Plus size={14} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -103,7 +103,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           onClick={() => openDialog({ kind: "export", scope: "collection", path })}
           className="tree-actions px-1 text-sm"
         >
-          <Download size={13} aria-hidden="true" />
+          <Download size={14} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -113,7 +113,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           onClick={() => openDialog({ kind: "import", scope: "collection", path })}
           className="tree-actions px-1 text-sm"
         >
-          <Upload size={13} aria-hidden="true" />
+          <Upload size={14} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -123,7 +123,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           onClick={() => openDialog({ kind: "deleteCollection", path })}
           className="tree-actions px-1 text-sm text-danger "
         >
-          <Trash2 size={13} aria-hidden="true" />
+          <Trash2 size={14} aria-hidden="true" />
         </button>
       </div>
       {open && (
@@ -200,7 +200,7 @@ function DocNode({ path, missing }: { path: string; missing: boolean }) {
           onClick={() => { useArea.getState().setArea("firestore"); select(path); }}
           className={`flex min-w-0 flex-1 items-center gap-1.5 truncate py-1 text-left ${missing ? (accentSel ? "italic" : "italic opacity-70") : ""}`}
         >
-          <FileText size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" /><span className="truncate">{id}</span>
+          <FileText size={16} strokeWidth={1.75} className="shrink-0" aria-hidden="true" /><span className="truncate">{id}</span>
         </button>
         {missing && (
           <span data-testid={`missing-badge:${path}`} title={t("firestore.missingHint")} className={`mr-1 rounded px-1 text-[10px] ${accentSel ? "bg-on-accent/20 text-on-accent" : "bg-warning/10 text-warning"}`}>

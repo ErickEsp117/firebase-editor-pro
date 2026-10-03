@@ -48,7 +48,7 @@ export function CommitInput({ value, onCommit, validate, label, testId, classNam
         if (e.key === "Enter") commit(e.currentTarget.value);
         else if (e.key === "Escape") setDraft(value);
       }}
-      className={`min-w-0 rounded border px-1.5 py-0.5 font-mono text-xs ${
+      className={`min-w-0 rounded border bg-surface px-2 py-1 font-mono text-sm ${
         valid ? "border-line " : "border-danger bg-danger/10 "
       } ${className}`}
     />

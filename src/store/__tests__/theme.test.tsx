@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { useResolvedTheme } from "../useResolvedTheme";
-import { clampSidebarWidth, useSettings } from "../settings";
+import { clampSidebarWidth, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, useSettings } from "../settings";
 import { validAccent, getNativeAppearance } from "../../platform/appearance";
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it("updates all subscribers when the system changes and respects a manual override", () => {
@@ -26,9 +26,9 @@ it("uses safe browser appearance and validates cached accent values", async () =
   expect(validAccent(null)).toBe(false);
 });
 it("bounds sidebar width and persists a valid size", () => {
-  expect(clampSidebarWidth(-1)).toBe(220);
-  expect(clampSidebarWidth(1000)).toBe(420);
-  expect(clampSidebarWidth(NaN)).toBe(264);
+  expect(clampSidebarWidth(-1)).toBe(SIDEBAR_MIN);
+  expect(clampSidebarWidth(1000)).toBe(SIDEBAR_MAX);
+  expect(clampSidebarWidth(NaN)).toBe(SIDEBAR_DEFAULT);
   useSettings.getState().setSidebarWidth(320);
   expect(JSON.parse(localStorage.getItem("fbep:settings")!).sidebarWidth).toBe(320);
 });

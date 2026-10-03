@@ -58,7 +58,7 @@ export function FirestoreSidebar() {
             onClick={() => openDialog({ kind: "create", parentDocPath: "", collectionPath: null })}
             className="icon-button ml-auto"
           >
-            <FolderPlus size={15} aria-hidden="true" />
+            <FolderPlus size={17} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -67,7 +67,7 @@ export function FirestoreSidebar() {
             onClick={() => openDialog({ kind: "import", scope: "collection", path: "" })}
             className="icon-button"
           >
-            <Upload size={15} aria-hidden="true" />
+            <Upload size={17} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -77,7 +77,7 @@ export function FirestoreSidebar() {
             onClick={refresh}
             className="icon-button disabled:opacity-50"
           >
-            <RotateCw size={15} aria-hidden="true" className={fetching ? "animate-spin" : ""} />
+            <RotateCw size={17} aria-hidden="true" className={fetching ? "animate-spin" : ""} />
           </button>
         </div>
         <CollectionList docPath="" />

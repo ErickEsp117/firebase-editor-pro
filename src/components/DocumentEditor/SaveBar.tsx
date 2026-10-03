@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { withShortcut } from "../../hooks/shortcuts";
 import { useTranslation } from "react-i18next";
 import { describeError, technicalText } from "../errors/describeError";
@@ -16,39 +17,45 @@ interface Props {
   updateTime?: string;
   onSave(): void;
   onDiscard(): void;
+  /** Document actions shown at the end of the options bar (new subcollection, import, delete). */
+  actions?: ReactNode;
 }
 
-export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDiscard }: Props) {
+/**
+ * Options bar under the toolbar (discard, save mode, state, document actions) followed by the save
+ * messages, so everything about the document sits above its content.
+ */
+export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDiscard, actions }: Props) {
   const { t } = useTranslation();
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-3">
+    <>
+      <div className="options-bar">
         <button
           type="button"
           data-testid="discard-button"
           disabled={!dirty}
           onClick={onDiscard}
-          className="rounded border border-line px-3 py-1 text-sm disabled:opacity-50 "
+          className="btn"
         >
           {t("editor.discard")}
         </button>
-        <label className="flex items-center gap-1 text-xs">
+        <label className="flex items-center gap-1.5 text-sm">
           {t("editor.saveMode")}
           <select
             data-testid="save-mode"
             value={mode}
             onChange={(e) => setMode(e.target.value as "modified" | "full")}
-            className="rounded border border-line px-1 py-0.5 "
+            className="rounded-md border border-line bg-surface px-1.5 py-0.5"
           >
             <option value="modified">{t("editor.modeModified")}</option>
             <option value="full">{t("editor.modeFull")}</option>
           </select>
         </label>
         {(dirty || pending) && (
-          <span data-testid="dirty-indicator" className="text-xs text-warning ">
+          <span data-testid="dirty-indicator" className="text-sm text-warning">
             {t("editor.unsaved")}
           </span>
         )}
@@ -57,7 +64,9 @@ export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDi
             {t("editor.updateTime", { time: updateTime })}
           </span>
         )}
+        {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
+      <div className="space-y-2 px-[18px] pt-3 empty:hidden">
       {!draft.ok && (
         <p role="alert" data-testid="draft-error" className="text-sm text-danger ">
           {t("editor.invalidBlocked")} {t(draft.error.key, draft.error.params)}
@@ -80,7 +89,8 @@ export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDi
           {technicalText(state.error) && <TechnicalDetails text={technicalText(state.error)!} testId="reload-error-technical" />}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

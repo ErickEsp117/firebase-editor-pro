@@ -8,7 +8,6 @@ import { StatusBar } from "./StatusBar";
 import { useSettings } from "../store/settings";
 import { Database, SlidersHorizontal, Flame, LogOut } from "lucide-react";
 import { FirestoreBrowser, FirestoreSidebar } from "./Firestore/FirestoreBrowser";
-import { AreaHeader } from "./Firestore/DocumentView";
 import { RemoteConfigView } from "./RemoteConfig/RemoteConfigView";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { OfflineBanner } from "./errors/OfflineBanner";
@@ -94,10 +93,7 @@ export function ConnectedView() {
         <div className="min-h-0 flex-1 overflow-auto">
           <div data-testid="area-firestore" hidden={area !== "firestore"}><FirestoreBrowser showSidebar={false} /></div>
           {visitedRc && (
-            <div data-testid="area-remote-config" hidden={area !== "remoteConfig"}>
-              <AreaHeader title={t("nav.remoteConfig")} subtitle={`${connection.projectId} · ${t("layout.template")}`} />
-              <div className="panel-body"><RemoteConfigView /></div>
-            </div>
+            <div data-testid="area-remote-config" hidden={area !== "remoteConfig"}><RemoteConfigView /></div>
           )}
         </div>
         <StatusBar />
