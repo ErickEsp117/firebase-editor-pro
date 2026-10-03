@@ -43,6 +43,8 @@
     "unknown": "Unexpected error. The technical details show what the system reported.",
     "fileRead": "The selected file could not be read.",
     "technicalDetails": "Technical details",
+    "technicalFile": "File: {{name}}",
+    "technicalKeyId": "Key ID: {{id}}",
     "keyReason": {
       "notJson": "it is not valid JSON",
       "notObject": "it must contain a JSON object",

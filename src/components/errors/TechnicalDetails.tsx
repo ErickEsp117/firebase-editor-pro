@@ -6,7 +6,7 @@ export function TechnicalDetails({ text, testId }: { text: string; testId: strin
   return (
     <details className="opacity-80" data-testid={testId}>
       <summary>{t("errors.technicalDetails")}</summary>
-      <code className="break-words">{text}</code>
+      <code className="whitespace-pre-wrap break-words">{text}</code>
     </details>
   );
 }

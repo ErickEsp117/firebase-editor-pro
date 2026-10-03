@@ -15,14 +15,26 @@ export interface Connection {
 
 export type ConnectionErrorKind = "keyInvalid" | "keyUnreadable" | "rejected" | "offline" | "forbidden" | "fileRead" | "unknown";
 
+/** Non-secret identifiers that tell a wrong file apart from a revoked key. */
+export interface ConnectionErrorContext {
+  fileName?: string;
+  keyId?: string;
+}
+
 export class ConnectionError extends Error {
   constructor(
     readonly kind: ConnectionErrorKind,
     readonly detail: string,
     readonly reason?: { code: KeyFileReason; field?: string },
+    readonly fileName?: string,
+    readonly keyId?: string,
   ) {
     super(detail);
     this.name = "ConnectionError";
+  }
+
+  withContext(ctx: ConnectionErrorContext): ConnectionError {
+    return new ConnectionError(this.kind, this.detail, this.reason, ctx.fileName ?? this.fileName, ctx.keyId ?? this.keyId);
   }
 }
 
@@ -58,20 +70,30 @@ export function classifyError(e: unknown): ConnectionError {
 }
 
 /** Parses locally, then proves the key works with a real token + root listCollectionIds. Nothing is stored. */
-export async function verifyKey(keyText: string, platform: Platform = getPlatform()): Promise<Connection> {
+export async function verifyKey(
+  keyText: string,
+  platform: Platform = getPlatform(),
+  fileName?: string,
+): Promise<Connection> {
+  let keyId: string | undefined;
   try {
     const auth = ServiceAccountAuth.fromKeyJson(keyText, { platform });
+    keyId = auth.key.private_key_id || undefined;
     const client = new ApiClient(auth, { platform });
     const conn = { auth, client, projectId: auth.projectId, clientEmail: auth.key.client_email };
     await listRootCollections(conn);
     return conn;
   } catch (e) {
-    throw classifyError(e);
+    throw classifyError(e).withContext({ fileName: fileName || undefined, keyId });
   }
 }
 
-export async function importKey(keyText: string, platform: Platform = getPlatform()): Promise<Connection> {
-  const conn = await verifyKey(keyText, platform);
+export async function importKey(
+  keyText: string,
+  platform: Platform = getPlatform(),
+  fileName?: string,
+): Promise<Connection> {
+  const conn = await verifyKey(keyText, platform, fileName);
   await platform.secureStore.set(CREDENTIAL_KEY, keyText);
   return conn;
 }

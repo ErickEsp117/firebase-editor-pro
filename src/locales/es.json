@@ -43,6 +43,8 @@
     "unknown": "Error inesperado. Los detalles técnicos muestran lo que informó el sistema.",
     "fileRead": "No se pudo leer el archivo seleccionado.",
     "technicalDetails": "Detalles técnicos",
+    "technicalFile": "Archivo: {{name}}",
+    "technicalKeyId": "ID de clave: {{id}}",
     "keyReason": {
       "notJson": "no es un JSON válido",
       "notObject": "debe contener un objeto JSON",

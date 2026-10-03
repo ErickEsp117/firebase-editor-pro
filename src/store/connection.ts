@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getPlatform } from "../platform";
+import { getPlatform, type PickedFile } from "../platform";
 import {
   classifyError,
   ConnectionError,
@@ -17,7 +17,7 @@ interface ConnectionState {
   error: ConnectionError | null;
   restore(): Promise<void>;
   importFromPicker(): Promise<void>;
-  importText(text: string): Promise<void>;
+  importText(text: string, fileName?: string): Promise<void>;
   disconnect(): Promise<void>;
   clearError(): void;
 }
@@ -38,21 +38,21 @@ export const useConnection = create<ConnectionState>((set, get) => ({
 
   async importFromPicker() {
     if (get().phase === "verifying") return;
-    let text: string | null;
+    let picked: PickedFile | null;
     try {
-      text = (await getPlatform().pickJsonFile())?.contents ?? null;
+      picked = await getPlatform().pickJsonFile();
     } catch {
       set({ error: new ConnectionError("fileRead", ""), phase: "welcome" });
       return;
     }
-    if (text === null) return;
-    await get().importText(text);
+    if (picked === null) return;
+    await get().importText(picked.contents, picked.name);
   },
 
-  async importText(text) {
+  async importText(text, fileName) {
     set({ phase: "verifying", error: null });
     try {
-      const connection = await importKey(text);
+      const connection = await importKey(text, undefined, fileName);
       set({ phase: "connected", connection, error: null });
     } catch (e) {
       set({ phase: "welcome", connection: null, error: classifyError(e) });

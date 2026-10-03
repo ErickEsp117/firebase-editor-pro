@@ -66,4 +66,35 @@ describe("connection", () => {
     expect(err.detail).toContain("Invalid JWT Signature");
     expect(data.size).toBe(0);
   });
+
+  it("attaches the file name and private_key_id to a rejected error without leaking key material", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(400, { error: "invalid_grant", error_description: "Invalid JWT Signature." })),
+    );
+    const { p } = platform();
+    const text = JSON.stringify({ ...key, private_key_id: "abc123keyid" });
+    const err = await importKey(text, p, "wrong-key.json").catch((e) => e);
+    expect(err.kind).toBe("rejected");
+    expect(err.fileName).toBe("wrong-key.json");
+    expect(err.keyId).toBe("abc123keyid");
+    expect(`${err.message} ${err.detail} ${err.fileName} ${err.keyId}`).not.toMatch(/BEGIN|AAAA/);
+  });
+
+  it("keeps working without a file name and omits a missing private_key_id", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json(400, { error: "invalid_grant", error_description: "x" })));
+    const { p } = platform();
+    const err = await importKey(JSON.stringify(key), p).catch((e) => e);
+    expect(err.kind).toBe("rejected");
+    expect(err.fileName).toBeUndefined();
+    expect(err.keyId).toBeUndefined();
+  });
+
+  it("does not add a key id to a locally invalid file", async () => {
+    const { p } = platform();
+    const err = await importKey("{not json", p, "broken.json").catch((e) => e);
+    expect(err.kind).toBe("keyInvalid");
+    expect(err.fileName).toBe("broken.json");
+    expect(err.keyId).toBeUndefined();
+  });
 });
