@@ -4,8 +4,6 @@ import { ApiClient } from "./ApiClient";
 import { ApiError } from "./ApiError";
 import { KeyFileError, ServiceAccountAuth, normalizeKeyId, type KeyFileReason } from "./ServiceAccountAuth";
 
-export const CREDENTIAL_KEY = "service-account";
-
 export interface Connection {
   auth: ServiceAccountAuth;
   client: ApiClient;
@@ -88,29 +86,13 @@ export async function verifyKey(
   }
 }
 
-export async function importKey(
-  keyText: string,
-  platform: Platform = getPlatform(),
-  fileName?: string,
-): Promise<Connection> {
-  const conn = await verifyKey(keyText, platform, fileName);
-  await platform.secureStore.set(CREDENTIAL_KEY, keyText);
-  return conn;
-}
-
-/** Read-only: returns null when nothing is stored; a stored but unusable credential raises. */
-export async function restoreConnection(platform: Platform = getPlatform()): Promise<Connection | null> {
-  const stored = await platform.secureStore.get(CREDENTIAL_KEY);
-  if (!stored) return null;
-  const auth = ServiceAccountAuth.fromKeyJson(stored, { platform });
+/** Offline: builds the clients from a stored key.json without verifying it with Google. */
+export function connectionFromKeyText(keyText: string, platform: Platform = getPlatform()): Connection {
+  const auth = ServiceAccountAuth.fromKeyJson(keyText, { platform });
   return {
     auth,
     client: new ApiClient(auth, { platform }),
     projectId: auth.projectId,
     clientEmail: auth.key.client_email,
   };
-}
-
-export async function forgetConnection(platform: Platform = getPlatform()): Promise<void> {
-  await platform.secureStore.delete(CREDENTIAL_KEY);
 }

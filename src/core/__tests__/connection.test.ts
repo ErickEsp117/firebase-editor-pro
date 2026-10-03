@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Platform } from "../../platform/types";
-import { CREDENTIAL_KEY, ConnectionError, forgetConnection, importKey, restoreConnection } from "../connection";
+import { ConnectionError, connectionFromKeyText, verifyKey } from "../connection";
 
 const key = {
   type: "service_account",
@@ -29,7 +29,7 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 afterEach(() => vi.unstubAllGlobals());
 
 describe("connection", () => {
-  it("stores the credential only after real verification succeeds", async () => {
+  it("verifies a key with a real token and root listing, and stores nothing", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
@@ -37,19 +37,25 @@ describe("connection", () => {
       ),
     );
     const { p, data } = platform();
-    const conn = await importKey(JSON.stringify(key), p);
+    const conn = await verifyKey(JSON.stringify(key), p);
     expect(conn.projectId).toBe("proj");
-    expect(data.has(CREDENTIAL_KEY)).toBe(true);
-    expect((await restoreConnection(p))?.projectId).toBe("proj");
-    await forgetConnection(p);
-    expect(await restoreConnection(p)).toBeNull();
+    expect(data.size).toBe(0);
+  });
+
+  it("builds a connection from key text without touching the network", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { p } = platform();
+    const conn = connectionFromKeyText(JSON.stringify(key), p);
+    expect(conn).toMatchObject({ projectId: "proj", clientEmail: "sa@proj.iam.gserviceaccount.com" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects malformed JSON locally without touching the network or storage", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const { p, data } = platform();
-    await expect(importKey("{not json", p)).rejects.toMatchObject({ kind: "keyInvalid" });
+    await expect(verifyKey("{not json", p)).rejects.toMatchObject({ kind: "keyInvalid" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(data.size).toBe(0);
   });
@@ -60,7 +66,7 @@ describe("connection", () => {
       vi.fn(async () => json(400, { error: "invalid_grant", error_description: "Invalid JWT Signature." })),
     );
     const { p, data } = platform();
-    const err = await importKey(JSON.stringify(key), p).catch((e) => e);
+    const err = await verifyKey(JSON.stringify(key), p).catch((e) => e);
     expect(err).toBeInstanceOf(ConnectionError);
     expect(err.kind).toBe("rejected");
     expect(err.detail).toContain("Invalid JWT Signature");
@@ -74,7 +80,7 @@ describe("connection", () => {
     );
     const { p } = platform();
     const text = JSON.stringify({ ...key, private_key_id: "abc123keyid" });
-    const err = await importKey(text, p, "wrong-key.json").catch((e) => e);
+    const err = await verifyKey(text, p, "wrong-key.json").catch((e) => e);
     expect(err.kind).toBe("rejected");
     expect(err.fileName).toBe("wrong-key.json");
     expect(err.keyId).toBe("abc123keyid");
@@ -84,7 +90,7 @@ describe("connection", () => {
   it("keeps working without a file name and omits a missing private_key_id", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => json(400, { error: "invalid_grant", error_description: "x" })));
     const { p } = platform();
-    const err = await importKey(JSON.stringify(key), p).catch((e) => e);
+    const err = await verifyKey(JSON.stringify(key), p).catch((e) => e);
     expect(err.kind).toBe("rejected");
     expect(err.fileName).toBeUndefined();
     expect(err.keyId).toBeUndefined();
@@ -92,7 +98,7 @@ describe("connection", () => {
 
   it("does not add a key id to a locally invalid file", async () => {
     const { p } = platform();
-    const err = await importKey("{not json", p, "broken.json").catch((e) => e);
+    const err = await verifyKey("{not json", p, "broken.json").catch((e) => e);
     expect(err.kind).toBe("keyInvalid");
     expect(err.fileName).toBe("broken.json");
     expect(err.keyId).toBeUndefined();

@@ -309,6 +309,24 @@ mod tests {
     }
 
     #[test]
+    fn account_keys_chunk_independently_in_the_store() {
+        let b = Mem::default();
+        let sa1 = "sa:00000000-0000-4000-8000-000000000001";
+        let sa2 = "sa:00000000-0000-4000-8000-000000000002";
+        let big: String = "k".repeat(CHUNK_BYTES * 3 + 7);
+        set_with(&b, sa1, &big).unwrap();
+        set_with(&b, sa2, "second").unwrap();
+        set_with(&b, "accounts", "{\"version\":1}").unwrap();
+        assert_eq!(get_with(&b, sa1).unwrap().as_deref(), Some(big.as_str()));
+        assert_eq!(get_with(&b, sa2).unwrap().as_deref(), Some("second"));
+        delete_with(&b, sa1).unwrap();
+        assert_eq!(get_with(&b, sa1).unwrap(), None);
+        assert_eq!(get_with(&b, sa2).unwrap().as_deref(), Some("second"));
+        assert_eq!(get_with(&b, "accounts").unwrap().as_deref(), Some("{\"version\":1}"));
+        assert!(b.map.borrow().keys().all(|k| !k.starts_with(sa1)), "no leftover chunks of the deleted account");
+    }
+
+    #[test]
     fn get_missing_is_none() {
         assert_eq!(get_in(TEST_SERVICE, "never-set-key").unwrap(), None);
     }

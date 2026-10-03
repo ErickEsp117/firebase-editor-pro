@@ -1,0 +1,28 @@
+import { decodeDoc } from "../core";
+import { docToText, hasChanges, parseDraft } from "../components/DocumentEditor/editorModel";
+import { parseTemplateText, sameTemplate } from "../components/RemoteConfig/rcModel";
+import type { RemoteConfigTemplate } from "../core";
+import { useEditorStore, type EditorSession } from "./documentEditor";
+import { useRcEditor, type RcSession } from "./rcEditor";
+
+function documentDirty({ baseDoc, text }: EditorSession): boolean {
+  const draft = parseDraft(text);
+  return draft.ok ? hasChanges(decodeDoc(baseDoc), draft.value) : text !== docToText(baseDoc);
+}
+
+function templateDirty({ baseText, text }: RcSession): boolean {
+  const draft = parseTemplateText(text);
+  if (!draft.ok) return text !== baseText;
+  const base = baseText ? (JSON.parse(baseText) as RemoteConfigTemplate) : {};
+  return !sameTemplate(draft.template, base);
+}
+
+/**
+ * True when the Remote Config draft or any open document draft differs from its server baseline.
+ * Same comparison the editors use for their own dirty indicators.
+ */
+export function hasUnsavedChanges(): boolean {
+  const rc = useRcEditor.getState().session;
+  if (rc && templateDirty(rc)) return true;
+  return Object.values(useEditorStore.getState().sessions).some(documentDirty);
+}

@@ -4,7 +4,7 @@ import { ErrorBanner } from "./ErrorBanner";
 
 export function WelcomeView() {
   const { t } = useTranslation();
-  const { phase, error, importFromPicker, clearError } = useConnection();
+  const { phase, error, addFromPicker, clearError } = useConnection();
   const busy = phase === "verifying";
   return (
     <section data-testid="welcome" className="mx-auto flex max-w-xl flex-col gap-4">
@@ -20,7 +20,7 @@ export function WelcomeView() {
         type="button"
         data-testid="import-key"
         disabled={busy}
-        onClick={() => void importFromPicker()}
+        onClick={() => void addFromPicker()}
         className="self-start rounded bg-orange-600 px-4 py-2 font-medium text-white hover:bg-orange-700 disabled:opacity-50"
       >
         {busy ? t("connection.importing") : t("welcome.import")}

@@ -30,7 +30,7 @@ Release builds are **not code-signed**, so each operating system shows a warning
 2. Click **Generate new private key** and save the JSON file.
 3. Open the app and click **Import key.json**, then pick that file.
 4. The app checks the key, requests a token from Google and shows the project name and its collections. The key is saved in the system keychain, so you stay connected after you restart the app.
-5. To forget the credential, use **Disconnect**. It deletes the key from the keychain.
+5. **Sign out** returns to the welcome screen and keeps your saved keys in the keychain.
 
 The service account needs IAM roles for what you want to do: for example *Cloud Datastore User* for Firestore and *Firebase Remote Config Admin* for Remote Config. The default Firebase Admin SDK account has both. If a role is missing the app explains the 403 error and what to grant.
 

@@ -1,68 +1,167 @@
 import { create } from "zustand";
 import { getPlatform, type PickedFile } from "../platform";
 import {
-  classifyError,
-  ConnectionError,
-  forgetConnection,
-  importKey,
-  restoreConnection,
-  type Connection,
-} from "../core/connection";
+  connectAccount,
+  importAccount,
+  loadAccounts,
+  removeAccount,
+  setActiveAccount,
+  type AccountMeta,
+} from "../core/accounts";
+import { classifyError, ConnectionError, type Connection } from "../core/connection";
+import { useEditorStore } from "./documentEditor";
+import { useRcEditor } from "./rcEditor";
 
 export type ConnectionPhase = "restoring" | "welcome" | "verifying" | "connected";
 
 interface ConnectionState {
   phase: ConnectionPhase;
+  accounts: AccountMeta[];
+  activeId: string | null;
+  /** Derived from the active account; null while signed out. */
   connection: Connection | null;
   error: ConnectionError | null;
+  /** Set when the last added key matched this saved account, which was selected instead. */
+  duplicateOf: string | null;
   restore(): Promise<void>;
-  importFromPicker(): Promise<void>;
-  importText(text: string, fileName?: string): Promise<void>;
-  disconnect(): Promise<void>;
+  addFromPicker(): Promise<void>;
+  addText(text: string, fileName?: string): Promise<void>;
+  switchTo(id: string): Promise<void>;
+  signOut(): Promise<void>;
+  remove(id: string): Promise<void>;
   clearError(): void;
+}
+
+/** Drafts belong to the account being left; callers confirm with hasUnsavedChanges() first. */
+function discardEditorSessions(): void {
+  useEditorStore.getState().clear();
+  useRcEditor.getState().reset();
 }
 
 export const useConnection = create<ConnectionState>((set, get) => ({
   phase: "restoring",
+  accounts: [],
+  activeId: null,
   connection: null,
   error: null,
+  duplicateOf: null,
 
   async restore() {
     try {
-      const connection = await restoreConnection();
-      set(connection ? { phase: "connected", connection, error: null } : { phase: "welcome" });
+      const platform = getPlatform();
+      const index = await loadAccounts(platform);
+      if (index.activeId === null) {
+        set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null });
+        return;
+      }
+      try {
+        const connection = await connectAccount(platform, index.activeId);
+        set({ phase: "connected", accounts: index.accounts, activeId: index.activeId, connection, error: null });
+      } catch (e) {
+        set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: classifyError(e) });
+      }
     } catch (e) {
       set({ phase: "welcome", error: classifyError(e) });
     }
   },
 
-  async importFromPicker() {
+  async addFromPicker() {
     if (get().phase === "verifying") return;
     let picked: PickedFile | null;
     try {
       picked = await getPlatform().pickJsonFile();
     } catch {
-      set({ error: new ConnectionError("fileRead", ""), phase: "welcome" });
+      set({ error: new ConnectionError("fileRead", ""), phase: get().connection ? "connected" : "welcome" });
       return;
     }
     if (picked === null) return;
-    await get().importText(picked.contents, picked.name);
+    await get().addText(picked.contents, picked.name);
   },
 
-  async importText(text, fileName) {
-    set({ phase: "verifying", error: null });
+  async addText(text, fileName) {
+    const previous = get();
+    set({ phase: "verifying", error: null, duplicateOf: null });
     try {
-      const connection = await importKey(text, undefined, fileName);
-      set({ phase: "connected", connection, error: null });
+      const res = await importAccount(text, getPlatform(), fileName);
+      if (res.account.id !== previous.activeId) discardEditorSessions();
+      set({
+        phase: "connected",
+        accounts: res.index.accounts,
+        activeId: res.account.id,
+        connection: res.connection,
+        error: null,
+        duplicateOf: res.duplicate ? res.account.id : null,
+      });
     } catch (e) {
-      set({ phase: "welcome", connection: null, error: classifyError(e) });
+      set({ phase: previous.connection ? "connected" : "welcome", error: classifyError(e) });
     }
   },
 
-  async disconnect() {
-    await forgetConnection();
-    set({ phase: "welcome", connection: null, error: null });
+  async switchTo(id) {
+    const { accounts, activeId } = get();
+    if (!accounts.some((a) => a.id === id)) return;
+    const platform = getPlatform();
+    try {
+      const connection = await connectAccount(platform, id);
+      await setActiveAccount(platform, id);
+      if (id !== activeId) discardEditorSessions();
+      set({ phase: "connected", activeId: id, connection, error: null, duplicateOf: null });
+    } catch (e) {
+      set({ error: classifyError(e) });
+    }
   },
 
-  clearError: () => set({ error: null }),
+  async signOut() {
+    try {
+      await setActiveAccount(getPlatform(), null);
+    } catch (e) {
+      set({ error: classifyError(e) });
+      return;
+    }
+    discardEditorSessions();
+    set({ phase: "welcome", activeId: null, connection: null, error: null, duplicateOf: null });
+  },
+
+  async remove(id) {
+    const platform = getPlatform();
+    const wasActive = get().activeId === id;
+    let index;
+    try {
+      ({ index } = await removeAccount(platform, id));
+    } catch (e) {
+      set({ error: classifyError(e) });
+      return;
+    }
+    if (!wasActive) {
+      set({ accounts: index.accounts, duplicateOf: null });
+      return;
+    }
+    discardEditorSessions();
+    if (index.activeId === null) {
+      set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: null, duplicateOf: null });
+      return;
+    }
+    try {
+      const connection = await connectAccount(platform, index.activeId);
+      set({
+        phase: "connected",
+        accounts: index.accounts,
+        activeId: index.activeId,
+        connection,
+        error: null,
+        duplicateOf: null,
+      });
+    } catch (e) {
+      set({
+        phase: "welcome",
+        accounts: index.accounts,
+        activeId: null,
+        connection: null,
+        error: classifyError(e),
+        duplicateOf: null,
+      });
+    }
+  },
+
+  clearError: () => set({ error: null, duplicateOf: null }),
 }));

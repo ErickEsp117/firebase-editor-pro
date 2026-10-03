@@ -13,7 +13,7 @@ const AREAS: { area: Area; testId: string; label: string }[] = [
 export function ConnectedView() {
   const { t } = useTranslation();
   const connection = useConnection((s) => s.connection);
-  const disconnect = useConnection((s) => s.disconnect);
+  const signOut = useConnection((s) => s.signOut);
   const area = useArea((s) => s.area);
   const setArea = useArea((s) => s.setArea);
   const [confirming, setConfirming] = useState(false);
@@ -94,7 +94,7 @@ export function ConnectedView() {
                 className="rounded bg-red-600 px-3 py-1 text-sm text-white"
                 onClick={() => {
                   setConfirming(false);
-                  void disconnect();
+                  void signOut();
                 }}
               >
                 {t("connection.disconnectConfirm")}

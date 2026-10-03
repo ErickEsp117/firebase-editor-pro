@@ -3,7 +3,19 @@ export { ApiClient } from "./ApiClient";
 export type { ApiRequest, ApiResponse } from "./ApiClient";
 export { ServiceAccountAuth, parseKeyJson, buildJwtParts, KeyFileError, SCOPES } from "./ServiceAccountAuth";
 export type { ServiceAccountKey } from "./ServiceAccountAuth";
-export { importKey, restoreConnection, forgetConnection, verifyKey, listRootCollections, classifyError, ConnectionError } from "./connection";
+export { verifyKey, connectionFromKeyText, listRootCollections, classifyError, ConnectionError } from "./connection";
+export {
+  ACCOUNTS_KEY,
+  LEGACY_CREDENTIAL_KEY,
+  accountSecretKey,
+  addAccount,
+  connectAccount,
+  importAccount,
+  loadAccounts,
+  removeAccount,
+  setActiveAccount,
+} from "./accounts";
+export type { AccountMeta, AccountsIndex, AddAccountResult, ImportAccountResult } from "./accounts";
 export type { Connection, ConnectionErrorKind } from "./connection";
 export { FirestoreApi, fieldPath } from "./FirestoreApi";
 export type { FirestoreDocument, ListOptions, Precondition, UpsertOptions, DocsPage, CollectionIdsPage } from "./FirestoreApi";
