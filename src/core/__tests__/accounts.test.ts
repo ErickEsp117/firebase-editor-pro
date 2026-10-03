@@ -416,4 +416,37 @@ describe("importAccount", () => {
     expect(err).toMatchObject({ kind: "keyInvalid", fileName: "broken.json" });
     expect(data.size).toBe(0);
   });
+
+  it("rewrites a fresh index when the stored one is corrupt, so adding a key is never blocked", async () => {
+    vi.stubGlobal("fetch", ok());
+    const { p, data, index } = mockPlatform();
+    data.set(ACCOUNTS_KEY, "{corrupt!");
+    const res = await importAccount(keyJson(), p);
+    expect(res.duplicate).toBe(false);
+    expect(res.connection.projectId).toBe("proj-a");
+    expect(index()).toEqual({ version: 1, activeId: res.account.id, accounts: [res.account] });
+    expect(data.get(`sa:${res.account.id}`)).toBe(keyJson());
+  });
+});
+
+describe("addAccount with a corrupt index", () => {
+  it("replaces the unreadable index with a fresh one holding the new account", async () => {
+    const { p, data, index } = mockPlatform();
+    data.set(ACCOUNTS_KEY, "not json at all");
+    const res = await addAccount(keyJson(), p);
+    expect(res.duplicate).toBe(false);
+    expect(index()).toEqual({ version: 1, activeId: res.account.id, accounts: [res.account] });
+  });
+
+  it("still refuses to store a rejected key when the index is corrupt", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "invalid_grant", error_description: "bad" }), { status: 400 })),
+    );
+    const { p, data } = mockPlatform();
+    data.set(ACCOUNTS_KEY, "{corrupt!");
+    const err = await importAccount(keyJson(), p, "k.json").catch((e) => e);
+    expect(err).toMatchObject({ kind: "rejected" });
+    expect(data.get(ACCOUNTS_KEY)).toBe("{corrupt!");
+  });
 });

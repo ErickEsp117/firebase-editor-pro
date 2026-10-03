@@ -75,6 +75,20 @@ async function readIndex(platform: Platform): Promise<AccountsIndex | null> {
   return raw ? parseIndex(raw) : null;
 }
 
+/**
+ * A corrupt index must never block adding a key: the add path treats it as empty and rewrites a fresh
+ * index. Orphaned `sa:<id>` entries are harmless. Reads on the startup path stay strict so the user
+ * sees the localized `keyUnreadable` error.
+ */
+async function readIndexOrEmpty(platform: Platform): Promise<AccountsIndex> {
+  try {
+    return (await readIndex(platform)) ?? emptyIndex();
+  } catch (e) {
+    if (e instanceof ConnectionError && e.kind === "keyUnreadable") return emptyIndex();
+    throw e;
+  }
+}
+
 async function writeIndex(platform: Platform, index: AccountsIndex): Promise<void> {
   await platform.secureStore.set(ACCOUNTS_KEY, JSON.stringify(index));
 }
@@ -99,7 +113,7 @@ function metaFor(key: ServiceAccountKey): AccountMeta {
  */
 export async function addAccount(keyText: string, platform: Platform = getPlatform()): Promise<AddAccountResult> {
   const key = parseKeyJson(keyText);
-  const index = (await readIndex(platform)) ?? emptyIndex();
+  const index = await readIndexOrEmpty(platform);
   const existing = index.accounts.find((a) => sameIdentity(a, key));
   if (existing) {
     const next = { ...index, activeId: existing.id };
@@ -210,8 +224,8 @@ export async function importAccount(
     // verifyKey below reports it with the file name attached.
   }
   if (parsed) {
-    const index = await readIndex(platform);
-    const existing = index?.accounts.find((a) => sameIdentity(a, parsed));
+    const index = await readIndexOrEmpty(platform);
+    const existing = index.accounts.find((a) => sameIdentity(a, parsed));
     if (existing) {
       const connection = await connectAccount(platform, existing.id);
       const res = await addAccount(keyText, platform);

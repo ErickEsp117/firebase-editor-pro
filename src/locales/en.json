@@ -15,7 +15,17 @@
     "step1": "In the Firebase console open Project settings > Service accounts.",
     "step2": "Click \"Generate new private key\" and save the JSON file.",
     "step3": "Import it here. The credential is stored only in your system keychain (or the browser's local storage).",
-    "import": "Import key.json"
+    "import": "Import key.json",
+    "savedAccounts": "Saved accounts",
+    "savedHint": "Click an account to connect without choosing the file again."
+  },
+  "accounts": {
+    "title": "Accounts",
+    "active": "active",
+    "switchTo": "Switch to {{project}}",
+    "connectWith": "Connect with {{project}}",
+    "add": "Add key",
+    "duplicate": "This key was already saved: the existing account was selected ({{project}})."
   },
   "connection": {
     "importing": "Verifying credential…",

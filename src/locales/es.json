@@ -15,7 +15,17 @@
     "step1": "En la consola de Firebase abre Configuración del proyecto > Cuentas de servicio.",
     "step2": "Pulsa «Generar nueva clave privada» y guarda el archivo JSON.",
     "step3": "Impórtalo aquí. La credencial se guarda solo en el llavero de tu sistema (o en el almacenamiento local del navegador).",
-    "import": "Importar key.json"
+    "import": "Importar key.json",
+    "savedAccounts": "Cuentas guardadas",
+    "savedHint": "Pulsa una cuenta para conectar sin volver a elegir el archivo."
+  },
+  "accounts": {
+    "title": "Cuentas",
+    "active": "activa",
+    "switchTo": "Cambiar a {{project}}",
+    "connectWith": "Conectar con {{project}}",
+    "add": "Añadir key",
+    "duplicate": "Esta key ya estaba guardada: se seleccionó la cuenta existente ({{project}})."
   },
   "connection": {
     "importing": "Verificando credencial…",

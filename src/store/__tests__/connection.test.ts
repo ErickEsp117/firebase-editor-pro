@@ -81,6 +81,15 @@ describe("restore", () => {
     expect(data.has(LEGACY_CREDENTIAL_KEY)).toBe(false);
   });
 
+  it("runs a single migration when restore is invoked concurrently (StrictMode double effect)", async () => {
+    data.set(LEGACY_CREDENTIAL_KEY, keyJson());
+    await Promise.all([useConnection.getState().restore(), useConnection.getState().restore()]);
+    const s = useConnection.getState();
+    expect(s.phase).toBe("connected");
+    expect(s.accounts).toHaveLength(1);
+    expect([...data.keys()].filter((k) => k.startsWith("sa:"))).toHaveLength(1);
+  });
+
   it("keeps an unreadable legacy credential and reports keyUnreadable on the welcome screen", async () => {
     data.set(LEGACY_CREDENTIAL_KEY, "{broken");
     await useConnection.getState().restore();
@@ -124,6 +133,19 @@ describe("restore", () => {
     expect(s.error?.kind).toBe("keyUnreadable");
     expect(s.accounts).toHaveLength(2);
     expect(s.connection).toBeNull();
+  });
+
+  it("reports a corrupt index as keyUnreadable but still lets a new key rewrite it", async () => {
+    data.set(ACCOUNTS_KEY, "{corrupt!");
+    await useConnection.getState().restore();
+    expect(useConnection.getState()).toMatchObject({ phase: "welcome", connection: null, accounts: [] });
+    expect(useConnection.getState().error?.kind).toBe("keyUnreadable");
+    await useConnection.getState().addText(keyJson());
+    const s = useConnection.getState();
+    expect(s).toMatchObject({ phase: "connected", error: null });
+    expect(s.accounts).toHaveLength(1);
+    expect(s.activeId).toBe(s.accounts[0].id);
+    expect(storedIndex()).toMatchObject({ version: 1, activeId: s.activeId, accounts: [s.accounts[0]] });
   });
 });
 

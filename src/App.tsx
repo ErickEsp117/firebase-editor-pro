@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { AccountSwitcher } from "./components/AccountSwitcher";
 import { ConnectedView } from "./components/ConnectedView";
 import { OfflineBanner } from "./components/errors/OfflineBanner";
 import { SettingsBar } from "./components/SettingsBar";
@@ -26,23 +27,32 @@ function useApplyTheme() {
 function Shell() {
   const { t } = useTranslation();
   const phase = useConnection((s) => s.phase);
+  const activeId = useConnection((s) => s.activeId);
+  const connection = useConnection((s) => s.connection);
   const restore = useConnection((s) => s.restore);
   useApplyTheme();
   useEffect(() => {
     void restore();
   }, [restore]);
 
+  // While an added key is being verified the current session stays on screen; the welcome screen only
+  // shows the verifying state when there is no connection yet. The key remount drops stale project data.
+  const showConnected = phase === "connected" || (phase === "verifying" && connection !== null);
+
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100">
       <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3 dark:border-slate-700">
         <h1 className="text-lg font-bold">{t("app.title")}</h1>
-        <SettingsBar />
+        <div className="flex items-center gap-4">
+          {connection && <AccountSwitcher />}
+          <SettingsBar />
+        </div>
       </header>
       <OfflineBanner />
       <main className="p-6">
         {phase === "restoring" && <p>{t("connection.connecting")}</p>}
-        {(phase === "welcome" || phase === "verifying") && <WelcomeView />}
-        {phase === "connected" && <ConnectedView />}
+        {!showConnected && (phase === "welcome" || phase === "verifying") && <WelcomeView />}
+        {showConnected && <ConnectedView key={activeId ?? "none"} />}
       </main>
     </div>
   );

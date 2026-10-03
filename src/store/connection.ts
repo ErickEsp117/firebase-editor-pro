@@ -24,6 +24,8 @@ interface ConnectionState {
   /** Set when the last added key matched this saved account, which was selected instead. */
   duplicateOf: string | null;
   restore(): Promise<void>;
+  /** Internal: the actual restore work; `restore` dedupes concurrent invocations. */
+  doRestore(): Promise<void>;
   addFromPicker(): Promise<void>;
   addText(text: string, fileName?: string): Promise<void>;
   switchTo(id: string): Promise<void>;
@@ -38,6 +40,12 @@ function discardEditorSessions(): void {
   useRcEditor.getState().reset();
 }
 
+/**
+ * React StrictMode mounts effects twice, which would run the legacy migration twice in parallel and
+ * leave an orphaned `sa:<id>` entry behind. Sharing one in-flight restore keeps it single-run.
+ */
+let restoreInFlight: Promise<void> | null = null;
+
 export const useConnection = create<ConnectionState>((set, get) => ({
   phase: "restoring",
   accounts: [],
@@ -46,7 +54,16 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   error: null,
   duplicateOf: null,
 
-  async restore() {
+  restore() {
+    restoreInFlight ??= get()
+      .doRestore()
+      .finally(() => {
+        restoreInFlight = null;
+      });
+    return restoreInFlight;
+  },
+
+  async doRestore() {
     try {
       const platform = getPlatform();
       const index = await loadAccounts(platform);
