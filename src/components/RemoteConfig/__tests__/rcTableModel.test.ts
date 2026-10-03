@@ -9,6 +9,8 @@ import {
   listParameters,
   moveCondition,
   parameterExists,
+  replaceCondition,
+  replaceParameter,
   setConditionField,
   setConditionalValue,
   setDefaultValue,
@@ -110,5 +112,32 @@ describe("Remote Config table model", () => {
     expect(validValue("JSON", "")).toBe(true);
     expect(validValue("STRING", "")).toBe(true);
     expect(validValue(undefined, "anything")).toBe(true);
+  });
+});
+
+describe("whole-parameter and condition edits (visual editor dialogs)", () => {
+  it("replaces a parameter, renaming it in place and keeping unknown fields", () => {
+    const t = template();
+    const welcome = (t.parameters as Record<string, Record<string, unknown>>).welcome;
+    const next = replaceParameter(t, { key: "welcome", group: null }, "greeting", { ...welcome, description: "new" });
+    expect(Object.keys(next.parameters as object)).toEqual(["greeting", "flag"]);
+    expect((next.parameters as Record<string, Record<string, unknown>>).greeting).toMatchObject({ description: "new", futureField: 1 });
+    const grouped = replaceParameter(t, { key: "price", group: "checkout" }, "price", { defaultValue: { value: "1" } });
+    expect((grouped.parameterGroups as never as Record<string, { parameters: object; description: string }>).checkout).toMatchObject({ description: "g", parameters: { price: { defaultValue: { value: "1" } } } });
+    const created = replaceParameter({}, { key: "fresh", group: null }, "fresh", { valueType: "STRING" });
+    expect(created).toEqual({ parameters: { fresh: { valueType: "STRING" } } });
+  });
+
+  it("renames a condition everywhere it is used, keeping the order of conditional values", () => {
+    const t = template();
+    const withBoth = setConditionalValue(t, { key: "welcome", group: null }, "beta", { value: "b" });
+    const next = replaceCondition(withBoth, "ios", { name: "apple", expression: "device.os == 'ios'", tagColor: "GREEN" });
+    expect(listConditions(next)[0]).toEqual({ name: "apple", expression: "device.os == 'ios'", tagColor: "GREEN" });
+    const values = (next.parameters as Record<string, { conditionalValues: object }>).welcome.conditionalValues;
+    expect(Object.keys(values)).toEqual(["apple", "beta"]);
+    expect(conditionUsage(next, "ios")).toBe(0);
+    expect(conditionUsage(next, "apple")).toBe(1);
+    const recolored = replaceCondition(next, "apple", { name: "apple", expression: "true" });
+    expect(listConditions(recolored)[0]).toEqual({ name: "apple", expression: "true" });
   });
 });

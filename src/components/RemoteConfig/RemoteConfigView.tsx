@@ -7,7 +7,7 @@ import { useConnection } from "../../store/connection";
 import { hasPendingInputs, usePendingIn } from "../../store/pendingInputs";
 import { useSettings } from "../../store/settings";
 import { AreaHeader } from "../Firestore/DocumentView";
-import { RcTableView } from "./RcTableView";
+import { RcVisualEditor } from "./RcVisualEditor";
 import { isObj } from "./rcTableModel";
 import { useRcEditor } from "../../store/rcEditor";
 import { ErrorNotice } from "../errors/ErrorNotice";
@@ -92,7 +92,7 @@ export function RemoteConfigView() {
       <div role="tablist" aria-label={t("rc.table.viewMode")} className="segmented">
         {(["json", "table"] as const).map((v) => (
           <button key={v} type="button" role="tab" aria-selected={view === v} data-testid={`rc-view-${v}`} onClick={() => setView(v)}>
-            {v === "json" ? t("editor.viewJson") : t("editor.viewTable")}
+            {v === "json" ? t("editor.viewJson") : t("rc.visual.viewLabel")}
           </button>
         ))}
       </div>
@@ -143,6 +143,18 @@ export function RemoteConfigView() {
       return null;
     }
   })();
+
+  const versions = (
+    <VersionsPanel
+      api={rc.api}
+      currentVersion={session.versionNumber}
+      busy={working}
+      onRollback={(version) => {
+        setDialogError(null);
+        setDialog({ kind: "rollback", version });
+      }}
+    />
+  );
 
   return (
     <>
@@ -218,24 +230,16 @@ export function RemoteConfigView() {
         </div>
       )}
 
-      <div className={`grid grid-cols-1 gap-6 ${view === "json" ? "xl:grid-cols-[minmax(0,1fr)_26rem]" : ""}`}>
-        {view === "json" ? (
+      {view === "json" ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
           <TemplateEditor text={rc.text} onChange={rc.setText} />
-        ) : tableTemplate ? (
-          <RcTableView template={tableTemplate} onChange={editTemplate} />
-        ) : (
-          <p data-testid="rc-table-unavailable" className="text-sm text-fg-muted">{t("rc.table.needsValidJson")}</p>
-        )}
-        <VersionsPanel
-          api={rc.api}
-          currentVersion={session.versionNumber}
-          busy={working}
-          onRollback={(version) => {
-            setDialogError(null);
-            setDialog({ kind: "rollback", version });
-          }}
-        />
-      </div>
+          {versions}
+        </div>
+      ) : tableTemplate ? (
+        <RcVisualEditor template={tableTemplate} onChange={editTemplate} versions={versions} />
+      ) : (
+        <p data-testid="rc-table-unavailable" className="text-sm text-fg-muted">{t("rc.table.needsValidJson")}</p>
+      )}
 
       {dialog?.kind === "publish" && (
         <PublishDialog

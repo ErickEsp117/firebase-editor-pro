@@ -208,3 +208,68 @@ export function addCondition(template: RemoteConfigTemplate, name: string, expre
     list.push({ name, expression, ...(tagColor ? { tagColor } : {}) });
   });
 }
+
+/**
+ * Writes a whole parameter (as edited in the parameter dialog) at `ref`, renaming it to `key` when the
+ * key changed: the renamed parameter stays in the same container (top level or group). A new top-level
+ * parameter uses a ref whose key does not exist yet.
+ */
+export function replaceParameter(template: RemoteConfigTemplate, ref: ParamRef, key: string, param: Obj): RemoteConfigTemplate {
+  if (ref.group === null && template.parameters !== undefined && !isObj(template.parameters)) return template;
+  const next = structuredClone(template);
+  if (ref.group === null && !isObj(next.parameters)) next.parameters = {};
+  const params = paramsOf(next, ref.group);
+  if (!params) return template;
+  if (key === ref.key || !own(params, ref.key)) {
+    setOwn(params, key, structuredClone(param));
+    return next;
+  }
+  // Keep the parameter's position when it is renamed.
+  const entries = Object.entries(params).map(([k, v]) => (k === ref.key ? [key, structuredClone(param)] : [k, v]) as [string, unknown]);
+  for (const k of Object.keys(params)) delete params[k];
+  for (const [k, v] of entries) setOwn(params, k, v);
+  return next;
+}
+
+/**
+ * Replaces a condition (expression, color, and possibly its name). A rename also renames it in every
+ * parameter's conditional values, keeping their order, so no reference breaks.
+ */
+export function replaceCondition(
+  template: RemoteConfigTemplate,
+  name: string,
+  next: { name: string; expression: string; tagColor?: string },
+): RemoteConfigTemplate {
+  const edited = editConditions(template, (list) => {
+    const c = list.find((x) => isObj(x) && x.name === name);
+    if (!c) return;
+    c.name = next.name;
+    c.expression = next.expression;
+    if (next.tagColor) c.tagColor = next.tagColor;
+    else delete c.tagColor;
+  });
+  if (edited === template || next.name === name) return edited;
+  for (const { param } of listParameters(edited)) {
+    const values = param.conditionalValues;
+    if (!isObj(values) || !own(values, name)) continue;
+    const entries = Object.entries(values).map(([k, v]) => [k === name ? next.name : k, v] as [string, unknown]);
+    for (const k of Object.keys(values)) delete values[k];
+    for (const [k, v] of entries) setOwn(values, k, v);
+  }
+  return edited;
+}
+
+/** Display color of a condition tag (Firebase console palette); null when it has none. */
+export const TAG_COLOR_HEX: Record<string, string> = {
+  BLUE: "#4285F4",
+  BROWN: "#8D6E63",
+  CYAN: "#00ACC1",
+  DEEP_ORANGE: "#F4511E",
+  GREEN: "#0F9D58",
+  INDIGO: "#5C6BC0",
+  LIME: "#AFB42B",
+  ORANGE: "#FB8C00",
+  PINK: "#E91E63",
+  PURPLE: "#9C27B0",
+  TEAL: "#00897B",
+};
