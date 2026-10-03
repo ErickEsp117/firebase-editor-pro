@@ -46,8 +46,8 @@ export function ExportDialog({ scope, path }: Props) {
   }, [api, path, scope]);
 
   return (
-    <Modal titleId="export-title" testId="export-dialog" title={scope === "doc" ? t("io.exportTitleDoc") : t("io.exportTitleColl")}>
-      <p className="break-all font-mono text-xs text-slate-500">{path}</p>
+    <Modal onClose={close} titleId="export-title" testId="export-dialog" title={scope === "doc" ? t("io.exportTitleDoc") : t("io.exportTitleColl")}>
+      <p className="break-all font-mono text-xs text-fg-muted">{path}</p>
       {status.phase === "running" && (
         <p role="status" data-testid="export-progress" className="text-sm">
           {t("io.exporting", { path, count: status.count })}

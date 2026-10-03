@@ -82,19 +82,31 @@ mod tests {
 
     #[test]
     fn rejects_missing_directory_oversize_and_non_utf8() {
-        assert_eq!(read_text_file(tmp("missing.json").to_str().unwrap()).unwrap_err(), ERR_READ);
+        assert_eq!(
+            read_text_file(tmp("missing.json").to_str().unwrap()).unwrap_err(),
+            ERR_READ
+        );
         let dir = tmp("dir");
         std::fs::create_dir_all(&dir).unwrap();
-        assert_eq!(read_text_file(dir.to_str().unwrap()).unwrap_err(), ERR_NOT_REGULAR);
+        assert_eq!(
+            read_text_file(dir.to_str().unwrap()).unwrap_err(),
+            ERR_NOT_REGULAR
+        );
         let big = tmp("big.json");
         std::fs::write(&big, vec![b'a'; MAX_TEXT_FILE_BYTES as usize + 1]).unwrap();
-        assert_eq!(read_text_file(big.to_str().unwrap()).unwrap_err(), ERR_TOO_LARGE);
+        assert_eq!(
+            read_text_file(big.to_str().unwrap()).unwrap_err(),
+            ERR_TOO_LARGE
+        );
         let exact = tmp("exact.json");
         std::fs::write(&exact, vec![b'a'; MAX_TEXT_FILE_BYTES as usize]).unwrap();
         assert!(read_text_file(exact.to_str().unwrap()).is_ok());
         let bin = tmp("bin.json");
         std::fs::write(&bin, [0xff, 0xfe]).unwrap();
-        assert_eq!(read_text_file(bin.to_str().unwrap()).unwrap_err(), ERR_NOT_UTF8);
+        assert_eq!(
+            read_text_file(bin.to_str().unwrap()).unwrap_err(),
+            ERR_NOT_UTF8
+        );
     }
 
     #[test]
@@ -104,8 +116,14 @@ mod tests {
         assert!(read_import_file(big.to_str().unwrap()).is_ok());
         let out = tmp("out.json");
         write_text_file(out.to_str().unwrap(), "{\"é\":1}").unwrap();
-        assert_eq!(read_text_file(out.to_str().unwrap()).unwrap().contents, "{\"é\":1}");
-        assert_eq!(write_text_file(tmp("no/such/dir/x.json").to_str().unwrap(), "x").unwrap_err(), ERR_WRITE);
+        assert_eq!(
+            read_text_file(out.to_str().unwrap()).unwrap().contents,
+            "{\"é\":1}"
+        );
+        assert_eq!(
+            write_text_file(tmp("no/such/dir/x.json").to_str().unwrap(), "x").unwrap_err(),
+            ERR_WRITE
+        );
     }
 
     #[test]
@@ -113,7 +131,10 @@ mod tests {
         let out = tmp("too-big-out.json");
         let _ = std::fs::remove_file(&out);
         let big = "a".repeat(MAX_IMPORT_FILE_BYTES as usize + 1);
-        assert_eq!(write_text_file(out.to_str().unwrap(), &big).unwrap_err(), ERR_TOO_LARGE);
+        assert_eq!(
+            write_text_file(out.to_str().unwrap(), &big).unwrap_err(),
+            ERR_TOO_LARGE
+        );
         assert!(!out.exists());
     }
 }

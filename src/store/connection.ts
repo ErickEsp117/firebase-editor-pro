@@ -23,6 +23,8 @@ interface ConnectionState {
   error: ConnectionError | null;
   /** Set when the last added key matched this saved account, which was selected instead. */
   duplicateOf: string | null;
+  /** Id of the last removed account whose credential could not be deleted (leftover `sa:<id>` entry). */
+  orphaned: string | null;
   restore(): Promise<void>;
   /** Internal: the actual restore work; `restore` dedupes concurrent invocations. */
   doRestore(): Promise<void>;
@@ -53,6 +55,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   connection: null,
   error: null,
   duplicateOf: null,
+  orphaned: null,
 
   restore() {
     restoreInFlight ??= get()
@@ -96,6 +99,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   },
 
   async addText(text, fileName) {
+    if (get().phase === "verifying") return;
     const previous = get();
     set({ phase: "verifying", error: null, duplicateOf: null });
     try {
@@ -115,24 +119,30 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   },
 
   async switchTo(id) {
+    if (get().phase === "verifying") return;
+    const previousPhase = get().phase;
     const { accounts, activeId } = get();
     if (!accounts.some((a) => a.id === id)) return;
     const platform = getPlatform();
+    set({ phase: "verifying" });
     try {
       const connection = await connectAccount(platform, id);
       await setActiveAccount(platform, id);
       if (id !== activeId) discardEditorSessions();
       set({ phase: "connected", activeId: id, connection, error: null, duplicateOf: null });
     } catch (e) {
-      set({ error: classifyError(e) });
+      set({ phase: previousPhase, error: classifyError(e) });
     }
   },
 
   async signOut() {
+    if (get().phase === "verifying") return;
+    const previousPhase = get().phase;
+    set({ phase: "verifying" });
     try {
       await setActiveAccount(getPlatform(), null);
     } catch (e) {
-      set({ error: classifyError(e) });
+      set({ phase: previousPhase, error: classifyError(e) });
       return;
     }
     discardEditorSessions();
@@ -140,17 +150,24 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   },
 
   async remove(id) {
+    if (get().phase === "verifying") return;
+    const previousPhase = get().phase;
+    set({ phase: "verifying" });
     const platform = getPlatform();
     const wasActive = get().activeId === id;
-    let index;
+    let result;
     try {
-      ({ index } = await removeAccount(platform, id));
+      result = await removeAccount(platform, id);
     } catch (e) {
-      set({ error: classifyError(e) });
+      set({ phase: previousPhase, error: classifyError(e) });
       return;
     }
+    const { index } = result;
+    // The account is already out of the index; a failed credential delete leaves a harmless
+    // orphaned `sa:<id>` entry that the UI must surface instead of ignoring.
+    set({ orphaned: result.orphaned ? id : null });
     if (!wasActive) {
-      set({ accounts: index.accounts, duplicateOf: null });
+      set({ phase: previousPhase, accounts: index.accounts, duplicateOf: null });
       return;
     }
     discardEditorSessions();
@@ -180,5 +197,5 @@ export const useConnection = create<ConnectionState>((set, get) => ({
     }
   },
 
-  clearError: () => set({ error: null, duplicateOf: null }),
+  clearError: () => set({ error: null, duplicateOf: null, orphaned: null }),
 }));

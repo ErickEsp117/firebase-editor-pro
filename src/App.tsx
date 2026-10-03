@@ -1,7 +1,9 @@
+import { useKeyboardShortcuts } from "./hooks/shortcuts";
+import { useResolvedTheme } from "./store/useResolvedTheme";
+import { syncWindowTheme, refreshAppearance } from "./platform/appearance";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { AccountSwitcher } from "./components/AccountSwitcher";
 import { ConnectedView } from "./components/ConnectedView";
 import { OfflineBanner } from "./components/errors/OfflineBanner";
 import { SettingsBar } from "./components/SettingsBar";
@@ -12,16 +14,12 @@ import { useSettings } from "./store/settings";
 
 function useApplyTheme() {
   const theme = useSettings((s) => s.theme);
+  const resolved = useResolvedTheme();
+  useEffect(() => { void syncWindowTheme(theme); }, [theme]);
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      const dark = theme === "dark" || (theme === "system" && mq.matches);
-      document.documentElement.classList.toggle("dark", dark);
-    };
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, [theme]);
+    document.documentElement.classList.toggle("dark", resolved === "dark");
+    void refreshAppearance();
+  }, [resolved]);
 }
 
 function Shell() {
@@ -31,6 +29,7 @@ function Shell() {
   const connection = useConnection((s) => s.connection);
   const restore = useConnection((s) => s.restore);
   useApplyTheme();
+  useKeyboardShortcuts();
   useEffect(() => {
     void restore();
   }, [restore]);
@@ -40,20 +39,19 @@ function Shell() {
   const showConnected = phase === "connected" || (phase === "verifying" && connection !== null);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-3 dark:border-slate-700">
-        <h1 className="text-lg font-bold">{t("app.title")}</h1>
-        <div className="flex items-center gap-4">
-          {connection && <AccountSwitcher />}
-          <SettingsBar />
-        </div>
-      </header>
+    <div className="flex h-screen flex-col text-fg">
       <OfflineBanner />
-      <main className="p-6">
-        {phase === "restoring" && <p>{t("connection.connecting")}</p>}
-        {!showConnected && (phase === "welcome" || phase === "verifying") && <WelcomeView />}
-        {showConnected && <ConnectedView key={activeId ?? "none"} />}
-      </main>
+      {showConnected ? <ConnectedView key={activeId ?? "none"} /> : (
+        <div className="flex h-full flex-col bg-surface">
+          <header className="welcome-toolbar editor-toolbar flex items-center justify-between gap-4 px-6" data-tauri-drag-region="deep">
+            <h1 className="font-semibold">{t("app.title")}</h1><SettingsBar />
+          </header>
+          <main className="mx-auto w-full max-w-2xl p-8">
+            {phase === "restoring" && <p>{t("connection.connecting")}</p>}
+            {(phase === "welcome" || phase === "verifying") && <WelcomeView />}
+          </main>
+        </div>
+      )}
     </div>
   );
 }

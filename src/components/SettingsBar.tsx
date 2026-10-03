@@ -2,13 +2,13 @@ import { useTranslation } from "react-i18next";
 import { useSettings, type Language, type ThemeMode } from "../store/settings";
 
 const selectCls =
-  "rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800";
+  "rounded border border-line bg-surface px-2 py-1 text-sm ";
 
 export function SettingsBar() {
   const { t } = useTranslation();
   const { language, theme, setLanguage, setTheme } = useSettings();
   return (
-    <div className="flex items-center gap-4 text-sm">
+    <div data-testid="settings-bar" className="flex items-center gap-4 text-sm">
       <label className="flex items-center gap-2">
         {t("settings.language")}
         <select

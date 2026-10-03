@@ -36,9 +36,33 @@ The service account needs IAM roles for what you want to do: for example *Cloud 
 
 > **Keep your key private.** Anyone with `key.json` has admin access to your project. Do not share it, and do not put it inside this repository.
 
+## Multiple accounts
+
+Use **Add key** to save more than one service account. Each account is labeled with its project and email. Select an account in the sidebar to switch; Firestore and Remote Config reload for that account. Re-importing the same key selects its existing entry.
+
+- **Sign out** keeps every saved key and returns to the account list.
+- **Delete key** asks for confirmation, then removes that account and its keychain credential. Deleting the active account selects another saved account, or returns to the welcome screen.
+- Switching accounts, adding a key, signing out, or deleting the active key asks before discarding unsaved document or Remote Config changes. Cancel keeps the draft.
+- An older single saved key migrates automatically on startup. Native credentials remain in the system keychain; account metadata contains no private keys or access tokens.
+- If the system cannot delete a removed credential, the app shows a warning so the failure is visible.
+
+## Appearance and keyboard shortcuts
+
+**System** is the default theme and follows OS changes live, including both JSON editors. Light and Dark overrides are saved. On macOS the sidebar uses the native translucent material and system accent; Windows 11 uses Mica, and Windows 10 uses a solid fallback. The content pane stays opaque.
+
+| Action | macOS | Windows |
+| --- | --- | --- |
+| Save document / open Remote Config publish confirmation | ⌘S | Ctrl+S |
+| Format active JSON | ⌘⇧F | Ctrl+Shift+F |
+| Reload current data | ⌘R | Ctrl+R |
+| Firestore / Remote Config | ⌘1 / ⌘2 | Ctrl+1 / Ctrl+2 |
+| Close a dialog without confirming | Esc | Esc |
+
+Reload refreshes application data without reloading the window. A dirty document or template asks before discarding edits. With a dialog open, the other application shortcuts are paused. Remote Config publication always requires its explicit confirmation.
+
 ## Basic use
 
-Use the **Areas** switcher to move between Firestore and Remote Config. Language and theme are in the top bar.
+Use the sidebar to move between Firestore and Remote Config. Language and theme are at the bottom of the sidebar. Drag its divider (or focus it and use the arrow keys) to resize it; the width is saved.
 
 ### Firestore editor
 
@@ -114,5 +138,12 @@ If a key was ever committed or shared, revoke it in the Firebase console (Servic
 2. Import a `key.json`. Confirm the project name and the collection list appear.
 3. Quit the app completely (Cmd+Q on macOS) and open it again. Confirm it connects without asking for the key again (the credential persisted in the keychain).
 4. Switch the language selector between Español and English. Confirm the whole interface changes immediately and the choice is kept after a restart.
-5. Click **Disconnect** and confirm. Restart the app and confirm it shows the welcome screen again.
+5. Click **Sign out** (confirm if there are unsaved changes). Restart the app and confirm the welcome screen lists your saved accounts. Select one to reconnect.
 6. Remote Config in the native app: connect an account, open **Remote Config**, and confirm the template loads with its ETag and version visible and without the "Offline" notice.
+
+7. Switch between two saved accounts natively; confirm the project, collection tree and Remote Config template all change. Verify canceling a dirty switch keeps the draft.
+8. In macOS check sidebar translucency, traffic-light spacing and window dragging. Change the OS accent and return to the app; verify the accent updates. In Windows 11 check Mica; in Windows 10 check the solid sidebar.
+9. Select System, change the OS theme, and confirm the shell and JSON editors update. Resize the sidebar and restart; confirm its width persists.
+10. Verify the keyboard shortcuts above in the native app, especially data reload without a webview reload and publish confirmation without automatic publication.
+
+The native Remote Config transport enables gzip so Google returns its ETag. A missing ETag is reported as an unexpected server response instead of being mislabeled as an offline connection.

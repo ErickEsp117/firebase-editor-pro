@@ -15,7 +15,7 @@ interface Props {
   path: string;
 }
 
-const FIELD = "w-full rounded border border-slate-300 bg-white px-2 py-1 font-mono text-sm dark:border-slate-600 dark:bg-slate-900";
+const FIELD = "w-full rounded border border-line bg-surface px-2 py-1 font-mono text-sm ";
 
 export function ImportDialog({ scope, path }: Props) {
   const { t } = useTranslation();
@@ -82,17 +82,17 @@ export function ImportDialog({ scope, path }: Props) {
   };
 
   return (
-    <Modal titleId="import-title" testId="import-dialog" title={scope === "doc" ? t("io.importTitleDoc") : t("io.importTitleColl")}>
+    <Modal onClose={close} busy={busy} titleId="import-title" testId="import-dialog" title={scope === "doc" ? t("io.importTitleDoc") : t("io.importTitleColl")}>
       <label className="block text-sm">
         {scope === "doc" ? t("io.targetDoc") : t("io.targetColl")}
         <input data-testid="import-target" className={FIELD} value={target} onChange={(e) => setTarget(e.target.value)} disabled={busy} />
-        <span className="text-xs text-slate-500">{scope === "doc" ? t("io.targetHintDoc") : t("io.targetHintColl")}</span>
+        <span className="text-xs text-fg-muted">{scope === "doc" ? t("io.targetHintDoc") : t("io.targetHintColl")}</span>
       </label>
       <div className="flex items-center gap-2 text-sm">
         <button type="button" data-testid="import-choose-file" className={BTN} disabled={busy} onClick={() => void pick()}>
           {t("io.chooseFile")}
         </button>
-        {fileName && <span data-testid="import-file-name" className="truncate text-xs text-slate-500">{t("io.loadedFile", { name: fileName })}</span>}
+        {fileName && <span data-testid="import-file-name" className="truncate text-xs text-fg-muted">{t("io.loadedFile", { name: fileName })}</span>}
       </div>
       <label className="block text-sm">
         {t("io.pasteLabel")}
@@ -113,7 +113,7 @@ export function ImportDialog({ scope, path }: Props) {
         <button type="button" data-testid="import-close" className={BTN} disabled={busy} onClick={close}>
           {t("io.close")}
         </button>
-        <button type="button" data-testid="import-submit" className="rounded bg-blue-700 px-3 py-1 text-sm text-white disabled:opacity-50" disabled={busy} onClick={() => void submit()}>
+        <button type="button" data-testid="import-submit" className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50" disabled={busy} onClick={() => void submit()}>
           {busy ? t("crud.creating") : t("io.importButton")}
         </button>
       </div>

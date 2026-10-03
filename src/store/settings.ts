@@ -8,6 +8,7 @@ const KEY = "fbep:settings";
 interface Persisted {
   language?: Language;
   theme?: ThemeMode;
+  sidebarWidth?: number;
 }
 
 function read(): Persisted {
@@ -36,15 +37,25 @@ export function detectLanguage(): Language {
 interface SettingsState {
   language: Language;
   theme: ThemeMode;
+  sidebarWidth: number;
+  setSidebarWidth(width: number): void;
   setLanguage(l: Language): void;
   setTheme(t: ThemeMode): void;
 }
+
+export const clampSidebarWidth = (width: number) => Number.isFinite(width) ? Math.min(420, Math.max(220, width)) : 264;
 
 export const useSettings = create<SettingsState>((set, get) => {
   const saved = read();
   return {
     language: saved.language === "es" || saved.language === "en" ? saved.language : detectLanguage(),
     theme: saved.theme === "light" || saved.theme === "dark" || saved.theme === "system" ? saved.theme : "system",
+    sidebarWidth: clampSidebarWidth(saved.sidebarWidth ?? 264),
+    setSidebarWidth: (width) => {
+      const sidebarWidth = clampSidebarWidth(width);
+      set({ sidebarWidth });
+      write({ ...read(), sidebarWidth });
+    },
     setLanguage: (language) => {
       set({ language });
       write({ ...read(), language, theme: get().theme });

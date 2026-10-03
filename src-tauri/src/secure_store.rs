@@ -55,8 +55,14 @@ struct Marker {
 impl Marker {
     fn parse(s: &str) -> Option<Marker> {
         match s.split_once(':') {
-            Some((g, c)) => Some(Marker { gen: g.parse().ok()?, count: c.parse().ok()? }),
-            None => Some(Marker { gen: 0, count: s.parse().ok()? }),
+            Some((g, c)) => Some(Marker {
+                gen: g.parse().ok()?,
+                count: c.parse().ok()?,
+            }),
+            None => Some(Marker {
+                gen: 0,
+                count: s.parse().ok()?,
+            }),
         }
     }
     fn encode(&self) -> String {
@@ -74,7 +80,9 @@ impl Marker {
 fn read_marker(b: &dyn Backend, key: &str) -> Result<Option<Marker>, String> {
     match b.read(key)? {
         None => Ok(None),
-        Some(raw) => Marker::parse(&raw).map(Some).ok_or_else(|| "corrupt keychain entry".to_string()),
+        Some(raw) => Marker::parse(&raw)
+            .map(Some)
+            .ok_or_else(|| "corrupt keychain entry".to_string()),
     }
 }
 
@@ -133,7 +141,10 @@ fn set_with(b: &dyn Backend, key: &str, value: &str) -> Result<(), String> {
     // must abort before writing, or live chunks could be overwritten or orphaned.
     let old = read_marker(b, key)?;
     let parts = split_chunks(value);
-    let new = Marker { gen: old.map_or(1, |m| m.gen + 1), count: parts.len() };
+    let new = Marker {
+        gen: old.map_or(1, |m| m.gen + 1),
+        count: parts.len(),
+    };
 
     let written = (|| -> Result<(), String> {
         for (i, part) in parts.iter().enumerate() {
@@ -251,8 +262,16 @@ mod tests {
             b.writes.set(0);
             b.fail_on_write.set(Some(fail_at));
             assert!(set_with(&b, "k", &big).is_err());
-            assert_eq!(get_with(&b, "k").unwrap().as_deref(), Some("previous"), "fail_at={fail_at}");
-            assert_eq!(*b.map.borrow(), before, "no partial chunks left, fail_at={fail_at}");
+            assert_eq!(
+                get_with(&b, "k").unwrap().as_deref(),
+                Some("previous"),
+                "fail_at={fail_at}"
+            );
+            assert_eq!(
+                *b.map.borrow(),
+                before,
+                "no partial chunks left, fail_at={fail_at}"
+            );
         }
     }
 
@@ -281,7 +300,10 @@ mod tests {
         assert!(err.contains("injected read failure"));
         assert_eq!(*b.map.borrow(), before, "marker and chunks untouched");
         b.fail_reads.set(false);
-        assert_eq!(get_with(&b, "k").unwrap().as_deref(), Some("x".repeat(CHUNK_BYTES * 3).as_str()));
+        assert_eq!(
+            get_with(&b, "k").unwrap().as_deref(),
+            Some("x".repeat(CHUNK_BYTES * 3).as_str())
+        );
         delete_with(&b, "k").unwrap();
         assert!(b.map.borrow().is_empty());
     }
@@ -302,7 +324,10 @@ mod tests {
         set_in(TEST_SERVICE, key, "first").unwrap();
         assert_eq!(get_in(TEST_SERVICE, key).unwrap().as_deref(), Some("first"));
         set_in(TEST_SERVICE, key, &big).unwrap();
-        assert_eq!(get_in(TEST_SERVICE, key).unwrap().as_deref(), Some(big.as_str()));
+        assert_eq!(
+            get_in(TEST_SERVICE, key).unwrap().as_deref(),
+            Some(big.as_str())
+        );
         delete_in(TEST_SERVICE, key).unwrap();
         assert_eq!(get_in(TEST_SERVICE, key).unwrap(), None);
         delete_in(TEST_SERVICE, key).unwrap();
@@ -322,8 +347,14 @@ mod tests {
         delete_with(&b, sa1).unwrap();
         assert_eq!(get_with(&b, sa1).unwrap(), None);
         assert_eq!(get_with(&b, sa2).unwrap().as_deref(), Some("second"));
-        assert_eq!(get_with(&b, "accounts").unwrap().as_deref(), Some("{\"version\":1}"));
-        assert!(b.map.borrow().keys().all(|k| !k.starts_with(sa1)), "no leftover chunks of the deleted account");
+        assert_eq!(
+            get_with(&b, "accounts").unwrap().as_deref(),
+            Some("{\"version\":1}")
+        );
+        assert!(
+            b.map.borrow().keys().all(|k| !k.starts_with(sa1)),
+            "no leftover chunks of the deleted account"
+        );
     }
 
     #[test]

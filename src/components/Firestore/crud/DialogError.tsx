@@ -19,7 +19,7 @@ export function DialogError({ failure, testId }: { failure: DialogFailure; testI
   const technical = diagnosticText(failure.cause);
   const message = failure.cause === undefined ? undefined : ioErrorMessage(t, failure.cause);
   return (
-    <div role="alert" className="space-y-1 text-sm text-red-700 dark:text-red-300">
+    <div role="alert" className="space-y-1 text-sm text-danger ">
       <p data-testid={testId}>{t(failure.key, { ...failure.params, message })}</p>
       {technical && <TechnicalDetails text={technical} testId={`${testId}-technical`} />}
     </div>

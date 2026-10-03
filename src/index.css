@@ -3,7 +3,84 @@
 
 :root {
   color-scheme: light;
+  --panel: #f7f7f8;
+  --danger: #b4232a;
+  --warning: #8a5700;
+  --success: #187640;
+  --radius: 6px;
+  --surface: #ffffff;            /* content pane, always opaque */
+  --sidebar-bg: #f2f2f4;         /* solid fallback (browser mode, Win10) */
+  --toolbar-bg: var(--surface);
+  --text: #1d1d1f;
+  --text-secondary: rgb(0 0 0 / 0.55);
+  --border: rgb(0 0 0 / 0.1);
+  --hover: rgb(0 0 0 / 0.05);
+  --accent: #007aff;             /* overridden inline by native accent */
+  --accent-contrast: #ffffff;
+  --selection: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .dark {
   color-scheme: dark;
+  --panel: #252527;
+  --danger: #ff8989;
+  --warning: #f5c46b;
+  --success: #6bda99;
+  --surface: #1e1e1e;
+  --sidebar-bg: #2b2b2d;
+  --text: #f5f5f7;
+  --text-secondary: rgb(255 255 255 / 0.55);
+  --border: rgb(255 255 255 / 0.12);
+  --hover: rgb(255 255 255 / 0.07);
+  --accent: #0a84ff;
 }
+/* Native window with working vibrancy/Mica: let the material show through. */
+html.vibrancy, html.vibrancy body, html.vibrancy #root { background: transparent; }
+html.vibrancy { --sidebar-bg: transparent; }
+html:not(.vibrancy) body { background: var(--surface); }
+
+@theme inline {
+  --color-panel: var(--panel);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar-bg);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-secondary);
+  --color-line: var(--border);
+  --color-hover: var(--hover);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--accent-contrast);
+  --color-selection: var(--selection);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+}
+html { font-family: var(--font-sans); font-size: 13px; -webkit-font-smoothing: antialiased; }
+html.platform-windows { font-size: 14px; }
+
+body { margin: 0; }
+button, select, input, textarea { font: inherit; }
+button { cursor: default; transition: background-color 100ms; }
+button:not(:disabled):hover { filter: brightness(0.97); }
+button:disabled { cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.native.platform-macos .sidebar-header { padding-top: 40px; height: 88px; }
+.sidebar-header { height: 64px; display: flex; align-items: center; padding: 0 16px; }
+.sidebar-section { padding: 12px; }
+.section-label { color: var(--text-secondary); font-size: 10px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; }
+.native-sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--border); }
+.native-sidebar [data-testid="sidebar"] { border: 0; padding: 0; border-radius: 0; }
+.native-sidebar [data-testid="settings-bar"] { flex-direction: column; gap: 8px; align-items: stretch; }
+.native-sidebar [data-testid="settings-bar"] label { justify-content: space-between; }
+.editor-toolbar { min-height: 52px; border-bottom: 1px solid var(--border); background: var(--toolbar-bg); }
+.segmented { display: flex; border: 1px solid var(--border); background: var(--hover); border-radius: 7px; padding: 2px; }
+.segmented button { border: 0; border-radius: 5px; min-width: 64px; }
+.segmented [aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 3px #0002; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 5px; flex-shrink: 0; }
+.icon-button:hover { background: var(--hover); }
+.tree-actions { opacity: .45; }
+li:hover > div .tree-actions, .tree-actions:focus-visible { opacity: 1; }
+[data-testid="document-panel"] { padding: 18px; background: var(--surface); }
+
+.native.platform-macos .welcome-toolbar { padding-left: 88px; }

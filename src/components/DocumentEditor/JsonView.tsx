@@ -5,7 +5,8 @@ import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { formatEditorJson, repairEditorJson } from "../../core";
-import { useSettings } from "../../store/settings";
+import { useResolvedTheme } from "../../store/useResolvedTheme";
+import { editorTheme } from "../editorTheme";
 
 interface Props {
   text: string;
@@ -14,7 +15,7 @@ interface Props {
 
 export function JsonView({ text, onChange }: Props) {
   const { t } = useTranslation();
-  const theme = useSettings((s) => s.theme);
+  const theme = useResolvedTheme();
   const [actionFailed, setActionFailed] = useState(false);
 
   const viewRef = useRef<EditorView | null>(null);
@@ -34,8 +35,8 @@ export function JsonView({ text, onChange }: Props) {
     }
   }, [text]);
 
-  const extensions = useMemo(() => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping], []);
-  const dark = theme === "dark" || (theme === "system" && typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+  const extensions = useMemo(() => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme], []);
+  const dark = theme === "dark";
 
   const run = (fn: (s: string) => string) => {
     try {
@@ -49,19 +50,19 @@ export function JsonView({ text, onChange }: Props) {
   return (
     <div data-testid="json-view" className="space-y-2">
       <div className="flex gap-2">
-        <button type="button" data-testid="json-format" onClick={() => run(formatEditorJson)} className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600">
+        <button type="button" data-testid="json-format" onClick={() => run(formatEditorJson)} className="rounded border border-line px-2 py-1 text-xs ">
           {t("editor.format")}
         </button>
-        <button type="button" data-testid="json-repair" onClick={() => run(repairEditorJson)} className="rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-600">
+        <button type="button" data-testid="json-repair" onClick={() => run(repairEditorJson)} className="rounded border border-line px-2 py-1 text-xs ">
           {t("editor.repair")}
         </button>
         {actionFailed && (
-          <span role="alert" data-testid="json-action-error" className="self-center text-xs text-red-700 dark:text-red-300">
+          <span role="alert" data-testid="json-action-error" className="self-center text-xs text-danger ">
             {t("editor.actionFailed")}
           </span>
         )}
       </div>
-      <div data-testid="json-editor" className="overflow-hidden rounded border border-slate-300 text-sm dark:border-slate-600">
+      <div data-testid="json-editor" className="overflow-hidden rounded border border-line text-sm ">
         <CodeMirror
           value={text}
           onChange={(value) => {

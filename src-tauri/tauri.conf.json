@@ -14,7 +14,23 @@
       {
         "title": "Firebase Editor Pro",
         "width": 1200,
-        "height": 800
+        "height": 800,
+        "minWidth": 760,
+        "minHeight": 480,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 22
+        },
+        "windowEffects": {
+          "effects": [
+            "sidebar",
+            "mica"
+          ],
+          "state": "followsWindowActiveState"
+        }
       }
     ],
     "security": {

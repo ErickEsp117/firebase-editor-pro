@@ -16,7 +16,7 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
   const { t } = useTranslation();
   const [description, setDescription] = useState(initial);
   return (
-    <Modal titleId="rc-publish-title" testId="rc-publish-dialog" title={t("rc.publishTitle")}>
+    <Modal onClose={onCancel} busy={busy} titleId="rc-publish-title" testId="rc-publish-dialog" title={t("rc.publishTitle")}>
       <p className="text-sm">{t("rc.publishBody")}</p>
       <label className="block text-sm">
         {t("rc.descriptionLabel")}
@@ -26,11 +26,11 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
           maxLength={MAX_DESCRIPTION}
           rows={3}
           onChange={(e) => setDescription(e.target.value)}
-          className="mt-1 w-full rounded border border-slate-300 p-2 text-sm dark:border-slate-600 dark:bg-slate-900"
+          className="mt-1 w-full rounded border border-line p-2 text-sm "
         />
       </label>
       {error && (
-        <div role="alert" data-testid="rc-publish-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-publish-error" className="space-y-1 text-sm text-danger ">
           {error}
         </div>
       )}
@@ -41,7 +41,7 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
         <button
           type="button"
           data-testid="rc-publish-confirm"
-          className="rounded bg-blue-700 px-3 py-1 text-sm text-white disabled:opacity-50"
+          className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50"
           disabled={busy}
           onClick={() => onPublish(description.trim())}
         >
@@ -64,15 +64,15 @@ export function RcConflictDialog({ busy, error, onReload, onForce, onCancel }: C
   const { t } = useTranslation();
   const [forcing, setForcing] = useState(false);
   return (
-    <Modal titleId="rc-conflict-title" testId="rc-conflict-dialog" title={t("rc.conflictTitle")}>
+    <Modal onClose={onCancel} busy={busy} titleId="rc-conflict-title" testId="rc-conflict-dialog" title={t("rc.conflictTitle")}>
       <p className="text-sm">{t("rc.conflictBody")}</p>
       {forcing && (
-        <p role="alert" data-testid="rc-force-warning" className="text-sm text-red-700 dark:text-red-300">
+        <p role="alert" data-testid="rc-force-warning" className="text-sm text-danger ">
           {t("rc.forceWarning")}
         </p>
       )}
       {error && (
-        <div role="alert" data-testid="rc-conflict-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="rc-conflict-error" className="space-y-1 text-sm text-danger ">
           {error}
         </div>
       )}
@@ -91,7 +91,7 @@ export function RcConflictDialog({ busy, error, onReload, onForce, onCancel }: C
           <button
             type="button"
             data-testid="rc-conflict-force"
-            className="rounded border border-red-600 px-3 py-1 text-sm text-red-700 disabled:opacity-50 dark:text-red-300"
+            className="rounded border border-danger px-3 py-1 text-sm text-danger disabled:opacity-50 "
             disabled={busy}
             onClick={() => setForcing(true)}
           >
@@ -117,7 +117,7 @@ interface ConfirmProps {
 export function RcConfirmDialog({ testId, title, children, confirmLabel, busy, danger, onConfirm, onCancel }: ConfirmProps) {
   const { t } = useTranslation();
   return (
-    <Modal titleId={`${testId}-title`} testId={testId} title={title}>
+    <Modal onClose={onCancel} busy={busy} titleId={`${testId}-title`} testId={testId} title={title}>
       {children}
       <div className="flex justify-end gap-2">
         <button type="button" data-testid={`${testId}-cancel`} className={BTN} disabled={busy} onClick={onCancel}>
@@ -126,7 +126,7 @@ export function RcConfirmDialog({ testId, title, children, confirmLabel, busy, d
         <button
           type="button"
           data-testid={`${testId}-confirm`}
-          className={danger ? BTN_DANGER : "rounded bg-blue-700 px-3 py-1 text-sm text-white disabled:opacity-50"}
+          className={danger ? BTN_DANGER : "rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50"}
           disabled={busy}
           onClick={onConfirm}
         >

@@ -32,7 +32,7 @@ export function OfflineBanner() {
     <div
       role="alert"
       data-testid="offline-banner"
-      className="flex items-center justify-between gap-4 border-b border-amber-300 bg-amber-50 px-6 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+      className="flex items-center justify-between gap-4 border-b border-warning bg-warning/10 px-6 py-2 text-sm text-warning "
     >
       <span>{t("errors.offlineBanner")}</span>
       <button type="button" data-testid="offline-retry" className="underline" onClick={retryFailed}>

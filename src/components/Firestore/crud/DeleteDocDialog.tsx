@@ -35,7 +35,7 @@ export function DeleteDocDialog({ path }: { path: string }) {
   };
 
   return (
-    <Modal titleId="delete-doc-title" testId="delete-doc-dialog" title={t("crud.deleteDocTitle")}>
+    <Modal onClose={close} busy={busy} titleId="delete-doc-title" testId="delete-doc-dialog" title={t("crud.deleteDocTitle")}>
       <p className="break-all text-sm" data-testid="delete-doc-body">
         {t("crud.deleteDocBody", { path })}
       </p>

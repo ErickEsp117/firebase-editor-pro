@@ -1,3 +1,5 @@
+import { ChevronDown, ChevronRight, Folder, FileText, Plus, Download, Upload, Trash2 } from "lucide-react";
+import { useArea } from "../../store/rcEditor";
 import { useTranslation } from "react-i18next";
 import { describeError, technicalText } from "../errors/describeError";
 import { TechnicalDetails } from "../errors/TechnicalDetails";
@@ -6,7 +8,8 @@ import { useFirestoreNav } from "../../store/firestoreNav";
 import { isMissing, relativePath, useCollectionIds, useDocsPage } from "./useFirestore";
 
 function Chevron({ open }: { open: boolean }) {
-  return <span aria-hidden="true" className="inline-block w-4 text-center">{open ? "▾" : "▸"}</span>;
+  const Icon = open ? ChevronDown : ChevronRight;
+  return <Icon aria-hidden="true" size={14} strokeWidth={1.75} className="shrink-0" />;
 }
 
 function Status({
@@ -27,7 +30,7 @@ function Status({
     <div
       role={error ? "alert" : "status"}
       data-testid={testId}
-      className={`px-2 py-0.5 text-xs ${error ? "text-red-700 dark:text-red-300" : "text-slate-500"}`}
+      className={`px-2 py-0.5 text-xs ${error ? "text-danger " : "text-fg-muted"}`}
     >
       {children}
       {onRetry && (
@@ -71,7 +74,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
   const { t } = useTranslation();
   return (
     <li data-testid={`collection-node:${path}`}>
-      <div className="flex items-center rounded hover:bg-slate-200 dark:hover:bg-slate-800">
+      <div className="flex items-center rounded hover:bg-hover ">
         <button
           type="button"
           aria-expanded={open}
@@ -79,7 +82,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           onClick={() => toggle(key)}
           className="flex min-w-0 flex-1 items-center px-1 py-0.5 text-left font-mono text-sm"
         >
-          <Chevron open={open} />
+          <Chevron open={open} /><Folder size={15} strokeWidth={1.75} className="mx-1 shrink-0" aria-hidden="true" />
           <span className="truncate">{name}</span>
         </button>
         <button
@@ -88,9 +91,9 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           aria-label={t("crud.addDocTo", { path })}
           title={t("crud.addDocTo", { path })}
           onClick={() => openDialog({ kind: "create", parentDocPath, collectionPath: path })}
-          className="px-1 text-sm"
+          className="tree-actions px-1 text-sm"
         >
-          +
+          <Plus size={13} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -98,9 +101,9 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           aria-label={`${t("io.exportCollection")} ${path}`}
           title={t("io.exportCollection")}
           onClick={() => openDialog({ kind: "export", scope: "collection", path })}
-          className="px-1 text-sm"
+          className="tree-actions px-1 text-sm"
         >
-          ⬇
+          <Download size={13} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -108,9 +111,9 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           aria-label={t("io.importIntoCollection", { path })}
           title={t("io.importCollection")}
           onClick={() => openDialog({ kind: "import", scope: "collection", path })}
-          className="px-1 text-sm"
+          className="tree-actions px-1 text-sm"
         >
-          ⬆
+          <Upload size={13} aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -118,13 +121,13 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           aria-label={t("crud.deleteCollection") + ` ${path}`}
           title={t("crud.deleteCollection")}
           onClick={() => openDialog({ kind: "deleteCollection", path })}
-          className="px-1 text-sm text-red-700 dark:text-red-300"
+          className="tree-actions px-1 text-sm text-danger "
         >
-          🗑
+          <Trash2 size={13} aria-hidden="true" />
         </button>
       </div>
       {open && (
-        <div className="ml-4 border-l border-slate-300 pl-1 dark:border-slate-700">
+        <div className="ml-4 border-l border-line pl-1 ">
           <DocList collectionPath={path} />
         </div>
       )}
@@ -156,7 +159,7 @@ function DocList({ collectionPath }: { collectionPath: string }) {
           data-testid={`load-more:${collectionPath}`}
           disabled={query.isFetchingNextPage}
           onClick={() => void query.fetchNextPage()}
-          className="m-1 rounded border border-slate-400 px-2 py-0.5 text-xs disabled:opacity-50"
+          className="m-1 rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
         >
           {query.isFetchingNextPage ? t("firestore.loadingMore") : t("firestore.loadMore")}
         </button>
@@ -175,33 +178,33 @@ function DocNode({ path, missing }: { path: string; missing: boolean }) {
   const id = path.slice(path.lastIndexOf("/") + 1);
   return (
     <li data-testid={`doc-node:${path}`} data-missing={missing || undefined}>
-      <div className={`flex items-center rounded ${selected ? "bg-blue-100 dark:bg-blue-900" : "hover:bg-slate-200 dark:hover:bg-slate-800"}`}>
+      <div className={`flex items-center rounded ${selected ? "bg-selection " : "hover:bg-hover "}`}>
         <button
           type="button"
           aria-expanded={open}
           aria-label={t("firestore.toggleSubcollections", { id })}
           data-testid={`doc-toggle:${path}`}
           onClick={() => toggle(key)}
-          className="px-1 text-sm"
+          className="tree-actions px-1 text-sm"
         >
           <Chevron open={open} />
         </button>
         <button
           type="button"
           data-testid={`doc:${path}`}
-          onClick={() => select(path)}
-          className={`flex-1 truncate py-0.5 text-left font-mono text-sm ${missing ? "italic text-slate-500" : ""}`}
+          onClick={() => { useArea.getState().setArea("firestore"); select(path); }}
+          className={`flex min-w-0 flex-1 items-center gap-1 truncate py-1 text-left font-mono text-sm ${missing ? "italic text-fg-muted" : ""}`}
         >
-          {id}
+          <FileText size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" /><span className="truncate">{id}</span>
         </button>
         {missing && (
-          <span data-testid={`missing-badge:${path}`} title={t("firestore.missingHint")} className="mr-1 rounded bg-amber-200 px-1 text-[10px] text-amber-900">
+          <span data-testid={`missing-badge:${path}`} title={t("firestore.missingHint")} className="mr-1 rounded bg-warning/10 px-1 text-[10px] text-warning">
             {t("firestore.missing")}
           </span>
         )}
       </div>
       {open && (
-        <div className="ml-4 border-l border-slate-300 pl-1 dark:border-slate-700">
+        <div className="ml-4 border-l border-line pl-1 ">
           <CollectionList docPath={path} />
         </div>
       )}

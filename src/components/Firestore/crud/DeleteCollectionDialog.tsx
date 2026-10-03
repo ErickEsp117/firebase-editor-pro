@@ -49,10 +49,10 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
   };
 
   return (
-    <Modal titleId="delete-coll-title" testId="delete-collection-dialog" title={t("crud.deleteCollTitle")}>
+    <Modal onClose={close} busy={busy} titleId="delete-coll-title" testId="delete-collection-dialog" title={t("crud.deleteCollTitle")}>
       {count.isPending && <p data-testid="delete-coll-counting" className="text-sm">{t("crud.deleteCollCounting", { path })}</p>}
       {count.isError && (
-        <div role="alert" data-testid="delete-coll-count-error" className="space-y-1 text-sm text-red-700 dark:text-red-300">
+        <div role="alert" data-testid="delete-coll-count-error" className="space-y-1 text-sm text-danger ">
           <p>{t("crud.countError", { message: describeError(t, count.error) })}</p>
           {technicalText(count.error) && <TechnicalDetails text={technicalText(count.error)!} testId="delete-coll-count-error-technical" />}
         </div>
@@ -62,7 +62,7 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
           <p className="break-all text-sm" data-testid="delete-coll-body">
             {t("crud.deleteCollBody", { path, count: count.data })}
           </p>
-          <p className="text-xs text-slate-500">{t("crud.deleteCollNested")}</p>
+          <p className="text-xs text-fg-muted">{t("crud.deleteCollNested")}</p>
         </>
       )}
       {busy && (

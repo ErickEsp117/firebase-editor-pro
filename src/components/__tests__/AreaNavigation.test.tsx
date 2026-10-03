@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
+import { useKeyboardShortcuts } from "../../hooks/shortcuts";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../i18n";
 import { useConnection } from "../../store/connection";
 import { useEditorStore } from "../../store/documentEditor";
@@ -39,11 +40,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+function Keys() { useKeyboardShortcuts(); return null; }
+
 function mount() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <ConnectedView />
+      <Keys /><ConnectedView />
     </QueryClientProvider>,
   );
 }
@@ -51,7 +54,7 @@ function mount() {
 describe("Firestore <-> Remote Config navigation", () => {
   it("keeps the open document and its unsaved edit while Remote Config is shown", async () => {
     mount();
-    await screen.findByTestId("document-view");
+    await screen.findByTestId("document-editor");
     act(() => useEditorStore.getState().setText("p/fbep_test_nav/d", '{"a":"edited"}'));
     expect(screen.queryByTestId("rc-view")).toBeNull();
 
@@ -69,4 +72,25 @@ describe("Firestore <-> Remote Config navigation", () => {
     // Remote Config keeps its own state too
     expect(screen.getByTestId("rc-etag").textContent).toBe("ETag: etag-3");
   });
+});
+
+it("routes shortcuts to the current area, opens RC confirmation and blocks other commands inside a modal", async () => {
+  vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+  mount();
+  await screen.findByTestId("document-editor");
+  fireEvent.keyDown(window, { key: "2", metaKey: true });
+  await screen.findByTestId("rc-view");
+  fireEvent.keyDown(window, { key: "s", metaKey: true });
+  expect(screen.getByTestId("rc-publish-dialog")).toBeTruthy();
+  fireEvent.keyDown(window, { key: "1", metaKey: true });
+  expect(useArea.getState().area).toBe("remoteConfig");
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(screen.queryByTestId("rc-publish-dialog")).toBeNull();
+  expect(screen.getByTestId("rc-version").textContent).toContain("3");
+  const reload = new KeyboardEvent("keydown", { key: "r", metaKey: true, cancelable: true });
+  act(() => { window.dispatchEvent(reload); });
+  expect(reload.defaultPrevented).toBe(true);
+  fireEvent.keyDown(window, { key: "1", metaKey: true });
+  expect(useArea.getState().area).toBe("firestore");
+  vi.restoreAllMocks();
 });
