@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 interface Props {
@@ -9,26 +9,47 @@ interface Props {
   onClose(): void;
   busy?: boolean;
   role?: "dialog" | "alertdialog";
+  /** Where focus goes on close when the opener is gone or was disabled (e.g. the Save button while saving). */
+  returnFocus?(): HTMLElement | null;
+}
+
+/** Open dialogs, bottom first. Only the topmost one handles Escape, Tab and focus containment. */
+const stack: HTMLElement[] = [];
+
+const FOCUSABLE =
+  'summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
+
+function focusableIn(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => {
+    if (element.closest("[hidden], [inert]")) return false;
+    // Content of a collapsed <details> cannot take focus; its own <summary> can.
+    const closed = element.closest("details:not([open])");
+    return !closed || (element.tagName === "SUMMARY" && element.parentElement === closed);
+  });
 }
 
 /** Shared modal: keep focus inside it and restore the invoking control on dismissal. */
-export function Modal({ titleId, testId, title, children, onClose, busy = false, role = "alertdialog" }: Props) {
+export function Modal({ titleId, testId, title, children, onClose, busy = false, role = "alertdialog", returnFocus }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const current = useRef({ onClose, busy });
-  useEffect(() => { current.current = { onClose, busy }; }, [onClose, busy]);
+  // Read while rendering, before React applies autoFocus to a field inside the dialog.
+  const [opener] = useState(() => {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && active !== document.body ? active : null;
+  });
+  const current = useRef({ onClose, busy, returnFocus });
+  useEffect(() => { current.current = { onClose, busy, returnFocus }; }, [onClose, busy, returnFocus]);
   useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const panel = ref.current!;
-    const focusable = () => Array.from(panel.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
-    )).filter((element) => !element.closest('[hidden], [inert]'));
-    (focusable()[0] ?? panel).focus();
+    stack.push(panel);
+    const isTop = () => stack.at(-1) === panel;
+    if (!panel.contains(document.activeElement)) (focusableIn(panel)[0] ?? panel).focus();
     const keydown = (event: KeyboardEvent) => {
+      if (!isTop()) return;
       if (event.key === "Escape") {
         event.preventDefault(); event.stopImmediatePropagation();
         if (!current.current.busy) current.current.onClose();
       } else if (event.key === "Tab") {
-        const items = focusable();
+        const items = focusableIn(panel);
         const first = items[0] ?? panel;
         const last = items.at(-1) ?? panel;
         if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
@@ -39,16 +60,18 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
       }
     };
     const contain = (event: FocusEvent) => {
-      if (!panel.contains(event.target as Node)) (focusable()[0] ?? panel).focus();
+      if (isTop() && !panel.contains(event.target as Node)) (focusableIn(panel)[0] ?? panel).focus();
     };
     document.addEventListener("keydown", keydown, true);
     document.addEventListener("focusin", contain);
     return () => {
       document.removeEventListener("keydown", keydown, true);
       document.removeEventListener("focusin", contain);
-      if (previous?.isConnected) previous.focus();
+      stack.splice(stack.indexOf(panel), 1);
+      const usable = opener?.isConnected && !(opener as HTMLButtonElement).disabled ? opener : null;
+      (usable ?? current.current.returnFocus?.())?.focus();
     };
-  }, []);
+  }, [opener]);
   return createPortal(
     <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div ref={ref} tabIndex={-1} role={role} aria-modal="true" aria-labelledby={titleId}
@@ -59,5 +82,5 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
     </div>, document.body,
   );
 }
-export const BTN = "rounded-md border border-line bg-panel px-3 py-1.5 text-sm disabled:opacity-50";
-export const BTN_DANGER = "rounded-md border border-danger bg-danger/10 px-3 py-1.5 text-sm text-danger disabled:opacity-50";
+export const BTN = "btn px-3 py-1.5 text-sm";
+export const BTN_DANGER = "btn border-danger bg-danger/10 px-3 py-1.5 text-sm text-danger";

@@ -3,6 +3,7 @@ import { docToText, hasChanges, parseDraft } from "../components/DocumentEditor/
 import { parseTemplateText, sameTemplate } from "../components/RemoteConfig/rcModel";
 import type { RemoteConfigTemplate } from "../core";
 import { useEditorStore, type EditorSession } from "./documentEditor";
+import { hasPendingInputs } from "./pendingInputs";
 import { useRcEditor, type RcSession } from "./rcEditor";
 
 function documentDirty({ baseDoc, text }: EditorSession): boolean {
@@ -18,10 +19,11 @@ function templateDirty({ baseText, text }: RcSession): boolean {
 }
 
 /**
- * True when the Remote Config draft or any open document draft differs from its server baseline.
- * Same comparison the editors use for their own dirty indicators.
+ * True when the Remote Config draft or any open document draft differs from its server baseline, or a
+ * table cell still holds an uncommitted edit. Same comparison the editors use for their dirty indicators.
  */
 export function hasUnsavedChanges(): boolean {
+  if (hasPendingInputs()) return true;
   const rc = useRcEditor.getState().session;
   if (rc && templateDirty(rc)) return true;
   return Object.values(useEditorStore.getState().sessions).some(documentDirty);

@@ -1,4 +1,4 @@
-import { useShortcutActions } from "../hooks/shortcuts";
+import { useShortcutActions, withShortcut } from "../hooks/shortcuts";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccountSwitcher } from "./AccountSwitcher";
@@ -6,10 +6,12 @@ import { SettingsBar } from "./SettingsBar";
 import { SidebarResize } from "./SidebarResize";
 import { StatusBar } from "./StatusBar";
 import { useSettings } from "../store/settings";
-import { Database, SlidersHorizontal, Flame } from "lucide-react";
+import { Database, SlidersHorizontal, Flame, LogOut } from "lucide-react";
 import { FirestoreBrowser, FirestoreSidebar } from "./Firestore/FirestoreBrowser";
+import { AreaHeader } from "./Firestore/DocumentView";
 import { RemoteConfigView } from "./RemoteConfig/RemoteConfigView";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { OfflineBanner } from "./errors/OfflineBanner";
 import { useConnection } from "../store/connection";
 import { useArea, type Area } from "../store/rcEditor";
 import { hasUnsavedChanges } from "../store/unsavedChanges";
@@ -46,45 +48,57 @@ export function ConnectedView() {
 
   return (
     <section data-testid="connected" aria-busy={busy} inert={busy} className="flex h-full min-h-0">
-      <aside className="native-sidebar relative flex shrink-0 flex-col select-none" style={{ width: sidebarWidth }}>
+      <aside data-testid="sidebar" aria-label={t("layout.sidebar")} className="native-sidebar relative flex shrink-0 flex-col select-none" style={{ width: sidebarWidth }}>
         <header className="sidebar-header gap-2 font-semibold" data-tauri-drag-region="deep">
           <Flame size={20} className="text-warning" aria-hidden="true" />{t("app.title")}
         </header>
         <div className="min-h-0 flex-1 overflow-auto">
           <section className="sidebar-section">
-            <h2 className="section-label mb-2">{t("accounts.title")}</h2>
             <AccountSwitcher sidebar />
           </section>
           <nav aria-label={t("nav.areas")}>
             <div className="sidebar-section">
-              <button type="button" data-testid="nav-firestore" aria-current={area === "firestore" ? "page" : undefined}
-                onClick={() => openArea("firestore")} className="section-label mb-3 flex w-full items-center gap-2 text-left">
-                <Database size={15} aria-hidden="true" />{t("nav.firestore")}
-              </button>
+              <h2>
+                <button type="button" data-testid="nav-firestore" aria-current={area === "firestore" ? "page" : undefined}
+                  title={withShortcut(t("nav.firestore"), "firestore")}
+                  onClick={() => openArea("firestore")} className="section-label mb-2 flex w-full items-center gap-2 text-left">
+                  <Database size={14} aria-hidden="true" />{t("nav.firestore")}
+                </button>
+              </h2>
               <FirestoreSidebar />
             </div>
             <div className="sidebar-section">
-              <p className="section-label mb-2">{t("nav.remoteConfig")}</p>
+              <h2 id="nav-rc-label" className="section-label mb-2 flex items-center gap-2">
+                <SlidersHorizontal size={14} aria-hidden="true" />{t("nav.remoteConfig")}
+              </h2>
               <button type="button" data-testid="nav-remote-config" aria-current={area === "remoteConfig" ? "page" : undefined}
-                onClick={() => openArea("remoteConfig")} className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left ${area === "remoteConfig" ? "bg-selection" : "hover:bg-hover"}`}>
-                <SlidersHorizontal size={16} aria-hidden="true" />{t("layout.template")}
+                aria-labelledby="nav-rc-label nav-rc-template" title={withShortcut(t("nav.remoteConfig"), "remoteConfig")}
+                onClick={() => openArea("remoteConfig")}
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${area === "remoteConfig" ? "bg-accent text-on-accent" : "hover:bg-hover"}`}>
+                <SlidersHorizontal size={16} aria-hidden="true" /><span id="nav-rc-template">{t("layout.template")}</span>
               </button>
             </div>
           </nav>
         </div>
         <div className="space-y-3 border-t border-line p-3">
-          <SettingsBar />
-          <button type="button" data-testid="disconnect" onClick={requestSignOut} className="text-xs text-fg-muted hover:text-fg">
-            {t("connection.disconnect")}
+          <SettingsBar stacked />
+          <button type="button" data-testid="disconnect" onClick={requestSignOut} className="flex items-center gap-1.5 text-xs text-fg-muted hover:text-fg">
+            <LogOut size={13} aria-hidden="true" />{t("connection.disconnect")}
           </button>
         </div>
         <SidebarResize />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col bg-surface">
         <h2 className="sr-only" data-testid="connected-title">{t("connection.connectedTo", { project: connection.projectId })}</h2>
+        <OfflineBanner />
         <div className="min-h-0 flex-1 overflow-auto">
           <div data-testid="area-firestore" hidden={area !== "firestore"}><FirestoreBrowser showSidebar={false} /></div>
-          {visitedRc && <div data-testid="area-remote-config" hidden={area !== "remoteConfig"} className="p-5"><RemoteConfigView /></div>}
+          {visitedRc && (
+            <div data-testid="area-remote-config" hidden={area !== "remoteConfig"}>
+              <AreaHeader title={t("nav.remoteConfig")} subtitle={`${connection.projectId} · ${t("layout.template")}`} />
+              <div className="panel-body"><RemoteConfigView /></div>
+            </div>
+          )}
         </div>
         <StatusBar />
       </div>

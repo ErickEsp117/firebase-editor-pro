@@ -2,7 +2,7 @@ import { useKeyboardShortcuts } from "./hooks/shortcuts";
 import { useResolvedTheme } from "./store/useResolvedTheme";
 import { syncWindowTheme, refreshAppearance } from "./platform/appearance";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ConnectedView } from "./components/ConnectedView";
 import { OfflineBanner } from "./components/errors/OfflineBanner";
@@ -16,10 +16,29 @@ function useApplyTheme() {
   const theme = useSettings((s) => s.theme);
   const resolved = useResolvedTheme();
   useEffect(() => { void syncWindowTheme(theme); }, [theme]);
-  useEffect(() => {
+  // Layout effect: the class must be on <html> before the browser paints the new theme.
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", resolved === "dark");
-    void refreshAppearance();
   }, [resolved]);
+  useEffect(() => { void refreshAppearance(); }, [resolved]);
+}
+
+/**
+ * Account actions make the connected view inert, which drops keyboard focus to <body>, and switching
+ * remounts it. Afterwards focus lands on the account list toggle (or the welcome import button).
+ */
+function useRestoreFocusAfterAccountActions() {
+  useEffect(
+    () =>
+      useConnection.subscribe((state, previous) => {
+        if (previous.phase !== "verifying" || state.phase === "verifying") return;
+        requestAnimationFrame(() => {
+          if (document.activeElement && document.activeElement !== document.body) return;
+          document.querySelector<HTMLElement>('[data-testid="account-switcher-toggle"], [data-testid="import-key"]')?.focus();
+        });
+      }),
+    [],
+  );
 }
 
 function Shell() {
@@ -30,6 +49,7 @@ function Shell() {
   const restore = useConnection((s) => s.restore);
   useApplyTheme();
   useKeyboardShortcuts();
+  useRestoreFocusAfterAccountActions();
   useEffect(() => {
     void restore();
   }, [restore]);
@@ -40,12 +60,12 @@ function Shell() {
 
   return (
     <div className="flex h-screen flex-col text-fg">
-      <OfflineBanner />
       {showConnected ? <ConnectedView key={activeId ?? "none"} /> : (
         <div className="flex h-full flex-col bg-surface">
           <header className="welcome-toolbar editor-toolbar flex items-center justify-between gap-4 px-6" data-tauri-drag-region="deep">
             <h1 className="font-semibold">{t("app.title")}</h1><SettingsBar />
           </header>
+          <OfflineBanner />
           <main className="mx-auto w-full max-w-2xl p-8">
             {phase === "restoring" && <p>{t("connection.connecting")}</p>}
             {(phase === "welcome" || phase === "verifying") && <WelcomeView />}

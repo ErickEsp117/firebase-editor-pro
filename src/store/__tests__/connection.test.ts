@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ACCOUNTS_KEY, LEGACY_CREDENTIAL_KEY } from "../../core/accounts";
 import { listRootCollections } from "../../core/connection";
+import { FirestoreApi } from "../../core/FirestoreApi";
+import { RemoteConfigApi } from "../../core/RemoteConfigApi";
 import { setPlatformForTests } from "../../platform";
 import type { Platform } from "../../platform/types";
 import { useConnection } from "../connection";
@@ -296,15 +298,23 @@ describe("switchTo", () => {
         }
         const headers = (init?.headers ?? {}) as Record<string, string>;
         calls.push({ url: String(url), auth: headers.Authorization ?? null });
+        if (String(url).includes("remoteConfig")) {
+          return new Response(JSON.stringify({ parameters: {}, version: { versionNumber: "1" } }), { status: 200, headers: { ETag: "etag-1" } });
+        }
         return new Response(JSON.stringify({ collectionIds: ["users"] }), { status: 200 });
       }),
     );
     const [a] = await addTwo(); // proj-b stays active after adding the second key
     const baseline = calls.length;
     await useConnection.getState().switchTo(a.id);
-    await listRootCollections(useConnection.getState().connection!);
+    const conn = useConnection.getState().connection!;
+    await listRootCollections(conn);
+    // The same constructions the Firestore and Remote Config views make from the active connection.
+    await new FirestoreApi(conn.client, conn.projectId).listCollectionIds();
+    await new RemoteConfigApi(conn.client, conn.projectId).getTemplate();
     const afterSwitch = calls.slice(baseline);
-    expect(afterSwitch.length).toBeGreaterThan(0);
+    expect(afterSwitch.some((c) => c.url.includes("firestore.googleapis.com"))).toBe(true);
+    expect(afterSwitch.some((c) => c.url.includes("/projects/proj-a/remoteConfig"))).toBe(true);
     for (const c of afterSwitch) {
       expect(c.url).toContain("proj-a");
       expect(c.url).not.toContain("proj-b");

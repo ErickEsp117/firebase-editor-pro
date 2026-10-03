@@ -14,6 +14,7 @@ export function RemoveAccountButton({ account, className }: { account: AccountMe
   const { t } = useTranslation();
   const remove = useConnection((s) => s.remove);
   const activeId = useConnection((s) => s.activeId);
+  const busy = useConnection((s) => s.phase === "verifying");
   const [confirming, setConfirming] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -24,13 +25,14 @@ export function RemoveAccountButton({ account, className }: { account: AccountMe
         data-testid={`remove-account:${account.id}`}
         aria-label={t("accounts.removeFor", { project: account.projectId })}
         title={t("accounts.removeFor", { project: account.projectId })}
+        disabled={busy}
         onClick={() => {
           setDirty(account.id === activeId && hasUnsavedChanges());
           setConfirming(true);
         }}
         className={
           className ??
-          "shrink-0 rounded px-2 py-1 text-xs text-danger hover:bg-danger/10 "
+          "shrink-0 rounded px-2 py-1 text-xs text-danger hover:bg-danger/10 disabled:opacity-50"
         }
       >
         <Trash2 size={14} aria-hidden="true" />

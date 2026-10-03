@@ -20,6 +20,14 @@ export function ExportDialog({ scope, path }: Props) {
   const close = useCrudDialog((s) => s.close);
   const [status, setStatus] = useState<Status>({ phase: "running", count: 0 });
   const started = useRef(false);
+  // Closing the dialog while the export runs abandons it: no save dialog appears later for it.
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!api || started.current) return;
@@ -33,14 +41,17 @@ export function ExportDialog({ scope, path }: Props) {
         if (scope === "doc") {
           text = await exportDocument(api, path);
         } else {
-          const res = await exportCollection(api, path, (n) => setStatus({ phase: "running", count: n }));
+          const res = await exportCollection(api, path, (n) => {
+            if (open.current) setStatus({ phase: "running", count: n });
+          });
           text = res.text;
           count = res.docs;
         }
+        if (!open.current) return;
         const saved = await getPlatform().saveTextFile(name, text);
-        setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
+        if (open.current) setStatus(saved ? { phase: "done", count, name } : { phase: "cancelled" });
       } catch (e) {
-        setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
+        if (open.current) setStatus({ phase: "error", failure: { key: "io.exportError", cause: e } });
       }
     })();
   }, [api, path, scope]);
@@ -54,7 +65,7 @@ export function ExportDialog({ scope, path }: Props) {
         </p>
       )}
       {status.phase === "done" && (
-        <p role="status" data-testid="export-done" className="text-sm text-green-800 dark:text-green-300">
+        <p role="status" data-testid="export-done" className="text-sm text-success">
           {t("io.exportDone", { count: status.count, name: status.name })}
         </p>
       )}

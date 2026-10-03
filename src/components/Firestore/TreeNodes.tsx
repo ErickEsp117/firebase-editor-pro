@@ -80,7 +80,7 @@ function CollectionNode({ path, name }: { path: string; name: string }) {
           aria-expanded={open}
           data-testid={`collection:${path}`}
           onClick={() => toggle(key)}
-          className="flex min-w-0 flex-1 items-center px-1 py-0.5 text-left font-mono text-sm"
+          className="flex min-w-0 flex-1 items-center px-1 py-1 text-left"
         >
           <Chevron open={open} /><Folder size={15} strokeWidth={1.75} className="mx-1 shrink-0" aria-hidden="true" />
           <span className="truncate">{name}</span>
@@ -173,16 +173,19 @@ function DocNode({ path, missing }: { path: string; missing: boolean }) {
   const key = `d:${path}`;
   const open = useFirestoreNav((s) => !!s.expanded[key]);
   const selected = useFirestoreNav((s) => s.selectedDoc === path);
+  // Like a macOS source list: the selection is filled with the accent only while its area is shown.
+  const inFirestore = useArea((s) => s.area === "firestore");
   const toggle = useFirestoreNav((s) => s.toggle);
   const select = useFirestoreNav((s) => s.select);
   const id = path.slice(path.lastIndexOf("/") + 1);
   return (
     <li data-testid={`doc-node:${path}`} data-missing={missing || undefined}>
-      <div className={`flex items-center rounded ${selected ? "bg-selection " : "hover:bg-hover "}`}>
+      <div className={`flex items-center rounded-md ${selected ? (inFirestore ? "bg-accent text-on-accent" : "bg-selection") : "hover:bg-hover"}`}>
         <button
           type="button"
           aria-expanded={open}
           aria-label={t("firestore.toggleSubcollections", { id })}
+          title={t("firestore.toggleSubcollections", { id })}
           data-testid={`doc-toggle:${path}`}
           onClick={() => toggle(key)}
           className="tree-actions px-1 text-sm"
@@ -192,8 +195,9 @@ function DocNode({ path, missing }: { path: string; missing: boolean }) {
         <button
           type="button"
           data-testid={`doc:${path}`}
+          aria-current={selected ? "true" : undefined}
           onClick={() => { useArea.getState().setArea("firestore"); select(path); }}
-          className={`flex min-w-0 flex-1 items-center gap-1 truncate py-1 text-left font-mono text-sm ${missing ? "italic text-fg-muted" : ""}`}
+          className={`flex min-w-0 flex-1 items-center gap-1.5 truncate py-1 text-left ${missing ? "italic opacity-70" : ""}`}
         >
           <FileText size={14} strokeWidth={1.75} className="shrink-0" aria-hidden="true" /><span className="truncate">{id}</span>
         </button>

@@ -20,13 +20,13 @@ export function ConfirmDialog({ testId, title, children, confirmLabel, danger, o
     <Modal titleId={`${testId}-title`} testId={`${testId}-dialog`} title={title} onClose={onCancel} role="dialog">
         <div className="space-y-2 text-sm">{children}</div>
         <div className="flex justify-end gap-2">
-          <button type="button" data-testid={`${testId}-cancel`} className="rounded border border-line px-3 py-1 text-sm" onClick={onCancel}>
+          <button type="button" data-testid={`${testId}-cancel`} className="btn px-3 py-1 text-sm" onClick={onCancel}>
             {t("connection.cancel")}
           </button>
           <button
             type="button"
             data-testid={`${testId}-confirm`}
-            className={`rounded px-3 py-1 text-sm ${danger ? "bg-danger/10 text-danger" : "bg-accent text-on-accent"}`}
+            className={danger ? "btn border-danger bg-danger/10 px-3 py-1 text-sm text-danger" : "btn-primary"}
             onClick={onConfirm}
           >
             {confirmLabel}

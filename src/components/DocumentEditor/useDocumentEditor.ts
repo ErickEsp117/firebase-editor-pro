@@ -11,6 +11,8 @@ export type SaveState =
   | { phase: "saving" }
   | { phase: "saved"; updateTime: string }
   | { phase: "error"; error: unknown }
+  | { phase: "reloading" }
+  | { phase: "reloadError"; error: unknown }
   | { phase: "conflict" };
 
 /** Editing state for one document; the draft text lives in the store so failures and remounts never lose it. */
@@ -39,7 +41,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
   const base = useMemo<Obj>(() => decodeDoc(baseDoc), [baseDoc]);
   const draft = useMemo<Draft>(() => parseDraft(text), [text]);
   const dirty = draft.ok ? hasChanges(base, draft.value) : text !== docToText(baseDoc);
-  const canSave = draft.ok && dirty && state.phase !== "saving";
+  const canSave = draft.ok && dirty && state.phase !== "saving" && state.phase !== "reloading";
 
   const updateText = useCallback((next: string) => setText(sessionKey, next), [setText, sessionKey]);
 
@@ -86,12 +88,12 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
 
   const reload = useCallback(async () => {
     if (!api) return;
-    setState({ phase: "saving" });
+    setState({ phase: "reloading" });
     try {
       accept(await api.getDoc(path));
       setState({ phase: "idle" });
     } catch (e) {
-      setState({ phase: "error", error: e });
+      setState({ phase: "reloadError", error: e });
     }
   }, [api, path, accept]);
 

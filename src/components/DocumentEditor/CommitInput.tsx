@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { usePendingInputs } from "../../store/pendingInputs";
 
 interface Props {
   value: string;
@@ -18,6 +19,12 @@ export function CommitInput({ value, onCommit, validate, label, testId, classNam
     setDraft(value);
   }
   const valid = !validate || validate(draft);
+  const id = useId();
+  const pending = draft !== value;
+  useEffect(() => {
+    usePendingInputs.getState().mark(id, pending);
+  }, [id, pending]);
+  useEffect(() => () => usePendingInputs.getState().mark(id, false), [id]);
 
   const commit = (current: string) => {
     if (current === value) return;
@@ -30,6 +37,7 @@ export function CommitInput({ value, onCommit, validate, label, testId, classNam
       aria-label={label}
       aria-invalid={!valid}
       data-testid={testId}
+      data-commit-input=""
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={(e) => commit(e.currentTarget.value)}

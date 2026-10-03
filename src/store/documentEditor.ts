@@ -20,6 +20,8 @@ interface EditorState {
   setView(v: EditorView): void;
   setMode(m: SaveMode): void;
   clear(): void;
+  /** Forgets the session of a deleted document, or with `subtree` every session under a deleted collection. */
+  drop(projectId: string, path: string, subtree?: boolean): void;
 }
 
 /** Sessions live outside React so unsaved edits survive navigation, remounts and language changes. */
@@ -34,4 +36,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   setView: (view) => set({ view }),
   setMode: (mode) => set({ mode }),
   clear: () => set({ sessions: {} }),
+  drop: (projectId, path, subtree = false) =>
+    set((s) => {
+      const key = `${projectId}/${path}`;
+      const sessions = Object.fromEntries(
+        Object.entries(s.sessions).filter(([k]) => (subtree ? !k.startsWith(`${key}/`) : k !== key)),
+      );
+      return Object.keys(sessions).length === Object.keys(s.sessions).length ? s : { sessions };
+    }),
 }));

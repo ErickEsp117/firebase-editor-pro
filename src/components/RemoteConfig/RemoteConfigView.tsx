@@ -1,4 +1,4 @@
-import { useShortcutActions, shortcutLabel } from "../../hooks/shortcuts";
+import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,7 @@ type Dialog =
   | { kind: "reload" }
   | { kind: "rollback"; version: RemoteConfigVersion };
 
-const BTN = "rounded border border-line px-3 py-1 text-sm disabled:opacity-50 ";
+const BTN = "btn";
 
 export function RemoteConfigView() {
   const { t } = useTranslation();
@@ -59,10 +59,20 @@ export function RemoteConfigView() {
     setDialogError({ kind: "publishFailed", error: outcome.error });
   };
 
+  // ⌘/Ctrl+S only ever opens the publish confirmation; publishing always needs its explicit button.
+  // Format is registered by the template editor so the shortcut and its button share one code path.
   useShortcutActions("remoteConfig", {
     save: () => { if (rc.session && !working && rc.draft.ok) { setDialogError(null); setDialog({ kind: "publish" }); } },
-    reload: () => { if (!working) { if (rc.dirty) setDialog({ kind: "reload" }); else void rc.reload(false); } },
-    format: () => { if (rc.draft.ok) rc.setText(JSON.stringify(rc.draft.template, null, 2)); },
+    reload: () => {
+      if (working) return;
+      // Without a loaded template there is nothing to discard: retry the download instead of queuing a dialog.
+      if (!rc.session) {
+        if (rc.loadError) rc.retryLoad();
+        return;
+      }
+      if (rc.dirty) setDialog({ kind: "reload" });
+      else void rc.reload(false);
+    },
   });
   const session = rc.session;
   if (rc.loadError) {
@@ -114,8 +124,8 @@ export function RemoteConfigView() {
         <button
           type="button"
           data-testid="rc-publish"
-          title={`${t("rc.publish")} (${shortcutLabel("save")})`}
-          className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50"
+          title={withShortcut(t("rc.publish"), "save")}
+          className="btn-primary"
           disabled={working || !rc.draft.ok}
           onClick={() => {
             setDialogError(null);
@@ -127,7 +137,7 @@ export function RemoteConfigView() {
         <button
           type="button"
           data-testid="rc-reload"
-          title={`${t("rc.reloadTemplate")} (${shortcutLabel("reload")})`}
+          title={withShortcut(t("rc.reloadTemplate"), "reload")}
           className={BTN}
           disabled={working}
           onClick={() => (rc.dirty ? setDialog({ kind: "reload" }) : void rc.reload(false))}

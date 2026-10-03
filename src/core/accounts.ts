@@ -185,15 +185,30 @@ export async function removeAccount(
 ): Promise<{ index: AccountsIndex; orphaned: boolean }> {
   const index = (await readIndex(platform)) ?? emptyIndex();
   if (!index.accounts.some((a) => a.id === id)) return { index, orphaned: false };
+  const removed = index.accounts.find((a) => a.id === id)!;
   const accounts = index.accounts.filter((a) => a.id !== id);
   const activeId = index.activeId === id ? (accounts[0]?.id ?? null) : index.activeId;
   const next: AccountsIndex = { version: 1, activeId, accounts };
   await writeIndex(platform, next);
+  await dropLegacyCopy(platform, removed);
   try {
     await platform.secureStore.delete(accountSecretKey(id));
     return { index: next, orphaned: false };
   } catch {
     return { index: next, orphaned: true };
+  }
+}
+
+/**
+ * A legacy `service-account` entry whose delete failed during migration would migrate the same key again
+ * on the next load, bringing a removed account back. Best effort: an unreadable legacy entry is left alone.
+ */
+async function dropLegacyCopy(platform: Platform, removed: AccountMeta): Promise<void> {
+  try {
+    const legacy = await platform.secureStore.get(LEGACY_CREDENTIAL_KEY);
+    if (legacy && sameIdentity(removed, parseKeyJson(legacy))) await platform.secureStore.delete(LEGACY_CREDENTIAL_KEY);
+  } catch {
+    // Nothing else depends on it; a later removal retries.
   }
 }
 
@@ -227,7 +242,15 @@ export async function importAccount(
     const index = await readIndexOrEmpty(platform);
     const existing = index.accounts.find((a) => sameIdentity(a, parsed));
     if (existing) {
-      const connection = await connectAccount(platform, existing.id);
+      let connection: Connection;
+      try {
+        connection = await connectAccount(platform, existing.id);
+      } catch {
+        // The stored credential is missing or unreadable: verify the key the user just picked and store
+        // it again, so re-importing repairs the account instead of failing forever.
+        connection = await verifyKey(keyText, platform, fileName);
+        await platform.secureStore.set(accountSecretKey(existing.id), keyText);
+      }
       const res = await addAccount(keyText, platform);
       return { ...res, connection };
     }

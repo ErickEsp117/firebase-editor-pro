@@ -160,7 +160,9 @@
     "reload": "Reload",
     "force": "Force save",
     "forceConfirm": "Yes, overwrite",
-    "forceWarning": "This will save without checking for newer changes and may overwrite them."
+    "forceWarning": "This will save without checking for newer changes and may overwrite them.",
+    "reloadFailed": "Could not reload the document: {{message}}",
+    "viewMode": "Document view"
   },
   "codec": {
     "errors": {
@@ -350,6 +352,9 @@
   "layout": {
     "resizeSidebar": "Resize sidebar",
     "saved": "All changes saved",
-    "template": "Template"
+    "template": "Template",
+    "connected": "Connected · {{project}}",
+    "offline": "Offline · {{project}}",
+    "sidebar": "Sidebar"
   }
 }

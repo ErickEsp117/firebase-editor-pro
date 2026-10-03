@@ -104,7 +104,7 @@ export function ImportDialog({ scope, path }: Props) {
         </p>
       )}
       {doneCount !== null && (
-        <p role="status" data-testid="import-done" className="text-sm text-green-800 dark:text-green-300">
+        <p role="status" data-testid="import-done" className="text-sm text-success">
           {t("io.importDone", { count: doneCount })}
         </p>
       )}
@@ -113,7 +113,7 @@ export function ImportDialog({ scope, path }: Props) {
         <button type="button" data-testid="import-close" className={BTN} disabled={busy} onClick={close}>
           {t("io.close")}
         </button>
-        <button type="button" data-testid="import-submit" className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50" disabled={busy} onClick={() => void submit()}>
+        <button type="button" data-testid="import-submit" className="btn-primary" disabled={busy} onClick={() => void submit()}>
           {busy ? t("crud.creating") : t("io.importButton")}
         </button>
       </div>

@@ -160,7 +160,9 @@
     "reload": "Recargar",
     "force": "Forzar guardado",
     "forceConfirm": "Sí, sobrescribir",
-    "forceWarning": "Se guardará sin comprobar cambios más recientes y puede sobrescribirlos."
+    "forceWarning": "Se guardará sin comprobar cambios más recientes y puede sobrescribirlos.",
+    "reloadFailed": "No se pudo recargar el documento: {{message}}",
+    "viewMode": "Vista del documento"
   },
   "codec": {
     "errors": {
@@ -350,6 +352,9 @@
   "layout": {
     "resizeSidebar": "Cambiar ancho de la barra lateral",
     "saved": "Todos los cambios guardados",
-    "template": "Plantilla"
+    "template": "Plantilla",
+    "connected": "Conectado · {{project}}",
+    "offline": "Sin conexión · {{project}}",
+    "sidebar": "Barra lateral"
   }
 }

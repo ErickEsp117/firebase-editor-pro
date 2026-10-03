@@ -1,4 +1,4 @@
-import { shortcutLabel } from "../../hooks/shortcuts";
+import { withShortcut } from "../../hooks/shortcuts";
 import { useTranslation } from "react-i18next";
 import { describeError, technicalText } from "../errors/describeError";
 import { TechnicalDetails } from "../errors/TechnicalDetails";
@@ -9,6 +9,8 @@ import type { SaveState } from "./useDocumentEditor";
 interface Props {
   draft: Draft;
   dirty: boolean;
+  /** A table cell still holds an uncommitted edit. */
+  pending?: boolean;
   canSave: boolean;
   state: SaveState;
   updateTime?: string;
@@ -16,7 +18,7 @@ interface Props {
   onDiscard(): void;
 }
 
-export function SaveBar({ draft, dirty, state, updateTime, onDiscard }: Props) {
+export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDiscard }: Props) {
   const { t } = useTranslation();
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
@@ -45,7 +47,7 @@ export function SaveBar({ draft, dirty, state, updateTime, onDiscard }: Props) {
             <option value="full">{t("editor.modeFull")}</option>
           </select>
         </label>
-        {dirty && (
+        {(dirty || pending) && (
           <span data-testid="dirty-indicator" className="text-xs text-warning ">
             {t("editor.unsaved")}
           </span>
@@ -72,6 +74,12 @@ export function SaveBar({ draft, dirty, state, updateTime, onDiscard }: Props) {
           {technicalText(state.error) && <TechnicalDetails text={technicalText(state.error)!} testId="save-error-technical" />}
         </div>
       )}
+      {state.phase === "reloadError" && (
+        <div role="alert" data-testid="reload-error" className="space-y-1 text-sm text-danger ">
+          <p>{t("editor.reloadFailed", { message: describeError(t, state.error) })}</p>
+          {technicalText(state.error) && <TechnicalDetails text={technicalText(state.error)!} testId="reload-error-technical" />}
+        </div>
+      )}
     </div>
   );
 }
@@ -79,15 +87,15 @@ export function SaveBar({ draft, dirty, state, updateTime, onDiscard }: Props) {
 export function SaveButton({ canSave, state, onSave }: Pick<Props, "canSave" | "state" | "onSave">) {
   const { t } = useTranslation();
   return (
-        <button
-          type="button"
-          data-testid="save-button"
-          title={`${t("editor.save")} (${shortcutLabel("save")})`}
-          disabled={!canSave}
-          onClick={onSave}
-          className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50"
-        >
-          {state.phase === "saving" ? t("editor.saving") : t("editor.save")}
-        </button>
+    <button
+      type="button"
+      data-testid="save-button"
+      title={withShortcut(t("editor.save"), "save")}
+      disabled={!canSave}
+      onClick={onSave}
+      className="btn-primary"
+    >
+      {state.phase === "saving" ? t("editor.saving") : t("editor.save")}
+    </button>
   );
 }

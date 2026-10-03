@@ -26,7 +26,7 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
           maxLength={MAX_DESCRIPTION}
           rows={3}
           onChange={(e) => setDescription(e.target.value)}
-          className="mt-1 w-full rounded border border-line p-2 text-sm "
+          className="mt-1 w-full rounded-md border border-line bg-surface p-2 text-sm"
         />
       </label>
       {error && (
@@ -41,7 +41,7 @@ export function PublishDialog({ busy, error, initial, onPublish, onCancel }: Pub
         <button
           type="button"
           data-testid="rc-publish-confirm"
-          className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50"
+          className="btn-primary"
           disabled={busy}
           onClick={() => onPublish(description.trim())}
         >
@@ -91,7 +91,7 @@ export function RcConflictDialog({ busy, error, onReload, onForce, onCancel }: C
           <button
             type="button"
             data-testid="rc-conflict-force"
-            className="rounded border border-danger px-3 py-1 text-sm text-danger disabled:opacity-50 "
+            className="btn border-danger px-3 py-1 text-sm text-danger"
             disabled={busy}
             onClick={() => setForcing(true)}
           >
@@ -126,7 +126,7 @@ export function RcConfirmDialog({ testId, title, children, confirmLabel, busy, d
         <button
           type="button"
           data-testid={`${testId}-confirm`}
-          className={danger ? BTN_DANGER : "rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50"}
+          className={danger ? BTN_DANGER : "btn-primary"}
           disabled={busy}
           onClick={onConfirm}
         >

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
+import { useEditorStore } from "../../../store/documentEditor";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { useFirestoreApi } from "../useFirestore";
 import { DialogError, type DialogFailure } from "./DialogError";
@@ -26,6 +27,8 @@ export function DeleteDocDialog({ path }: { path: string }) {
       await api.deleteDoc(path);
       if (useFirestoreNav.getState().selectedDoc === path) useFirestoreNav.getState().select(null);
       queryClient.removeQueries({ queryKey: ["fs", projectId, "doc", path] });
+      // A draft of a deleted document can never be saved; keeping it would block account actions as "unsaved".
+      if (projectId) useEditorStore.getState().drop(projectId, path);
       await invalidateTree(queryClient, projectId);
       close();
     } catch (e) {

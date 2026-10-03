@@ -4,8 +4,9 @@ import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useResolvedTheme } from "../../store/useResolvedTheme";
-import { editorTheme } from "../editorTheme";
+import { editorScheme, editorTheme } from "../editorTheme";
 
 interface Props {
   text: string;
@@ -33,8 +34,11 @@ export function TemplateEditor({ text, onChange }: Props) {
     }
   }, [text]);
 
-  const extensions = useMemo(() => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme], []);
   const dark = theme === "dark";
+  const extensions = useMemo(
+    () => [json(), linter(jsonParseLinter()), lintGutter(), EditorView.lineWrapping, editorTheme, editorScheme(dark)],
+    [dark],
+  );
 
   const format = () => {
     try {
@@ -44,11 +48,13 @@ export function TemplateEditor({ text, onChange }: Props) {
       setFormatError(true);
     }
   };
+  // ⌘/Ctrl+Shift+F runs exactly what the Format button runs, including its error.
+  useShortcutActions("remoteConfig", { format });
 
   return (
     <div data-testid="rc-json-view" className="space-y-2">
       <div className="flex items-center gap-2">
-        <button type="button" data-testid="rc-format" onClick={format} className="rounded border border-line px-2 py-1 text-xs ">
+        <button type="button" data-testid="rc-format" title={withShortcut(t("rc.format"), "format")} onClick={format} className="btn">
           {t("rc.format")}
         </button>
         {formatError && (
@@ -57,7 +63,7 @@ export function TemplateEditor({ text, onChange }: Props) {
           </span>
         )}
       </div>
-      <div data-testid="rc-editor" className="overflow-hidden rounded border border-line text-sm ">
+      <div data-testid="rc-editor" className="overflow-hidden rounded-md border border-line text-sm">
         <CodeMirror
           value={text}
           onChange={(value) => {
@@ -67,7 +73,7 @@ export function TemplateEditor({ text, onChange }: Props) {
             viewRef.current = view;
           }}
           extensions={extensions}
-          theme={dark ? "dark" : "light"}
+          theme="none"
           minHeight="20rem"
           maxHeight="36rem"
           aria-label={t("rc.editorLabel")}

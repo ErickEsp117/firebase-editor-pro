@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError, documentsRootOf, encodeFields } from "../../../core";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
+import { useArea } from "../../../store/rcEditor";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { parseDraft } from "../../DocumentEditor/editorModel";
 import { useFirestoreApi } from "../useFirestore";
@@ -62,6 +63,8 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
         if (!nav.expanded[key]) nav.toggle(key);
       }
       select(path);
+      // The tree is also reachable from Remote Config; show the new document where it opens.
+      useArea.getState().setArea("firestore");
       close();
     } catch (e) {
       setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? { key: "crud.alreadyExists", params: { path }, cause: e } : { key: "crud.createError", cause: e });
@@ -98,7 +101,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
         <button type="button" data-testid="create-doc-cancel" className={BTN} disabled={busy} onClick={close}>
           {t("connection.cancel")}
         </button>
-        <button type="button" data-testid="create-doc-submit" className="rounded bg-accent px-3 py-1 text-sm text-on-accent disabled:opacity-50" disabled={busy || invalid} onClick={() => void submit()}>
+        <button type="button" data-testid="create-doc-submit" className="btn-primary" disabled={busy || invalid} onClick={() => void submit()}>
           {busy ? t("crud.creating") : t("crud.create")}
         </button>
       </div>

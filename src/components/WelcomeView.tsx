@@ -47,9 +47,9 @@ export function WelcomeView() {
         data-testid="import-key"
         disabled={busy}
         onClick={() => void addFromPicker()}
-        className="self-start rounded bg-orange-600 px-4 py-2 font-medium text-on-accent hover:bg-orange-700 disabled:opacity-50"
+        className="btn-primary self-start px-4 py-2"
       >
-        {busy ? t("connection.importing") : t("welcome.import")}
+        {busy ? t("connection.importing") : accounts.length > 0 ? t("accounts.add") : t("welcome.import")}
       </button>
     </section>
   );

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
+import { useEditorStore } from "../../../store/documentEditor";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { describeError, technicalText } from "../../errors/describeError";
 import { TechnicalDetails } from "../../errors/TechnicalDetails";
@@ -39,6 +40,7 @@ export function DeleteCollectionDialog({ path }: { path: string }) {
       if (nav.selectedDoc?.startsWith(`${path}/`)) nav.select(null);
       queryClient.removeQueries({ queryKey: ["fs", projectId, "doc"] });
       queryClient.removeQueries({ queryKey: ["fs", projectId, "docs", path] });
+      if (projectId) useEditorStore.getState().drop(projectId, path, true);
       await invalidateTree(queryClient, projectId);
       close();
     } catch (e) {

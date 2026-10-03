@@ -9,7 +9,10 @@ import {
   type AccountMeta,
 } from "../core/accounts";
 import { classifyError, ConnectionError, type Connection } from "../core/connection";
+import { queryClient } from "../queryClient";
+import { useCrudDialog } from "./crudDialog";
 import { useEditorStore } from "./documentEditor";
+import { useFirestoreNav } from "./firestoreNav";
 import { useRcEditor } from "./rcEditor";
 
 export type ConnectionPhase = "restoring" | "welcome" | "verifying" | "connected";
@@ -36,10 +39,18 @@ interface ConnectionState {
   clearError(): void;
 }
 
-/** Drafts belong to the account being left; callers confirm with hasUnsavedChanges() first. */
+/**
+ * Drafts, navigation and cached data belong to the account being left; callers confirm with
+ * hasUnsavedChanges() first. Resetting before the new account renders keeps the previous account's open
+ * document and expanded collections from being requested against the new project, and clearing the query
+ * cache keeps two accounts of the same project from sharing data.
+ */
 function discardEditorSessions(): void {
   useEditorStore.getState().clear();
   useRcEditor.getState().reset();
+  useFirestoreNav.getState().reset();
+  useCrudDialog.getState().close();
+  queryClient.clear();
 }
 
 /**

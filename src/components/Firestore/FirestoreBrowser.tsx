@@ -2,6 +2,7 @@ import { FolderPlus, Upload, RotateCw } from "lucide-react";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useConnection } from "../../store/connection";
 import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
@@ -18,7 +19,7 @@ export function FirestoreBrowser({ showSidebar = true }: { showSidebar?: boolean
 
   return (
     <div className={showSidebar ? "grid min-h-[60vh] grid-cols-[22rem_1fr] gap-4" : "min-w-0"}>
-      {showSidebar && <FirestoreSidebar />}
+      {showSidebar && <aside data-testid="sidebar" className="overflow-auto rounded border border-line p-2"><FirestoreSidebar /></aside>}
       <section data-testid="document-panel" className="min-w-0">
         <DocumentView />
       </section>
@@ -33,10 +34,14 @@ export function FirestoreSidebar() {
   const queryClient = useQueryClient();
   const fetching = useIsFetching({ queryKey: ["fs", projectId] }) > 0;
   const openDialog = useCrudDialog((s) => s.open);
+  // Refreshes the tree, its pages and the open document; a dirty document keeps its draft (the editor
+  // asks before discarding it when the shortcut also reaches it).
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ["fs", projectId] });
+  useShortcutActions("firestore", { reload: refresh });
   return (
-      <aside data-testid="sidebar" className="overflow-auto rounded border border-line p-2 ">
-        <div className="mb-2 flex flex-wrap items-center gap-1 justify-between">
-          <h3 className="font-medium">{t("connection.collections")}</h3>
+      <div data-testid="firestore-tree">
+        <div className="mb-1 flex flex-wrap items-center gap-1 justify-between">
+          <h3 className="text-xs text-fg-muted">{t("connection.collections")}</h3>
           <button
             type="button"
             data-testid="new-collection"
@@ -44,7 +49,7 @@ export function FirestoreSidebar() {
             onClick={() => openDialog({ kind: "create", parentDocPath: "", collectionPath: null })}
             className="icon-button ml-auto"
           >
-            <FolderPlus size={15} />
+            <FolderPlus size={15} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -53,20 +58,20 @@ export function FirestoreSidebar() {
             onClick={() => openDialog({ kind: "import", scope: "collection", path: "" })}
             className="icon-button"
           >
-            <Upload size={15} />
+            <Upload size={15} aria-hidden="true" />
           </button>
           <button
             type="button"
             data-testid="refresh"
-            aria-label={t("firestore.refresh")} title={t("firestore.refresh")}
+            aria-label={t("firestore.refresh")} title={withShortcut(t("firestore.refresh"), "reload")}
             disabled={fetching}
-            onClick={() => void queryClient.invalidateQueries({ queryKey: ["fs", projectId] })}
+            onClick={refresh}
             className="icon-button disabled:opacity-50"
           >
-            <RotateCw size={15} className={fetching ? "animate-spin" : ""} />
+            <RotateCw size={15} aria-hidden="true" className={fetching ? "animate-spin" : ""} />
           </button>
         </div>
         <CollectionList docPath="" />
-      </aside>
+      </div>
   );
 }

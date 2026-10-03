@@ -281,3 +281,82 @@ describe("delete key", () => {
     expect(useConnection.getState().phase).toBe("welcome");
   });
 });
+
+describe("account list in the sidebar (M7 layout)", () => {
+  it("is an expanded list whose header toggle collapses and expands it", async () => {
+    const [a] = await addTwo();
+    render(<AccountSwitcher sidebar />);
+    const toggle = screen.getByTestId("account-switcher-toggle");
+    expect(toggle.hidden).toBe(false);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByTestId(`account-item:${a.id}`).getAttribute("role")).toBeNull();
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(toggle);
+    expect(screen.queryByTestId(`account-item:${a.id}`)).toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByTestId("add-account")).toBeTruthy();
+  });
+
+  it("shows a rejected key's error and the duplicate notice in the flow of the sidebar, not as clipped popovers", async () => {
+    await addTwo();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 })));
+    render(<AccountSwitcher sidebar />);
+    await useConnection.getState().addText(keyJson({ private_key_id: "kid-new", client_email: "other@proj-a.iam.gserviceaccount.com" }), "bad.json");
+    const error = await screen.findByTestId("connection-error");
+    expect(error.closest(".absolute")).toBeNull();
+    vi.stubGlobal("fetch", okFetch());
+    await useConnection.getState().addText(keyJson());
+    const notice = await screen.findByTestId("account-duplicate-notice");
+    expect(notice.className).not.toContain("absolute");
+  });
+});
+
+describe("welcome with saved accounts", () => {
+  it("offers 'Añadir key' / 'Add key' on the import button", async () => {
+    await addTwo();
+    await useConnection.getState().signOut();
+    render(<WelcomeView />);
+    expect(screen.getByTestId("import-key").textContent).toBe("Añadir key");
+    useSettings.getState().setLanguage("en");
+    await waitFor(() => expect(screen.getByTestId("import-key").textContent).toBe("Add key"));
+  });
+});
+
+describe("switching accounts with a document open", () => {
+  it("never requests the previous account's document from the new project", async () => {
+    const [a] = await addTwo(); // proj-b active
+    const { useFirestoreNav } = await import("../../store/firestoreNav");
+    useFirestoreNav.setState({ expanded: { "c:only_in_b": true }, selectedDoc: "only_in_b/doc1" });
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      urls.push(String(url));
+      return url.includes("oauth2")
+        ? new Response(JSON.stringify({ access_token: "tok", expires_in: 3600 }), { status: 200 })
+        : new Response(JSON.stringify({ collectionIds: [] }), { status: 200 });
+    }));
+    function Keyed() {
+      const activeId = useConnection((s) => s.activeId);
+      return <ConnectedView key={activeId ?? "none"} />;
+    }
+    withQuery(<Keyed />);
+    await useConnection.getState().switchTo(a.id);
+    await waitFor(() => expect(useConnection.getState().connection?.projectId).toBe("proj-a"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(urls.filter((u) => u.includes("proj-a") && u.includes("only_in_b"))).toEqual([]);
+    expect(useFirestoreNav.getState().selectedDoc).toBeNull();
+  });
+});
+
+describe("deleting a document with a draft", () => {
+  it("forgets the draft so it no longer counts as unsaved", async () => {
+    const { hasUnsavedChanges } = await import("../../store/unsavedChanges");
+    dirtyDocument();
+    expect(hasUnsavedChanges()).toBe(true);
+    useEditorStore.getState().drop("proj-b", "users/u1");
+    expect(hasUnsavedChanges()).toBe(false);
+    dirtyDocument();
+    useEditorStore.getState().drop("proj-b", "users", true);
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+});
