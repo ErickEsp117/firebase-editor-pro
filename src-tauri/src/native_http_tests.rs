@@ -203,7 +203,11 @@ fn native_real_remote_config_template_has_etag_and_list_versions_ok() {
                 .await
                 .expect("template request failed");
             let template_status = template.status().as_u16();
-            let has_etag = template.headers().contains_key("etag");
+            let has_etag = template
+                .headers()
+                .get("etag")
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|v| !v.is_empty());
 
             let versions = client
                 .get(format!("{base}:listVersions?pageSize=1"))
@@ -223,7 +227,7 @@ fn native_real_remote_config_template_has_etag_and_list_versions_ok() {
     assert_eq!(token_status, 200, "token exchange status");
     assert!(!token.is_empty(), "token exchange returned no access_token");
     assert_eq!(template_status, 200, "remoteConfig template status");
-    assert!(has_etag, "remoteConfig template response lacks ETag");
+    assert!(has_etag, "remoteConfig template response lacks a non-empty ETag");
     assert_eq!(versions_status, 200, "listVersions status");
     println!(
         "native_real: token={token_status} template={template_status} etag_present={has_etag} listVersions={versions_status}"

@@ -84,4 +84,20 @@ describe("rejected credential diagnostics", () => {
     expect(tech).toContain("File: other.json");
     expect(tech).toContain("Key ID: cafe42");
   });
+
+  it.each([
+    ["number", 12345],
+    ["object", { id: "x" }],
+    ["array", ["a", "b"]],
+    ["boolean", true],
+  ])("renders the localized error without crashing or a Key ID line when private_key_id is a %s", async (_name, bad) => {
+    picked.file = { name: "odd.json", contents: keyJson({ private_key_id: bad }) };
+    const alert = await importPicked();
+    expect(alert.querySelector("span")!.textContent).toContain("Google rechazó la credencial");
+    const tech = screen.getByTestId("connection-error-technical").textContent!;
+    expect(tech).toContain("odd.json");
+    expect(tech).toContain("Invalid JWT Signature");
+    expect(tech).not.toMatch(/ID de clave|12345|\[object|undefined/);
+    expect(screen.getByTestId("import-key")).toBeTruthy();
+  });
 });

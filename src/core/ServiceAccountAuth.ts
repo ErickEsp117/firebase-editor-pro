@@ -31,6 +31,11 @@ export class KeyFileError extends Error {
   }
 }
 
+/** private_key_id is optional and untrusted JSON: only a non-empty string counts as a key id. */
+export function normalizeKeyId(value: unknown): string | undefined {
+  return typeof value === "string" && value !== "" ? value : undefined;
+}
+
 /** Validates locally; error messages name fields only, never values. */
 export function parseKeyJson(text: string): ServiceAccountKey {
   let raw: unknown;
@@ -48,13 +53,16 @@ export function parseKeyJson(text: string): ServiceAccountKey {
   if (!(o.private_key as string).includes("BEGIN PRIVATE KEY")) {
     throw new KeyFileError('field "private_key" is not a PEM PKCS#8 key', "badPem", "private_key");
   }
-  return o as unknown as ServiceAccountKey;
+  const key = o as unknown as ServiceAccountKey;
+  key.private_key_id = normalizeKeyId(o.private_key_id);
+  return key;
 }
 
 export function buildJwtParts(key: ServiceAccountKey, nowMs: number) {
   const iat = Math.floor(nowMs / 1000);
   const header: Record<string, unknown> = { alg: "RS256", typ: "JWT" };
-  if (key.private_key_id) header.kid = key.private_key_id;
+  const kid = normalizeKeyId(key.private_key_id);
+  if (kid) header.kid = kid;
   const claims = {
     iss: key.client_email,
     scope: SCOPES,

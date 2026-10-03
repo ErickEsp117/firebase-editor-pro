@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Platform } from "../../platform/types";
 import { ApiClient } from "../ApiClient";
 import { ApiError } from "../ApiError";
-import { KeyFileError, ServiceAccountAuth, parseKeyJson } from "../ServiceAccountAuth";
+import { KeyFileError, ServiceAccountAuth, buildJwtParts, normalizeKeyId, parseKeyJson } from "../ServiceAccountAuth";
 
 const key = {
   type: "service_account",
@@ -127,5 +127,30 @@ describe("ApiClient", () => {
     const err = await client.request("https://x/y").catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ http: 0, status: "UNAVAILABLE" });
+  });
+});
+
+describe("private_key_id normalization", () => {
+  it.each([
+    ["a string", "kid123", "kid123"],
+    ["an empty string", "", undefined],
+    ["a number", 12345, undefined],
+    ["an object", { id: "x" }, undefined],
+    ["an array", ["a"], undefined],
+    ["a boolean", true, undefined],
+    ["null", null, undefined],
+    ["missing", undefined, undefined],
+  ])("normalizeKeyId keeps only non-empty strings (%s)", (_n, input, expected) => {
+    expect(normalizeKeyId(input)).toBe(expected);
+  });
+
+  it.each([[12345], [{ id: "x" }], [["a"]], [true]])("parseKeyJson drops a non-string private_key_id (%j)", (bad) => {
+    const parsed = parseKeyJson(JSON.stringify({ ...key, private_key_id: bad }));
+    expect(parsed.private_key_id).toBeUndefined();
+    expect(buildJwtParts(parsed, 0).header).not.toHaveProperty("kid");
+  });
+
+  it("parseKeyJson keeps a valid string private_key_id", () => {
+    expect(parseKeyJson(JSON.stringify(key)).private_key_id).toBe("kid123");
   });
 });

@@ -2,7 +2,7 @@ import { getPlatform } from "../platform";
 import type { Platform } from "../platform/types";
 import { ApiClient } from "./ApiClient";
 import { ApiError } from "./ApiError";
-import { KeyFileError, ServiceAccountAuth, type KeyFileReason } from "./ServiceAccountAuth";
+import { KeyFileError, ServiceAccountAuth, normalizeKeyId, type KeyFileReason } from "./ServiceAccountAuth";
 
 export const CREDENTIAL_KEY = "service-account";
 
@@ -78,7 +78,7 @@ export async function verifyKey(
   let keyId: string | undefined;
   try {
     const auth = ServiceAccountAuth.fromKeyJson(keyText, { platform });
-    keyId = auth.key.private_key_id || undefined;
+    keyId = normalizeKeyId(auth.key.private_key_id);
     const client = new ApiClient(auth, { platform });
     const conn = { auth, client, projectId: auth.projectId, clientEmail: auth.key.client_email };
     await listRootCollections(conn);
