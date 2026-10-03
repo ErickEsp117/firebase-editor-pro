@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiClient } from "../ApiClient";
 import { ApiError } from "../ApiError";
+import { apiErrorKind } from "../errorKind";
 import { RemoteConfigApi, RemoteConfigConflictError, isRemoteConfigConflict } from "../RemoteConfigApi";
 
 interface Call {
@@ -55,6 +56,20 @@ describe("RemoteConfigApi.getTemplate", () => {
   it("fails when the response carries no ETag", async () => {
     const { api } = setup(() => ({ json: {} }));
     await expect(api.getTemplate()).rejects.toBeInstanceOf(Error);
+  });
+
+  it.each([
+    ["getTemplate", (api: RemoteConfigApi) => api.getTemplate()],
+    ["publish", (api: RemoteConfigApi) => api.publish({}, "e", "d")],
+    ["rollback", (api: RemoteConfigApi) => api.rollback("3")],
+  ])("%s: a 200 without ETag is MISSING_ETAG with the real HTTP status, never offline", async (_name, run) => {
+    const { api } = setup(() => ({ json: { parameters: {} } }));
+    const err = await run(api).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).http).toBe(200);
+    expect((err as ApiError).status).toBe("MISSING_ETAG");
+    expect(apiErrorKind(err)).toBe("unexpectedResponse");
+    expect(apiErrorKind(err)).not.toBe("offline");
   });
 });
 

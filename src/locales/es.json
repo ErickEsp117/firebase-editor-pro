@@ -59,6 +59,7 @@
       "notFound": "No encontrado (404): el elemento no existe (puede haberse borrado o la versión ya no está disponible).",
       "rateLimited": "Google está limitando las peticiones (429). Espera un momento y reintenta.",
       "server": "Google tuvo un problema temporal (5xx). Reintenta en unos instantes.",
+      "unexpectedResponse": "Google respondió correctamente pero no devolvió el ETag de la plantilla (HTTP {{http}}), así que no se puede editar con seguridad. Reintenta; si persiste, revisa si algún proxy o filtro de red elimina cabeceras de respuesta.",
       "other": "Google rechazó la solicitud (HTTP {{http}}, {{status}})."
     },
     "offlineBanner": "Sin conexión. Los cambios del editor se conservan; las acciones volverán a funcionar cuando regrese la conexión.",

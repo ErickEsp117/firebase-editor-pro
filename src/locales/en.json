@@ -59,6 +59,7 @@
       "notFound": "Not found (404): the item does not exist (it may have been deleted or the version is no longer available).",
       "rateLimited": "Google is limiting requests (429). Wait a moment and retry.",
       "server": "Google had a temporary problem (5xx). Retry in a few moments.",
+      "unexpectedResponse": "Google answered successfully but did not return the template ETag (HTTP {{http}}), so the template cannot be edited safely. Retry; if it persists, check any proxy or network filter that strips response headers.",
       "other": "Google rejected the request (HTTP {{http}}, {{status}})."
     },
     "offlineBanner": "You are offline. Changes in the editor are kept; actions will work again when the connection returns.",

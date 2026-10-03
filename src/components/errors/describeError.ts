@@ -7,7 +7,7 @@ import { ApiError, apiErrorKind } from "../../core";
  */
 export function describeError(t: TFunction, e: unknown): string {
   const kind = apiErrorKind(e);
-  if (kind !== "other") return t(`errors.api.${kind}`);
+  if (kind !== "other") return t(`errors.api.${kind}`, { http: e instanceof ApiError ? e.http : 0 });
   if (e instanceof ApiError) return t("errors.api.other", { http: e.http, status: e.status });
   return e instanceof Error ? e.message : String(e);
 }

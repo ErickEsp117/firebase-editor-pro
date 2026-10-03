@@ -66,7 +66,7 @@ export class RemoteConfigApi {
 
   async getTemplate(): Promise<TemplateWithEtag> {
     const res = await this.client.request<RemoteConfigTemplate | undefined>(this.url);
-    return { template: asTemplate(res.data), etag: requireEtag(res.headers) };
+    return { template: asTemplate(res.data), etag: requireEtag(res) };
   }
 
   /**
@@ -109,7 +109,7 @@ export class RemoteConfigApi {
         headers: { "If-Match": force ? "*" : etag },
         body: { ...template, version: { description } },
       });
-      return { template: asTemplate(res.data), etag: requireEtag(res.headers) };
+      return { template: asTemplate(res.data), etag: requireEtag(res) };
     } catch (e) {
       if (!force && e instanceof ApiError && (e.http === 400 || isPreconditionFailure(e))) {
         throw new RemoteConfigConflictError(e);
@@ -135,7 +135,7 @@ export class RemoteConfigApi {
       method: "POST",
       body: { versionNumber: String(versionNumber) },
     });
-    return { template: asTemplate(res.data), etag: requireEtag(res.headers) };
+    return { template: asTemplate(res.data), etag: requireEtag(res) };
   }
 
   /** Raw file contents, ready to save. */
@@ -153,8 +153,9 @@ function asTemplate(data: unknown): RemoteConfigTemplate {
   return typeof data === "object" && data !== null && !Array.isArray(data) ? (data as RemoteConfigTemplate) : {};
 }
 
-function requireEtag(headers: Headers): string {
-  const etag = headers.get("ETag");
-  if (!etag) throw new ApiError(0, "UNAVAILABLE", "Remote Config response had no ETag header");
+/** A successful reply without ETag is a service/transport anomaly, not a network failure: keep the real HTTP status so it is never read as offline. */
+function requireEtag(res: { status: number; headers: Headers }): string {
+  const etag = res.headers.get("ETag");
+  if (!etag) throw new ApiError(res.status, "MISSING_ETAG", "Remote Config response had no ETag header");
   return etag;
 }

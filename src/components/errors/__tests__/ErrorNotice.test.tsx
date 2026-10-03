@@ -22,6 +22,7 @@ describe("apiErrorKind", () => {
     expect(apiErrorKind(new ApiError(404, "NOT_FOUND", "x"))).toBe("notFound");
     expect(apiErrorKind(new ApiError(429, "RESOURCE_EXHAUSTED", "x"))).toBe("rateLimited");
     expect(apiErrorKind(new ApiError(503, "UNAVAILABLE", "x"))).toBe("server");
+    expect(apiErrorKind(new ApiError(200, "MISSING_ETAG", "x"))).toBe("unexpectedResponse");
     expect(apiErrorKind(new ApiError(400, "INVALID_ARGUMENT", "permission denied 403"))).toBe("other");
     expect(apiErrorKind(new Error("403"))).toBe("other");
   });
@@ -120,5 +121,27 @@ describe("OfflineBanner", () => {
       window.dispatchEvent(new Event("online"));
     });
     await screen.findByText("ok");
+  });
+});
+
+describe("ErrorNotice for a Remote Config response without ETag", () => {
+  const missing = () => new ApiError(200, "MISSING_ETAG", "Remote Config response had no ETag header");
+
+  it.each([
+    ["es", "no devolvió el ETag", "Sin conexión"],
+    ["en", "did not return the template ETag", "No connection"],
+  ] as const)("explains it specifically in %s, not as offline, raw text only in technical details", (lang, expected, offline) => {
+    useSettings.getState().setLanguage(lang);
+    render(<ErrorNotice error={missing()} />);
+    const alert = screen.getByTestId("error-notice");
+    expect(alert.getAttribute("data-error-kind")).toBe("unexpectedResponse");
+    const msg = screen.getByTestId("error-notice-message").textContent!;
+    expect(msg).toContain(expected);
+    expect(msg).not.toContain(offline);
+    expect(msg).not.toContain("Remote Config response had no ETag header");
+    const tech = screen.getByTestId("error-notice-technical").textContent!;
+    expect(tech).toContain("HTTP 200 MISSING_ETAG");
+    expect(tech).toContain("Remote Config response had no ETag header");
+    expect(screen.queryByTestId("offline-banner")).toBeNull();
   });
 });
