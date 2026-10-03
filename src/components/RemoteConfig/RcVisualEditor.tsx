@@ -161,6 +161,7 @@ export function RcVisualEditor({ template, onChange, versions }: Props) {
         <RcConditionDialog
           condition={editing.condition}
           existingNames={conditionNames}
+          danglingNames={[...new Set(params.flatMap(({ param }) => (isObj(param.conditionalValues) ? Object.keys(param.conditionalValues) : [])))].filter((n) => !conditionNames.includes(n))}
           usage={editing.condition ? conditionUsage(template, editing.condition.name as string) : 0}
           onChange={onChange}
           onClose={() => setEditing(null)}

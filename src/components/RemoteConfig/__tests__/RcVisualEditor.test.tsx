@@ -7,6 +7,7 @@ import "../../../i18n";
 import { useConnection } from "../../../store/connection";
 import { useRcEditor } from "../../../store/rcEditor";
 import { useSettings } from "../../../store/settings";
+import { prettyJson } from "../RcValueField";
 import { RemoteConfigView } from "../RemoteConfigView";
 
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -135,6 +136,42 @@ describe("Remote Config visual editor", () => {
     expect(screen.queryByTestId("rc-dirty")).toBeNull();
   });
 
+  it("formats JSON by re-indenting only, so numbers and escapes keep their exact text", () => {
+    for (const text of [LONG_JSON, '{"a":[],"b":{},"c":[1,{"d":null}],"e":"x{,}[:]\\"y"}', "[ ]", '"solo"', "12"]) {
+      expect(prettyJson(text)).toBe(JSON.stringify(JSON.parse(text), null, 2));
+    }
+    expect(prettyJson('{"id":9007199254740993,"r":1.50,"u":"\\u00e9"}')).toBe('{\n  "id": 9007199254740993,\n  "r": 1.50,\n  "u": "\\u00e9"\n}');
+    expect(prettyJson("")).toBeNull();
+    expect(prettyJson("{ broken")).toBeNull();
+  });
+
+  it("keeps text and number edits exactly as typed, even when they read as the same JSON", async () => {
+    served = { parameters: { min_version: { defaultValue: { value: "2.10" }, valueType: "STRING" }, limit: { defaultValue: { value: "1.0" }, valueType: "NUMBER" } } };
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.click(screen.getByTestId("rc-param-open:min_version"));
+    fireEvent.change(screen.getByTestId("rc-param-default"), { target: { value: "2.1" } });
+    fireEvent.click(screen.getByTestId("rc-param-apply"));
+    fireEvent.click(screen.getByTestId("rc-param-open:limit"));
+    fireEvent.change(screen.getByTestId("rc-param-default"), { target: { value: "1" } });
+    fireEvent.click(screen.getByTestId("rc-param-apply"));
+    expect(draft().parameters.min_version.defaultValue).toEqual({ value: "2.1" });
+    expect(draft().parameters.limit.defaultValue).toEqual({ value: "1" });
+  });
+
+  it("lets Tab leave the JSON editor inside the dialog", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.click(screen.getByTestId("rc-param-open:config"));
+    const content = screen.getByTestId("rc-param-cond:beta").querySelector(".cm-content") as HTMLElement;
+    const before = content.textContent;
+    content.focus();
+    const tab = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    content.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+    expect(content.textContent).toBe(before);
+  });
+
   it("creates, renames and deletes parameters with validation", async () => {
     mount();
     await screen.findByTestId("rc-table-view");
@@ -196,6 +233,22 @@ describe("Remote Config visual editor", () => {
     fireEvent.click(screen.getByTestId("rc-cond-edit:android"));
     fireEvent.click(screen.getByTestId("rc-cond-delete"));
     expect(draft().conditions.map((c) => c.name)).toEqual(["beta", "apple"]);
+  });
+
+  it("does not rename a condition onto a name that parameters already reference", async () => {
+    served = { ...TEMPLATE, parameters: { ...TEMPLATE.parameters, legacy: { defaultValue: { value: "a" }, conditionalValues: { ios: { value: "b" }, old_ios: { value: "c" } } } } };
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.click(screen.getByTestId("rc-tab-conditions"));
+    fireEvent.click(screen.getByTestId("rc-cond-edit:ios"));
+    fireEvent.change(screen.getByTestId("rc-cond-name"), { target: { value: "old_ios" } });
+    expect((screen.getByTestId("rc-cond-apply") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId("rc-cond-cancel"));
+    // Creating the missing condition is how the dangling reference gets fixed, so that stays allowed.
+    fireEvent.click(screen.getByTestId("rc-cond-new"));
+    fireEvent.change(screen.getByTestId("rc-cond-name"), { target: { value: "old_ios" } });
+    fireEvent.change(screen.getByTestId("rc-cond-expression"), { target: { value: "true" } });
+    expect((screen.getByTestId("rc-cond-apply") as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("keeps the version history in its own tab", async () => {

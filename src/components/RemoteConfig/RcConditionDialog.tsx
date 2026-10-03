@@ -11,6 +11,8 @@ interface Props {
   /** The condition being edited, or null to create one (added last: evaluated after the others). */
   condition: Obj | null;
   existingNames: string[];
+  /** Names that parameters reference but no condition defines; a rename onto one would merge two values. */
+  danglingNames?: string[];
   /** How many parameters use the condition; a used condition cannot be deleted. */
   usage: number;
   onChange: Update;
@@ -18,7 +20,7 @@ interface Props {
 }
 
 /** Edits a condition with its full expression visible; a rename also renames it in every parameter. */
-export function RcConditionDialog({ condition, existingNames, usage, onChange, onClose }: Props) {
+export function RcConditionDialog({ condition, existingNames, danglingNames = [], usage, onChange, onClose }: Props) {
   const { t } = useTranslation();
   const originalName = condition ? (condition.name as string) : null;
   const [name, setName] = useState(originalName ?? "");
@@ -28,7 +30,7 @@ export function RcConditionDialog({ condition, existingNames, usage, onChange, o
   const trimmed = name.trim();
   const nameError = !trimmed
     ? t("rc.visual.conditionNameRequired")
-    : trimmed !== originalName && existingNames.includes(trimmed)
+    : trimmed !== originalName && (existingNames.includes(trimmed) || (originalName !== null && danglingNames.includes(trimmed)))
       ? t("rc.table.duplicateCondition")
       : null;
   const expressionError = expression.trim() ? null : t("rc.visual.expressionRequired");

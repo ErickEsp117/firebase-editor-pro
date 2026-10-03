@@ -97,14 +97,51 @@ export function RcValueField({ value, type, label, testId, onChange, allowNone =
   );
 }
 
-/** Pretty-printed JSON, or null when the text is empty or not JSON. */
+/**
+ * Pretty-printed JSON, or null when the text is empty or not JSON. It only re-indents, so numbers and
+ * string escapes keep their exact text (JSON.parse would round 9007199254740993).
+ */
 export function prettyJson(text: string): string | null {
   if (text.trim() === "") return null;
   try {
-    return JSON.stringify(JSON.parse(text), null, 2);
+    JSON.parse(text);
   } catch {
     return null;
   }
+  let out = "";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  const newline = () => "\n" + "  ".repeat(depth);
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      out += c;
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') {
+      inString = true;
+      out += c;
+    } else if (c === "{" || c === "[") {
+      const close = c === "{" ? "}" : "]";
+      let j = i + 1;
+      while (j < text.length && " \t\n\r".includes(text[j])) j++;
+      if (text[j] === close) {
+        out += c + close;
+        i = j;
+      } else {
+        depth++;
+        out += c + newline();
+      }
+    } else if (c === "}" || c === "]") {
+      depth--;
+      out += newline() + c;
+    } else if (c === ",") out += "," + newline();
+    else if (c === ":") out += ": ";
+    else if (!" \t\n\r".includes(c)) out += c;
+  }
+  return out;
 }
 
 /** An empty value is valid in Remote Config, so only non-empty text is linted. */
@@ -140,6 +177,8 @@ function JsonValueEditor({ text, label, testId, onChange }: { text: string; labe
           theme="none"
           minHeight="8rem"
           maxHeight="20rem"
+          // Inside a dialog, Tab must move focus (to Format and Apply) instead of indenting.
+          indentWithTab={false}
           aria-label={label}
         />
       </div>

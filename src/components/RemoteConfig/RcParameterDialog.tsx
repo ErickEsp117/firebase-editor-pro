@@ -71,9 +71,10 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
   const valuesOk = values.every((v) => valueKind(v) !== "value" || validValue(type || undefined, valueText(v)));
   const canApply = !keyError && valuesOk;
 
-  // A JSON value that was only reformatted (or just viewed formatted) keeps its original text.
+  // A JSON value that was only reformatted (or just viewed formatted) keeps its original text. Text and
+  // number values are kept exactly as typed ("2.10" and "2.1" are different versions).
   const sameJson = (original: unknown, edited: Obj | undefined): Obj | undefined => {
-    if (!edited || valueKind(original) !== "value" || valueKind(edited) !== "value") return edited;
+    if (type !== "JSON" || !edited || valueKind(original) !== "value" || valueKind(edited) !== "value") return edited;
     const a = prettyJson(valueText(original));
     return a !== null && a === prettyJson(valueText(edited)) ? (original as Obj) : edited;
   };

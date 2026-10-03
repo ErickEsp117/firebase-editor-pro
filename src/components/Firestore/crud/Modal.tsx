@@ -24,12 +24,15 @@ const FOCUSABLE =
   'summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
 function focusableIn(panel: HTMLElement): HTMLElement[] {
-  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => {
-    if (element.closest("[hidden], [inert]")) return false;
-    // Content of a collapsed <details> cannot take focus; its own <summary> can.
-    const closed = element.closest("details:not([open])");
-    return !closed || (element.tagName === "SUMMARY" && element.parentElement === closed);
-  });
+  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+    .filter((element) => {
+      if (element.closest("[hidden], [inert]")) return false;
+      // Content of a collapsed <details> cannot take focus; its own <summary> can.
+      const closed = element.closest("details:not([open])");
+      return !closed || (element.tagName === "SUMMARY" && element.parentElement === closed);
+    })
+    // Tab order is document order; not every DOM returns a selector list in that order.
+    .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
 }
 
 /** Shared modal: keep focus inside it and restore the invoking control on dismissal. */
