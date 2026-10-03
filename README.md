@@ -115,3 +115,4 @@ If a key was ever committed or shared, revoke it in the Firebase console (Servic
 3. Quit the app completely (Cmd+Q on macOS) and open it again. Confirm it connects without asking for the key again (the credential persisted in the keychain).
 4. Switch the language selector between Español and English. Confirm the whole interface changes immediately and the choice is kept after a restart.
 5. Click **Disconnect** and confirm. Restart the app and confirm it shows the welcome screen again.
+6. Remote Config in the native app: connect an account, open **Remote Config**, and confirm the template loads with its ETag and version visible and without the "Offline" notice.
