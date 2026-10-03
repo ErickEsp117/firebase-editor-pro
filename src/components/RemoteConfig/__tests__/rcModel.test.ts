@@ -77,6 +77,67 @@ describe("reapplyEdits", () => {
     expect(res.template.extra).toEqual({ k: 1 });
   });
 
+  describe("condition order (first-match-wins priority)", () => {
+    const c = (name: string, expression = name) => ({ name, expression });
+    const names = (t: { conditions?: unknown }) => (t.conditions as { name: string }[]).map((x) => x.name);
+
+    it("keeps an order-only edit of the conditions instead of dropping it", () => {
+      const b = { conditions: [c("a"), c("b"), c("c")] };
+      const edited = { conditions: [c("c"), c("a"), c("b")] };
+      const latest = { version: { versionNumber: "2" }, conditions: [c("a"), c("b"), c("c")] };
+      const res = reapplyEdits(b, edited, latest);
+      expect(names(res.template)).toEqual(["c", "a", "b"]);
+      expect(res.applied).toEqual(["conditions[order]"]);
+      expect(res.overridden).toEqual([]);
+    });
+
+    it("keeps order and content edits together, with server-only conditions after the user's", () => {
+      const b = { conditions: [c("a"), c("b")] };
+      const edited = { conditions: [c("b"), c("a", "changed")] };
+      const latest = { conditions: [c("a"), c("b"), c("theirs")] };
+      const res = reapplyEdits(b, edited, latest);
+      expect(res.template.conditions).toEqual([c("b"), c("a", "changed"), c("theirs")]);
+      expect(res.applied).toEqual(["conditions.a", "conditions[order]"]);
+      expect(res.overridden).toEqual([]);
+    });
+
+    it("warns when the server also reordered the conditions to a different sequence", () => {
+      const b = { conditions: [c("a"), c("b"), c("c")] };
+      const edited = { conditions: [c("c"), c("a"), c("b")] };
+      const latest = { conditions: [c("b"), c("a"), c("c")] };
+      const res = reapplyEdits(b, edited, latest);
+      expect(names(res.template)).toEqual(["c", "a", "b"]);
+      expect(res.overridden).toEqual(["conditions[order]"]);
+    });
+
+    it("does not warn when the server reordered to the very same sequence as the user", () => {
+      const b = { conditions: [c("a"), c("b")] };
+      const edited = { conditions: [c("b"), c("a")] };
+      const res = reapplyEdits(b, edited, { conditions: [c("b"), c("a")] });
+      expect(names(res.template)).toEqual(["b", "a"]);
+      expect(res.overridden).toEqual([]);
+    });
+
+    it("keeps the fresh server order, without noise, when only the server reordered", () => {
+      const b = { conditions: [c("a"), c("b"), c("c")] };
+      const edited = { conditions: [c("a", "mine"), c("b"), c("c")] };
+      const latest = { conditions: [c("c"), c("b"), c("a")] };
+      const res = reapplyEdits(b, edited, latest);
+      expect(res.template.conditions).toEqual([c("c"), c("b"), c("a", "mine")]);
+      expect(res.applied).toEqual(["conditions.a"]);
+      expect(res.overridden).toEqual([]);
+    });
+
+    it("leaves parameters and groups alone when only conditions were reordered", () => {
+      const b = { conditions: [c("a"), c("b")], parameters: { p: { defaultValue: { value: "1" } } } };
+      const edited = { ...b, conditions: [c("b"), c("a")] };
+      const latest = { conditions: [c("a"), c("b")], parameters: { p: { defaultValue: { value: "1" } }, q: {} } };
+      const res = reapplyEdits(b, edited, latest);
+      expect(res.template.parameters).toEqual(latest.parameters);
+      expect(names(res.template)).toEqual(["b", "a"]);
+    });
+  });
+
   it("does not touch the fresh template when the user changed nothing", () => {
     const latest = { parameters: { x: {} } };
     const res = reapplyEdits(base, base, latest);

@@ -205,6 +205,29 @@ describe("RemoteConfigView", () => {
     expect(screen.getByTestId("rc-dirty")).toBeTruthy();
   });
 
+  it("412 -> Reload keeps an order-only edit of the conditions, flags it and warns about a server reorder", async () => {
+    const cond = (name: string) => ({ name, expression: `device.os == '${name}'` });
+    server = { template: withVersion({ conditions: [cond("fbep_test_a"), cond("fbep_test_b"), cond("fbep_test_c")] }, 5, "initial"), etag: "etag-5", n: 5 };
+    mount();
+    await screen.findByTestId("rc-etag");
+    edit({ conditions: [cond("fbep_test_c"), cond("fbep_test_a"), cond("fbep_test_b")] });
+    bump({ conditions: [cond("fbep_test_b"), cond("fbep_test_a"), cond("fbep_test_ext"), cond("fbep_test_c")] }, "external");
+
+    fireEvent.click(screen.getByTestId("rc-publish"));
+    fireEvent.click(screen.getByTestId("rc-publish-confirm"));
+    fireEvent.click(await screen.findByTestId("rc-conflict-reload"));
+    await waitFor(() => expect(screen.queryByTestId("rc-conflict-dialog")).toBeNull());
+
+    const order = (JSON.parse(useRcEditor.getState().session!.text).conditions as { name: string }[]).map((c) => c.name);
+    expect(order).toEqual(["fbep_test_c", "fbep_test_a", "fbep_test_b", "fbep_test_ext"]);
+    const notice = screen.getByTestId("rc-notice");
+    expect(notice.getAttribute("data-kind")).toBe("reapplied");
+    expect(notice.textContent).toContain("1 edit re-applied");
+    expect(screen.getByTestId("rc-overridden").textContent).toContain("conditions[order]");
+    expect(screen.getByTestId("rc-dirty")).toBeTruthy();
+    expect(server.etag).toBe("etag-6");
+  });
+
   it("force needs an explicit second confirmation and then sends If-Match *", async () => {
     mount();
     await screen.findByTestId("rc-etag");

@@ -111,6 +111,41 @@ function namedList(v: unknown): Obj[] | null {
   return Array.isArray(v) && v.every((c) => isObj(c) && typeof c.name === "string") ? (v as Obj[]) : null;
 }
 
+const CONDITION_ORDER_LABEL = "conditions[order]";
+
+const sameSequence = (a: string[], b: string[]) => a.length === b.length && a.every((n, i) => n === b[i]);
+
+/**
+ * Conditions are evaluated first-match-wins, so their order is data. When the user only permuted the
+ * conditions (same names as the base, different sequence), their sequence is kept; conditions that exist
+ * only on the server follow in the server's order. `serverReordered` is set when the server also moved
+ * the shared conditions to a sequence other than the user's.
+ */
+function reorderLikeUser(
+  merged: Obj[],
+  baseList: Obj[],
+  editedList: Obj[],
+  latestList: Obj[],
+): { merged: Obj[]; serverReordered: boolean } | null {
+  const names = (list: Obj[]) => list.map((c) => c.name as string);
+  const baseNames = names(baseList);
+  const editedNames = names(editedList);
+  if (sameSequence(baseNames, editedNames) || !sameSequence([...baseNames].sort(), [...editedNames].sort())) return null;
+  if (new Set(editedNames).size !== editedNames.length) return null;
+
+  const shared = new Set(baseNames);
+  const inMerged = new Set(names(merged));
+  const userSeq = editedNames.filter((n) => inMerged.has(n));
+  const serverSeq = names(latestList).filter((n) => shared.has(n));
+  const baseSeq = baseNames.filter((n) => inMerged.has(n));
+  const serverReordered = !sameSequence(serverSeq, baseSeq) && !sameSequence(serverSeq, userSeq);
+
+  const byName = new Map(merged.map((c) => [c.name as string, c]));
+  const ordered = userSeq.map((n) => byName.get(n)!);
+  const rest = merged.filter((c) => !shared.has(c.name as string));
+  return { merged: [...ordered, ...rest], serverReordered };
+}
+
 /**
  * Carries the user's edits (base → edited) onto the freshly downloaded template, entry by entry
  * (parameters, groups, conditions by name), so concurrent external changes to other entries survive.
@@ -157,6 +192,12 @@ export function reapplyEdits(base: RemoteConfigTemplate, edited: RemoteConfigTem
         } else {
           merged.push(structuredClone(mine));
         }
+      }
+      const reordered = reorderLikeUser(merged, baseList, editedList, latestList);
+      if (reordered) {
+        applied.push(CONDITION_ORDER_LABEL);
+        if (reordered.serverReordered) overridden.push(CONDITION_ORDER_LABEL);
+        merged.splice(0, merged.length, ...reordered.merged);
       }
       if (merged.length > 0 || e !== undefined) result[k] = merged;
       else delete result[k];
