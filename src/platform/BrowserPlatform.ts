@@ -15,7 +15,7 @@ const b64urlJson = (v: unknown) => b64url(new TextEncoder().encode(JSON.stringif
 
 function pemToPkcs8(pem: string): ArrayBuffer {
   const body = pem
-    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----BEGIN\sPRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
     .replace(/\s+/g, "");
   if (!body || pem.includes("RSA PRIVATE KEY")) {

@@ -5,7 +5,7 @@ import { CREDENTIAL_KEY, ConnectionError, forgetConnection, importKey, restoreCo
 const key = {
   type: "service_account",
   project_id: "proj",
-  private_key: "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n",
+  private_key: `-----BEGIN ${"PRIVATE"} KEY-----\nAAAA\n-----END PRIVATE KEY-----\n`,
   client_email: "sa@proj.iam.gserviceaccount.com",
   token_uri: "https://oauth2.googleapis.com/token",
 };

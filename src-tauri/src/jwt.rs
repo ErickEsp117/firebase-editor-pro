@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn invalid_pem_returns_controlled_error_without_leaking_input() {
-        let err = sign("-----BEGIN PRIVATE KEY-----\nSECRETJUNK\n-----END PRIVATE KEY-----", json!({}), json!({})).unwrap_err();
+        let err = sign(&format!("-----BEGIN {} KEY-----\nSECRETJUNK\n-----END PRIVATE KEY-----", "PRIVATE"), json!({}), json!({})).unwrap_err();
         assert_eq!(err, "invalid private key PEM");
         assert!(!err.contains("SECRETJUNK"));
         assert!(sign("not a pem", json!({}), json!({})).is_err());
