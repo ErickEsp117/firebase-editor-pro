@@ -133,34 +133,28 @@ export async function addAccount(keyText: string, platform: Platform = getPlatfo
  */
 export async function loadAccounts(platform: Platform = getPlatform()): Promise<AccountsIndex> {
   const index = await readIndex(platform);
+  // Once an index exists the pre-M6 entry was already folded into it; a copy left behind (its delete
+  // failed) is never read again, because every read can make macOS ask for keychain access.
+  if (index) return index;
   const legacy = await platform.secureStore.get(LEGACY_CREDENTIAL_KEY);
-  if (!legacy) return index ?? emptyIndex();
+  if (!legacy) return emptyIndex();
 
   let key: ServiceAccountKey;
   try {
     key = parseKeyJson(legacy);
   } catch (e) {
-    // Kept untouched. Once an index exists the user already has a way forward, so only a fresh install is blocked.
-    if (index) return index;
+    // Kept untouched so the user can still recover it.
     throw unreadable(e instanceof Error ? e.message : String(e));
   }
 
-  const base = index ?? emptyIndex();
-  let result = base;
-  if (!base.accounts.some((a) => sameIdentity(a, key))) {
-    const account = metaFor(key);
-    await platform.secureStore.set(accountSecretKey(account.id), legacy);
-    result = {
-      version: 1,
-      activeId: index ? index.activeId : account.id,
-      accounts: [...base.accounts, account],
-    };
-    await writeIndex(platform, result);
-  }
+  const account = metaFor(key);
+  await platform.secureStore.set(accountSecretKey(account.id), legacy);
+  const result: AccountsIndex = { version: 1, activeId: account.id, accounts: [account] };
+  await writeIndex(platform, result);
   try {
     await platform.secureStore.delete(LEGACY_CREDENTIAL_KEY);
   } catch {
-    // Harmless: the next load finds the key in the index and retries the delete.
+    // Harmless: with the index written it is never read again.
   }
   return result;
 }
