@@ -381,7 +381,7 @@
       "modeInApp": "In-app",
       "specialValue": "Personalization or rollout value: edit it in the JSON view.",
       "addConditional": "Add a value for a condition to {{name}}",
-      "addConditionalPlaceholder": "Add condition…",
+      "addConditionalPlaceholder": "Condition…",
       "removeConditional": "Remove the {{condition}} value from {{name}}",
       "descriptionOf": "Description of {{name}}",
       "deleteParameter": "Delete parameter {{name}}",
@@ -416,7 +416,10 @@
         "PINK": "Pink",
         "PURPLE": "Purple",
         "TEAL": "Teal"
-      }
+      },
+      "fixInJson": "This section is not in a valid format; fix it in the JSON view to edit it here.",
+      "chooseCondition": "Choose a condition for {{name}}",
+      "modeNone": "No default value"
     }
   },
   "layout": {

@@ -3,7 +3,7 @@ import { RotateCw, Braces, Upload } from "lucide-react";
 import { useShortcutActions } from "../../hooks/shortcuts";
 import { formatEditorJson, repairEditorJson } from "../../core";
 import { useCrudDialog } from "../../store/crudDialog";
-import { hasPendingInputs, usePendingInputs } from "../../store/pendingInputs";
+import { hasPendingInputs, usePendingIn } from "../../store/pendingInputs";
 import { IconButton } from "../IconButton";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { useTranslation } from "react-i18next";
@@ -11,7 +11,7 @@ import type { FirestoreDocument } from "../../core";
 import { useEditorStore, type EditorView } from "../../store/documentEditor";
 import { ConflictDialog } from "./ConflictDialog";
 import { JsonView } from "./JsonView";
-import { SaveBar, SaveButton } from "./SaveBar";
+import { DraftError, SaveBar, SaveButton } from "./SaveBar";
 import { TableView } from "./TableView";
 import { useDocumentEditor } from "./useDocumentEditor";
 
@@ -20,7 +20,7 @@ export function DocumentEditor({ path, serverDoc, actions }: { path: string; ser
   const view = useEditorStore((s) => s.view);
   const setView = useEditorStore((s) => s.setView);
   const ed = useDocumentEditor(path, serverDoc);
-  const pendingInput = usePendingInputs((s) => Object.keys(s.ids).length > 0);
+  const pendingInput = usePendingIn("firestore");
   const [reloadPending, setReloadPending] = useState(false);
   // The text a Format/Repair failed on; the error stays only until that text changes.
   const [failedOn, setFailedOn] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function DocumentEditor({ path, serverDoc, actions }: { path: string; ser
   const format = () => runJson(formatEditorJson);
   const reload = () => {
     if (ed.state.phase === "reloading") return;
-    if (ed.dirty || hasPendingInputs()) setReloadPending(true);
+    if (ed.dirty || hasPendingInputs("firestore")) setReloadPending(true);
     else void ed.reload();
   };
   // The same reload as the toolbar button: the tree refresh skips a document with unsaved edits.
@@ -65,8 +65,8 @@ export function DocumentEditor({ path, serverDoc, actions }: { path: string; ser
     <div data-testid="document-editor">
       <div className="editor-toolbar" data-tauri-drag-region="deep">
         <div className="mr-auto min-w-0">
-          <h3 data-testid="document-title" className="truncate font-semibold">{path.slice(slash + 1)}</h3>
-          <p data-testid="document-subtitle" className="truncate text-xs text-fg-muted">{path.slice(0, slash)}</p>
+          <h3 data-testid="document-title" title={path} className="truncate font-semibold select-text">{path.slice(slash + 1)}</h3>
+          <p data-testid="document-subtitle" title={path} className="truncate text-xs text-fg-muted select-text">{path.slice(0, slash)}</p>
         </div>
         <div role="tablist" aria-label={t("editor.viewMode")} className="segmented">
           {tab("json", t("editor.viewJson"))}
@@ -109,6 +109,7 @@ export function DocumentEditor({ path, serverDoc, actions }: { path: string; ser
         ) : (
           <JsonView text={ed.text} onChange={ed.updateText} onRepair={() => runJson(repairEditorJson)} />
         )}
+        <DraftError draft={ed.draft} />
       </div>
       {reloadPending && <ConfirmDialog testId="reload-document" title={t("accounts.unsavedTitle")} confirmLabel={t("editor.reload")}
         onCancel={() => setReloadPending(false)} onConfirm={() => { setReloadPending(false); void ed.reload(); }}>

@@ -16,10 +16,21 @@ export const RC_TAG_COLORS = [
   "BLUE", "BROWN", "CYAN", "DEEP_ORANGE", "GREEN", "INDIGO", "LIME", "ORANGE", "PINK", "PURPLE", "TEAL",
 ] as const;
 
-/** `{ value }` or `{ useInAppDefault: true }`; anything else (personalization, rollout) is "special". */
-export type RcValueKind = "value" | "inAppDefault" | "special";
+/**
+ * `{ value }` or `{ useInAppDefault: true }`; "none" when there is no value at all (a parameter with only
+ * conditional values); anything else (personalization, rollout) is "special" and kept as it is.
+ */
+export type RcValueKind = "value" | "inAppDefault" | "none" | "special";
+
+const own = (obj: object, key: string) => Object.prototype.hasOwnProperty.call(obj, key);
+
+/** Sets an own key even for names such as "__proto__", so JSON keeps it like any other name. */
+function setOwn(obj: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
+}
 
 export function valueKind(v: unknown): RcValueKind {
+  if (v === undefined) return "none";
   if (!isObj(v)) return "special";
   const keys = Object.keys(v);
   if (keys.length === 1 && keys[0] === "useInAppDefault" && v.useInAppDefault === true) return "inAppDefault";
@@ -81,13 +92,19 @@ export function listConditions(template: RemoteConfigTemplate): Obj[] {
   return Array.isArray(template.conditions) ? template.conditions.filter((c): c is Obj => isObj(c) && typeof c.name === "string") : [];
 }
 
+/** Whether the table can edit `parameters` / `conditions` (absent, or of the right JSON type). */
+export const editableSections = (template: RemoteConfigTemplate) => ({
+  parameters: template.parameters === undefined || isObj(template.parameters),
+  conditions: template.conditions === undefined || Array.isArray(template.conditions),
+});
+
 /** Parameter keys are unique across top-level parameters and all groups. */
 export function parameterExists(template: RemoteConfigTemplate, key: string): boolean {
   return listParameters(template).some((row) => row.key === key);
 }
 
 export function conditionUsage(template: RemoteConfigTemplate, name: string): number {
-  return listParameters(template).filter(({ param }) => isObj(param.conditionalValues) && name in param.conditionalValues).length;
+  return listParameters(template).filter(({ param }) => isObj(param.conditionalValues) && own(param.conditionalValues, name)).length;
 }
 
 function paramsOf(template: Obj, group: string | null): Obj | null {
@@ -121,9 +138,11 @@ export function setDefaultValue(template: RemoteConfigTemplate, ref: ParamRef, v
 /** Sets the value for one condition, or removes it with `undefined` (dropping an empty `conditionalValues`). */
 export function setConditionalValue(template: RemoteConfigTemplate, ref: ParamRef, condition: string, value: Obj | undefined): RemoteConfigTemplate {
   return editParam(template, ref, (param) => {
+    // A malformed conditionalValues (fix it in JSON first) is never replaced by the table.
+    if (param.conditionalValues !== undefined && !isObj(param.conditionalValues)) return;
     const values = isObj(param.conditionalValues) ? param.conditionalValues : {};
     if (value === undefined) delete values[condition];
-    else values[condition] = value;
+    else setOwn(values, condition, value);
     if (Object.keys(values).length === 0) delete param.conditionalValues;
     else param.conditionalValues = values;
   });
@@ -138,14 +157,17 @@ export function deleteParameter(template: RemoteConfigTemplate, ref: ParamRef): 
 
 /** Adds a top-level parameter with a default value of the given type. */
 export function addParameter(template: RemoteConfigTemplate, key: string, valueType: RcValueType, value: string): RemoteConfigTemplate {
+  if (template.parameters !== undefined && !isObj(template.parameters)) return template;
   const next = structuredClone(template);
   const params = isObj(next.parameters) ? next.parameters : {};
-  params[key] = { defaultValue: { value }, valueType };
+  setOwn(params, key, { defaultValue: { value }, valueType });
   next.parameters = params;
   return next;
 }
 
 function editConditions(template: RemoteConfigTemplate, edit: (list: Obj[]) => void): RemoteConfigTemplate {
+  // A malformed `conditions` (not a list; fix it in JSON first) is never replaced by the table.
+  if (template.conditions !== undefined && !Array.isArray(template.conditions)) return template;
   const next = structuredClone(template);
   const list = Array.isArray(next.conditions) ? (next.conditions as Obj[]) : [];
   edit(list);

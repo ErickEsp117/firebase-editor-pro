@@ -21,7 +21,7 @@ function templateDirty({ baseText, text }: RcSession): boolean {
 /** True when the open document `path` has a draft or an uncommitted table cell (only the open one has cells). */
 export function documentUnsaved(projectId: string, path: string): boolean {
   const session = useEditorStore.getState().sessions[`${projectId}/${path}`];
-  return !!session && (hasPendingInputs() || documentDirty(session));
+  return !!session && (hasPendingInputs("firestore") || documentDirty(session));
 }
 
 /**

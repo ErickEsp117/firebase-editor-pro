@@ -381,7 +381,7 @@
       "modeInApp": "De la app",
       "specialValue": "Valor de personalización o rollout: edítalo en la vista JSON.",
       "addConditional": "Añadir a {{name}} un valor para una condición",
-      "addConditionalPlaceholder": "Añadir condición…",
+      "addConditionalPlaceholder": "Condición…",
       "removeConditional": "Quitar el valor de {{condition}} en {{name}}",
       "descriptionOf": "Descripción de {{name}}",
       "deleteParameter": "Eliminar el parámetro {{name}}",
@@ -416,7 +416,10 @@
         "PINK": "Rosa",
         "PURPLE": "Morado",
         "TEAL": "Verde azulado"
-      }
+      },
+      "fixInJson": "Esta sección no tiene un formato válido; corrígela en la vista JSON para editarla aquí.",
+      "chooseCondition": "Elegir una condición para {{name}}",
+      "modeNone": "Sin valor por defecto"
     }
   },
   "layout": {

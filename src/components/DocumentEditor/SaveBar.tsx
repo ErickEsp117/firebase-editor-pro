@@ -25,7 +25,7 @@ interface Props {
  * Options bar under the toolbar (discard, save mode, state, document actions) followed by the save
  * messages, so everything about the document sits above its content.
  */
-export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDiscard, actions }: Props) {
+export function SaveBar({ dirty, pending = false, state, updateTime, onDiscard, actions }: Props) {
   const { t } = useTranslation();
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
@@ -64,19 +64,14 @@ export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDi
             {t("editor.updateTime", { time: updateTime })}
           </span>
         )}
+        {state.phase === "saved" && !dirty && !pending && (
+          <span role="status" data-testid="save-status" className="text-sm text-success">
+            {t("editor.saved", { time: state.updateTime })}
+          </span>
+        )}
         {actions && <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      <div className="space-y-2 px-[18px] pt-3 empty:hidden">
-      {!draft.ok && (
-        <p role="alert" data-testid="draft-error" className="text-sm text-danger ">
-          {t("editor.invalidBlocked")} {t(draft.error.key, draft.error.params)}
-        </p>
-      )}
-      {state.phase === "saved" && !dirty && !pending && (
-        <p role="status" data-testid="save-status" className="text-sm text-success ">
-          {t("editor.saved", { time: state.updateTime })}
-        </p>
-      )}
+      <div className="space-y-2 px-[20px] pt-3 empty:hidden">
       {state.phase === "error" && (
         <div role="alert" data-testid="save-error" className="space-y-1 text-sm text-danger ">
           <p data-testid="save-error-message">{t("editor.saveFailed", { message: describeError(t, state.error) })}</p>
@@ -91,6 +86,17 @@ export function SaveBar({ draft, dirty, pending = false, state, updateTime, onDi
       )}
       </div>
     </>
+  );
+}
+
+/** Shown under the editor: it appears and disappears while typing, so it must not push the text down. */
+export function DraftError({ draft }: { draft: Draft }) {
+  const { t } = useTranslation();
+  if (draft.ok) return null;
+  return (
+    <p role="alert" data-testid="draft-error" className="text-sm text-danger">
+      {t("editor.invalidBlocked")} {t(draft.error.key, draft.error.params)}
+    </p>
   );
 }
 

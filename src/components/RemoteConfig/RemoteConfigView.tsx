@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RemoteConfigTemplate, RemoteConfigVersion } from "../../core";
 import { useConnection } from "../../store/connection";
+import { hasPendingInputs, usePendingIn } from "../../store/pendingInputs";
 import { useSettings } from "../../store/settings";
 import { AreaHeader } from "../Firestore/DocumentView";
 import { RcTableView } from "./RcTableView";
@@ -32,6 +33,9 @@ export function RemoteConfigView() {
   const rc = useRcController();
   const projectId = useConnection((s) => s.connection?.projectId);
   const view = useSettings((s) => s.rcView);
+  // Uncommitted table cells are unpublished changes too.
+  const pendingCells = usePendingIn("rc");
+  const unsaved = rc.dirty || pendingCells;
   const setView = useSettings((s) => s.setRcView);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [description, setDescription] = useState("");
@@ -78,7 +82,7 @@ export function RemoteConfigView() {
         if (rc.loadError) rc.retryLoad();
         return;
       }
-      if (rc.dirty) setDialog({ kind: "reload" });
+      if (rc.dirty || hasPendingInputs("rc")) setDialog({ kind: "reload" });
       else void rc.reload(false);
     },
   });
@@ -156,7 +160,7 @@ export function RemoteConfigView() {
             {t("rc.parameterCount", { count: counts.parameters })} · {t("rc.conditionCount", { count: counts.conditions })}
           </span>
         )}
-        {rc.dirty && (
+        {unsaved && (
           <span data-testid="rc-dirty" className="text-warning ">
             {t("rc.unpublished")}
           </span>
@@ -191,7 +195,7 @@ export function RemoteConfigView() {
           title={withShortcut(t("rc.reloadTemplate"), "reload")}
           className={BTN}
           disabled={working}
-          onClick={() => (rc.dirty ? setDialog({ kind: "reload" }) : void rc.reload(false))}
+          onClick={() => (unsaved ? setDialog({ kind: "reload" }) : void rc.reload(false))}
         >
           {rc.busy === "reload" ? t("rc.reloading") : t("rc.reloadTemplate")}
         </button>
@@ -282,7 +286,7 @@ export function RemoteConfigView() {
           }}
         >
           <p className="text-sm">{t("rc.rollbackBody", { version: dialog.version.versionNumber })}</p>
-          {rc.dirty && (
+          {unsaved && (
             <p role="alert" data-testid="rc-rollback-dirty" className="text-sm text-warning ">
               {t("rc.rollbackDirty")}
             </p>

@@ -128,6 +128,27 @@ describe("reapplyEdits", () => {
       expect(res.overridden).toEqual([]);
     });
 
+    it("keeps the user's order when they also added a condition (table: move up + add)", () => {
+      const b = { conditions: [c("ios"), c("beta")] };
+      const edited = { conditions: [c("beta"), c("ios"), c("android")] };
+      const latest = { conditions: [c("ios"), c("beta")], parameters: { theirs: {} } };
+      const res = reapplyEdits(b, edited, latest);
+      expect(names(res.template)).toEqual(["beta", "ios", "android"]);
+      expect(res.applied).toContain("conditions[order]");
+    });
+
+    it("keeps the user's order when they also deleted a condition", () => {
+      const b = { conditions: [c("a"), c("b"), c("c")] };
+      const res = reapplyEdits(b, { conditions: [c("c"), c("a")] }, { conditions: [c("a"), c("b"), c("c")] });
+      expect(names(res.template)).toEqual(["c", "a"]);
+    });
+
+    it("keeps a new condition the user placed before existing ones; server-only ones go last", () => {
+      const b = { conditions: [c("a"), c("b")] };
+      const res = reapplyEdits(b, { conditions: [c("new"), c("a"), c("b")] }, { conditions: [c("a"), c("b"), c("theirs")] });
+      expect(names(res.template)).toEqual(["new", "a", "b", "theirs"]);
+    });
+
     it("leaves parameters and groups alone when only conditions were reordered", () => {
       const b = { conditions: [c("a"), c("b")], parameters: { p: { defaultValue: { value: "1" } } } };
       const edited = { ...b, conditions: [c("b"), c("a")] };

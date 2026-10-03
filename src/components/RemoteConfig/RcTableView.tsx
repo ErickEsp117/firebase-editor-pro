@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RemoteConfigTemplate } from "../../core";
@@ -12,6 +12,7 @@ import {
   conditionUsage,
   deleteCondition,
   deleteParameter,
+  editableSections,
   initialValue,
   isObj,
   listConditions,
@@ -46,27 +47,27 @@ export function RcTableView({ template, onChange }: Props) {
   const params = listParameters(template);
   const conditions = listConditions(template);
   const conditionNames = conditions.map((c) => c.name as string);
+  const editable = editableSections(template);
 
   return (
     <div data-testid="rc-table-view" className="min-w-0 space-y-8">
       <section aria-labelledby="rc-params-title" className="space-y-3">
         <h3 id="rc-params-title" className="text-base font-semibold">{t("rc.table.parameters")}</h3>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] table-fixed border-collapse text-sm">
+          <table className="w-full min-w-[600px] table-fixed border-collapse text-sm">
             <thead>
               <tr className="text-left text-fg-muted">
-                <th className="w-[20%] pb-2 font-medium">{t("rc.table.colParameter")}</th>
-                <th className="w-[10%] pb-2 font-medium">{t("rc.table.colType")}</th>
-                <th className="w-[32%] pb-2 font-medium">{t("rc.table.colDefault")}</th>
-                <th className="w-[15%] pb-2 font-medium">{t("rc.table.colConditional")}</th>
-                <th className="pb-2 font-medium">{t("rc.table.colDescription")}</th>
+                <th className="w-[30%] pb-2 font-medium">{t("rc.table.colParameter")} · {t("rc.table.colDescription")}</th>
+                <th className="w-24 pb-2 font-medium">{t("rc.table.colType")}</th>
+                <th className="pb-2 font-medium">{t("rc.table.colDefault")}</th>
+                <th className="w-40 pb-2 font-medium">{t("rc.table.colConditional")}</th>
                 <th className="w-11 pb-2" />
               </tr>
             </thead>
             <tbody>
               {params.length === 0 && (
                 <tr>
-                  <td colSpan={6} data-testid="rc-table-no-params" className="border-t border-line py-3 text-fg-muted">
+                  <td colSpan={5} data-testid="rc-table-no-params" className="border-t border-line py-3 text-fg-muted">
                     {t("rc.table.noParameters")}
                   </td>
                 </tr>
@@ -77,7 +78,7 @@ export function RcTableView({ template, onChange }: Props) {
             </tbody>
           </table>
         </div>
-        <AddParameter template={template} onChange={onChange} />
+        {editable.parameters ? <AddParameter template={template} onChange={onChange} /> : <p role="note" className="text-sm text-warning">{t("rc.table.fixInJson")}</p>}
       </section>
 
       <section aria-labelledby="rc-conds-title" className="space-y-3">
@@ -86,13 +87,13 @@ export function RcTableView({ template, onChange }: Props) {
           <p className="text-sm text-fg-muted">{t("rc.table.conditionOrderHint")}</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
+          <table className="w-full min-w-[560px] table-fixed border-collapse text-sm">
             <thead>
               <tr className="text-left text-fg-muted">
                 <th className="w-10 pb-2 font-medium">#</th>
-                <th className="w-[22%] pb-2 font-medium">{t("rc.table.colCondition")}</th>
+                <th className="w-[24%] pb-2 font-medium">{t("rc.table.colCondition")}</th>
                 <th className="pb-2 font-medium">{t("rc.table.colExpression")}</th>
-                <th className="w-[16%] pb-2 font-medium">{t("rc.table.colColor")}</th>
+                <th className="w-36 pb-2 font-medium">{t("rc.table.colColor")}</th>
                 <th className="w-[84px] pb-2 font-medium">{t("rc.table.colOrder")}</th>
                 <th className="w-11 pb-2" />
               </tr>
@@ -111,7 +112,7 @@ export function RcTableView({ template, onChange }: Props) {
             </tbody>
           </table>
         </div>
-        <AddCondition existing={conditionNames} onChange={onChange} />
+        {editable.conditions ? <AddCondition existing={conditionNames} onChange={onChange} /> : <p role="note" className="text-sm text-warning">{t("rc.table.fixInJson")}</p>}
       </section>
     </div>
   );
@@ -124,17 +125,27 @@ function ParamRows({ row, conditionNames, onChange }: { row: ParamRow; condition
   const id = group ? `${group}/${key}` : key;
   const type = typeof param.valueType === "string" ? param.valueType : undefined;
   const values = isObj(param.conditionalValues) ? param.conditionalValues : {};
-  const used = [...conditionNames.filter((n) => n in values), ...Object.keys(values).filter((n) => !conditionNames.includes(n))];
-  const available = conditionNames.filter((n) => !(n in values));
+  const has = (n: string) => Object.prototype.hasOwnProperty.call(values, n);
+  const used = [...conditionNames.filter(has), ...Object.keys(values).filter((n) => !conditionNames.includes(n))];
+  const available = conditionNames.filter((n) => !has(n));
+  const [pick, setPick] = useState("");
   const firstValue = (): Record<string, unknown> =>
     valueKind(param.defaultValue) === "value" ? { value: valueText(param.defaultValue) } : { value: initialValue((type as RcValueType) ?? "STRING") };
 
   return (
     <>
       <tr data-testid={`rc-param:${id}`} className="border-t border-line align-top">
-        <td className="py-2 pr-3">
+        <td className="space-y-1 py-2 pr-3">
           <span className="block break-all font-mono">{key}</span>
           {group && <span className="block text-xs text-fg-muted">{t("rc.table.group", { group })}</span>}
+          <CommitInput
+            scope="rc"
+            value={typeof param.description === "string" ? param.description : ""}
+            label={t("rc.table.descriptionOf", { name: key })}
+            testId={`rc-param-desc:${id}`}
+            className="w-full font-sans text-xs"
+            onCommit={(s) => onChange((cur) => setParamField(cur, ref, "description", s))}
+          />
         </td>
         <td className="py-2 pr-3">
           <select
@@ -162,34 +173,37 @@ function ParamRows({ row, conditionNames, onChange }: { row: ParamRow; condition
         </td>
         <td className="py-2 pr-3">
           {available.length > 0 ? (
-            <select
-              data-testid={`rc-param-add-cond:${id}`}
-              aria-label={t("rc.table.addConditional", { name: key })}
-              title={t("rc.table.addConditional", { name: key })}
-              value=""
-              onChange={(e) => {
-                const condition = e.target.value;
-                if (condition) onChange((cur) => setConditionalValue(cur, ref, condition, firstValue()));
-              }}
-              className={`${SELECT} w-full`}
-            >
-              <option value="">{t("rc.table.addConditionalPlaceholder")}</option>
-              {available.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+            // Choosing a condition and adding it are separate steps, so browsing the list never edits.
+            <div className="flex min-w-0 items-center gap-1">
+              <select
+                data-testid={`rc-param-add-cond:${id}`}
+                aria-label={t("rc.table.chooseCondition", { name: key })}
+                title={t("rc.table.chooseCondition", { name: key })}
+                value={available.includes(pick) ? pick : ""}
+                onChange={(e) => setPick(e.target.value)}
+                className={`${SELECT} min-w-0 flex-1`}
+              >
+                <option value="">{t("rc.table.addConditionalPlaceholder")}</option>
+                {available.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <IconButton
+                data-testid={`rc-param-add-cond-button:${id}`}
+                label={t("rc.table.addConditional", { name: key })}
+                disabled={!available.includes(pick)}
+                onClick={() => {
+                  const condition = pick;
+                  setPick("");
+                  onChange((cur) => setConditionalValue(cur, ref, condition, firstValue()));
+                }}
+              >
+                <Plus size={16} aria-hidden="true" />
+              </IconButton>
+            </div>
           ) : (
             used.length === 0 && <span className="text-fg-muted">—</span>
           )}
-        </td>
-        <td className="py-2 pr-3">
-          <CommitInput
-            value={typeof param.description === "string" ? param.description : ""}
-            label={t("rc.table.descriptionOf", { name: key })}
-            testId={`rc-param-desc:${id}`}
-            className="w-full font-sans"
-            onCommit={(s) => onChange((cur) => setParamField(cur, ref, "description", s))}
-          />
         </td>
         <td className="py-1.5 text-right">
           <IconButton
@@ -206,7 +220,7 @@ function ParamRows({ row, conditionNames, onChange }: { row: ParamRow; condition
         <tr key={condition} data-testid={`rc-param-cond-row:${id}:${condition}`} className="align-top">
           <td colSpan={2} className="py-1 pl-4 pr-3 text-fg-muted">
             <span aria-hidden="true">↳ </span>
-            <span className="font-mono">{condition}</span>
+            <span className="break-all font-mono">{condition}</span>
           </td>
           <td className="py-1 pr-3">
             <RcValueEditor
@@ -217,7 +231,7 @@ function ParamRows({ row, conditionNames, onChange }: { row: ParamRow; condition
               onChange={(v) => onChange((cur) => setConditionalValue(cur, ref, condition, v))}
             />
           </td>
-          <td colSpan={2} />
+          <td />
           <td className="py-1 text-right">
             <IconButton
               data-testid={`rc-param-cond-remove:${id}:${condition}`}
@@ -247,19 +261,23 @@ function RcValueEditor({ value, type, label, testId, onChange }: {
 }) {
   const { t } = useTranslation();
   const kind = valueKind(value);
+  const text = valueText(value);
+  // Switching to the in-app default and back restores the value the user had.
+  const [lastText, setLastText] = useState<string | null>(kind === "value" ? text : null);
+  if (kind === "value" && text !== lastText) setLastText(text);
   if (kind === "special") {
     return <span data-testid={`${testId}-special`} className="text-xs text-fg-muted">{t("rc.table.specialValue")}</span>;
   }
-  const text = valueText(value);
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <select
         data-testid={`${testId}-mode`}
         aria-label={t("rc.table.valueModeOf", { name: label })}
         value={kind}
-        onChange={(e) => onChange(e.target.value === "inAppDefault" ? { useInAppDefault: true } : { value: initialValue((type as RcValueType) ?? "STRING") })}
-        className={`${SELECT} w-[6.5rem] shrink-0`}
+        onChange={(e) => onChange(e.target.value === "inAppDefault" ? { useInAppDefault: true } : { value: lastText ?? initialValue((type as RcValueType) ?? "STRING") })}
+        className={`${SELECT} w-[5.75rem] shrink-0`}
       >
+        {kind === "none" && <option value="none" disabled>{t("rc.table.modeNone")}</option>}
         <option value="value">{t("rc.table.modeValue")}</option>
         <option value="inAppDefault">{t("rc.table.modeInApp")}</option>
       </select>
@@ -272,6 +290,7 @@ function RcValueEditor({ value, type, label, testId, onChange }: {
           </select>
         ) : (
           <CommitInput
+            scope="rc"
             value={text}
             label={label}
             testId={testId}
@@ -300,6 +319,7 @@ function ConditionRow({ condition, index, total, usage, onChange }: {
       <td className="py-2 pr-3"><span className="break-all font-mono">{name}</span></td>
       <td className="py-2 pr-3">
         <CommitInput
+          scope="rc"
           value={typeof condition.expression === "string" ? condition.expression : ""}
           label={t("rc.table.expressionOf", { name })}
           testId={`rc-cond-expr:${name}`}
@@ -432,6 +452,7 @@ function AddCondition({ existing, onChange }: { existing: string[]; onChange: Up
     onChange((cur) => addCondition(cur, trimmed, expression.trim(), color || undefined));
     setName("");
     setExpression("");
+    setColor("");
   };
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="rc-add-cond">

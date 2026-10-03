@@ -32,6 +32,15 @@ const template = () => ({
 });
 
 describe("Remote Config table model", () => {
+  it("never replaces a malformed section and keeps names like __proto__ as plain keys", () => {
+    const bad = { conditions: { ios: { expression: "x" } }, parameters: ["oops"] };
+    expect(addCondition(bad, "new", "true")).toBe(bad);
+    expect(addParameter(bad, "p", "STRING", "")).toBe(bad);
+    const withProto = setConditionalValue(addParameter({}, "p", "STRING", ""), { key: "p", group: null }, "__proto__", { value: "x" });
+    expect(JSON.stringify(withProto)).toContain('"conditionalValues":{"__proto__":{"value":"x"}}');
+    expect(conditionUsage(template(), "toString")).toBe(0);
+  });
+
   it("lists top-level parameters first, then grouped ones, and the conditions in order", () => {
     const t = template();
     expect(listParameters(t).map((r) => `${r.group ?? "-"}:${r.key}`)).toEqual(["-:welcome", "-:flag", "checkout:price"]);
@@ -89,7 +98,8 @@ describe("Remote Config table model", () => {
     expect(valueKind({ value: "x" })).toBe("value");
     expect(valueKind({ useInAppDefault: true })).toBe("inAppDefault");
     expect(valueKind({ personalizationValue: { personalizationId: "p" } })).toBe("special");
-    expect(valueKind(undefined)).toBe("special");
+    expect(valueKind(undefined)).toBe("none");
+    expect(valueKind("x")).toBe("special");
     expect(validValue("BOOLEAN", "true")).toBe(true);
     expect(validValue("BOOLEAN", "yes")).toBe(false);
     expect(validValue("NUMBER", "1.5e3")).toBe(true);

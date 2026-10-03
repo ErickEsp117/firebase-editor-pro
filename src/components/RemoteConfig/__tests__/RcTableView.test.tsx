@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import "../../../i18n";
 import { useConnection } from "../../../store/connection";
+import { hasPendingInputs } from "../../../store/pendingInputs";
 import { useRcEditor } from "../../../store/rcEditor";
 import { useSettings } from "../../../store/settings";
 import { RemoteConfigView } from "../RemoteConfigView";
@@ -26,11 +27,12 @@ const TEMPLATE = {
 };
 
 let puts: number;
+let served: Record<string, unknown>;
 const request = async (url: string, opts: { method?: string } = {}) => {
   if ((opts.method ?? "GET") === "PUT") puts += 1;
   const ok = (data: unknown) => ({ status: 200, data, text: JSON.stringify(data), headers: new Headers({ ETag: "etag-3" }) });
   if (url.includes(":listVersions")) return ok({ versions: [] });
-  return ok(TEMPLATE);
+  return ok(served);
 };
 
 function mount() {
@@ -45,6 +47,7 @@ const commit = (el: HTMLElement, value: string) => {
 
 beforeEach(() => {
   puts = 0;
+  served = TEMPLATE;
   useSettings.getState().setLanguage("es");
   useSettings.getState().setRcView("table");
   useRcEditor.getState().reset();
@@ -110,6 +113,8 @@ describe("Remote Config table view", () => {
     fireEvent.click(screen.getByTestId("rc-add-param-button"));
     expect(draft().parameters).toHaveProperty("fbep_test_limit", { defaultValue: { value: "5" }, valueType: "NUMBER" });
     fireEvent.change(screen.getByTestId("rc-param-add-cond:fbep_test_limit"), { target: { value: "beta" } });
+    expect((draft().parameters as Record<string, { conditionalValues?: object }>).fbep_test_limit.conditionalValues).toBeUndefined();
+    fireEvent.click(screen.getByTestId("rc-param-add-cond-button:fbep_test_limit"));
     expect((draft().parameters as Record<string, { conditionalValues?: object }>).fbep_test_limit.conditionalValues).toEqual({ beta: { value: "5" } });
     fireEvent.click(screen.getByTestId("rc-param-cond-remove:fbep_test_limit:beta"));
     expect(draft().parameters).toHaveProperty("fbep_test_limit", { defaultValue: { value: "5" }, valueType: "NUMBER" });
@@ -145,5 +150,42 @@ describe("Remote Config table view", () => {
     fireEvent.click(screen.getByTestId("rc-view-table"));
     expect(screen.getByTestId("rc-table-unavailable")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("fbep:settings")!).rcView).toBe("table");
+  });
+
+  it("leaves an untouched multi-line value exactly as it was after focusing and leaving it", async () => {
+    served = { parameters: { msg: { defaultValue: { value: "Line one\nLine two" }, description: "a\nb" } }, version: { versionNumber: "3" } };
+    mount();
+    await screen.findByTestId("rc-table-view");
+    const cell = screen.getByTestId("rc-param-default:msg");
+    expect(cell.tagName).toBe("TEXTAREA");
+    fireEvent.focus(cell);
+    fireEvent.blur(cell);
+    fireEvent.blur(screen.getByTestId("rc-param-desc:msg"));
+    expect((draft().parameters as Record<string, { defaultValue: object }>).msg.defaultValue).toEqual({ value: "Line one\nLine two" });
+    expect(screen.queryByTestId("rc-dirty")).toBeNull();
+  });
+
+  it("counts an uncommitted cell as unpublished, only for Remote Config, and drops it on reload", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.change(screen.getByTestId("rc-param-default:checkout/price"), { target: { value: "12a" } });
+    expect(screen.getByTestId("rc-dirty")).toBeTruthy();
+    expect(hasPendingInputs("rc")).toBe(true);
+    expect(hasPendingInputs("firestore")).toBe(false);
+    fireEvent.click(screen.getByTestId("rc-reload"));
+    fireEvent.click(await screen.findByTestId("rc-reload-dialog-confirm"));
+    await waitFor(() => expect((screen.getByTestId("rc-param-default:checkout/price") as HTMLInputElement).value).toBe("9.5"));
+    expect(hasPendingInputs("rc")).toBe(false);
+  });
+
+  it("adding and then deleting the only parameter of an empty template leaves no change", async () => {
+    served = { version: { versionNumber: "3" } };
+    mount();
+    await screen.findByTestId("rc-table-no-params");
+    fireEvent.change(screen.getByTestId("rc-add-param-name"), { target: { value: "fbep_test_tmp" } });
+    fireEvent.click(screen.getByTestId("rc-add-param-button"));
+    expect(screen.getByTestId("rc-dirty")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("rc-param-delete:fbep_test_tmp"));
+    await waitFor(() => expect(screen.queryByTestId("rc-dirty")).toBeNull());
   });
 });

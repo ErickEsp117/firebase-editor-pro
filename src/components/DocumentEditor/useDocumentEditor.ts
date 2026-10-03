@@ -93,7 +93,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
     try {
       accept(await api.getDoc(path));
       // The server copy replaces every local edit, including cells that were never committed.
-      usePendingInputs.getState().resetAll();
+      usePendingInputs.getState().resetAll("firestore");
       setState({ phase: "idle" });
     } catch (e) {
       setState({ phase: "reloadError", error: e });
@@ -102,7 +102,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
 
   const discard = useCallback(() => {
     updateText(docToText(baseDoc));
-    usePendingInputs.getState().resetAll();
+    usePendingInputs.getState().resetAll("firestore");
     setState({ phase: "idle" });
   }, [updateText, baseDoc]);
 
