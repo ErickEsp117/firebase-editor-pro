@@ -10,10 +10,8 @@ export type SaveState =
   | { phase: "idle" }
   | { phase: "saving" }
   | { phase: "saved"; updateTime: string }
-  | { phase: "error"; message: string }
+  | { phase: "error"; error: unknown }
   | { phase: "conflict" };
-
-const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Editing state for one document; the draft text lives in the store so failures and remounts never lose it. */
 export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
@@ -80,7 +78,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
         setForcing(false);
         setState({ phase: "saved", updateTime: res.updateTime ?? "" });
       } catch (e) {
-        setState(isConflict(e) && !force ? { phase: "conflict" } : { phase: "error", message: messageOf(e) });
+        setState(isConflict(e) && !force ? { phase: "conflict" } : { phase: "error", error: e });
       }
     },
     [api, draft, base, mode, path, baseDoc.updateTime, accept, text, sessionKey],
@@ -93,7 +91,7 @@ export function useDocumentEditor(path: string, serverDoc: FirestoreDocument) {
       accept(await api.getDoc(path));
       setState({ phase: "idle" });
     } catch (e) {
-      setState({ phase: "error", message: messageOf(e) });
+      setState({ phase: "error", error: e });
     }
   }, [api, path, accept]);
 

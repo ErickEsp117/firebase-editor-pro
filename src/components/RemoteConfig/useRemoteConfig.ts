@@ -1,6 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   isRemoteConfigConflict,
   RemoteConfigApi,
@@ -10,13 +9,10 @@ import {
 import { getPlatform } from "../../platform";
 import { useConnection } from "../../store/connection";
 import { useRcEditor } from "../../store/rcEditor";
-import { ioErrorMessage } from "../Firestore/crud/ioErrors";
 import { parseTemplateText, reapplyEdits, sameTemplate, templateToText, type RcDraft, type RcIssue } from "./rcModel";
 
 export const VERSIONS_PAGE_SIZE = 20;
 export const DEFAULTS_FILE_NAME = "remote-config-defaults.json";
-
-const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function useRemoteConfigApi(): RemoteConfigApi | null {
   const connection = useConnection((s) => s.connection);
@@ -39,7 +35,7 @@ export function useRcVersions(api: RemoteConfigApi | null) {
 export type ValidationResult =
   | { kind: "valid" }
   | { kind: "local"; issues: RcIssue[] }
-  | { kind: "server"; message: string }
+  | { kind: "server"; error: unknown }
   | { kind: "conflict" };
 
 export type RcNotice =
@@ -52,15 +48,14 @@ export type RcNotice =
 
 export type PublishOutcome =
   | { kind: "ok" }
-  | { kind: "invalid"; issues: RcIssue[]; message?: string }
+  | { kind: "invalid"; issues: RcIssue[]; error?: unknown }
   | { kind: "conflict" }
-  | { kind: "error"; message: string };
+  | { kind: "error"; error: unknown };
 
 export type Busy = "validate" | "publish" | "reload" | "rollback" | "defaults" | null;
 
 /** Everything the Remote Config view needs; the draft itself lives in the rcEditor store. */
 export function useRcController() {
-  const { t } = useTranslation();
   const api = useRemoteConfigApi();
   const queryClient = useQueryClient();
   const projectId = api?.projectId;
@@ -72,7 +67,7 @@ export function useRcController() {
   const [busy, setBusy] = useState<Busy>(null);
   const [validation, setValidation] = useState<{ text: string; result: ValidationResult } | null>(null);
   const [notice, setNotice] = useState<RcNotice | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<{ error: unknown } | null>(null);
 
   const query = useQuery({
     queryKey: templateKey,
@@ -154,7 +149,7 @@ export function useRcController() {
     } catch (e) {
       setValidation({
         text: checked,
-        result: isRemoteConfigConflict(e) ? { kind: "conflict" } : { kind: "server", message: messageOf(e) },
+        result: isRemoteConfigConflict(e) ? { kind: "conflict" } : { kind: "server", error: e },
       });
     } finally {
       setBusy(null);
@@ -163,7 +158,7 @@ export function useRcController() {
 
   const publish = useCallback(
     async (description: string, force: boolean): Promise<PublishOutcome> => {
-      if (!api || !session) return { kind: "error", message: "not connected" };
+      if (!api || !session) return { kind: "error", error: new Error("not connected") };
       if (!draft.ok) return { kind: "invalid", issues: draft.issues };
       setBusy("publish");
       setNotice(null);
@@ -173,7 +168,7 @@ export function useRcController() {
           await api.validate(draft.template, session.etag);
         } catch (e) {
           if (!(force && isRemoteConfigConflict(e))) {
-            return isRemoteConfigConflict(e) ? { kind: "conflict" } : { kind: "invalid", issues: [], message: messageOf(e) };
+            return isRemoteConfigConflict(e) ? { kind: "conflict" } : { kind: "invalid", issues: [], error: e };
           }
         }
         const res = await api.publish(draft.template, session.etag, description, { force });
@@ -182,7 +177,7 @@ export function useRcController() {
         setNotice({ kind: "published", version: (fresh.template.version as { versionNumber?: string } | undefined)?.versionNumber });
         return { kind: "ok" };
       } catch (e) {
-        return isRemoteConfigConflict(e) ? { kind: "conflict" } : { kind: "error", message: messageOf(e) };
+        return isRemoteConfigConflict(e) ? { kind: "conflict" } : { kind: "error", error: e };
       } finally {
         setBusy(null);
       }
@@ -209,7 +204,7 @@ export function useRcController() {
         setValidation(null);
         return true;
       } catch (e) {
-        setActionError(messageOf(e));
+        setActionError({ error: e });
         return false;
       } finally {
         setBusy(null);
@@ -230,7 +225,7 @@ export function useRcController() {
         setNotice({ kind: "rolledBack", version: (fresh.template.version as { versionNumber?: string } | undefined)?.versionNumber });
         return true;
       } catch (e) {
-        setActionError(messageOf(e));
+        setActionError({ error: e });
         return false;
       } finally {
         setBusy(null);
@@ -248,17 +243,17 @@ export function useRcController() {
       const saved = await getPlatform().saveTextFile(DEFAULTS_FILE_NAME, raw.trim() === "" ? "{}" : raw);
       setNotice(saved ? { kind: "defaultsSaved", name: DEFAULTS_FILE_NAME } : { kind: "defaultsCancelled" });
     } catch (e) {
-      setActionError(ioErrorMessage(t, e));
+      setActionError({ error: e });
     } finally {
       setBusy(null);
     }
-  }, [api, t]);
+  }, [api]);
 
   return {
     api,
     session,
     loading: query.isPending || (!!query.data && !session),
-    loadError: query.isError && !session ? messageOf(query.error) : null,
+    loadError: query.isError && !session ? { error: query.error } : null,
     retryLoad: () => void query.refetch(),
     text,
     setText,

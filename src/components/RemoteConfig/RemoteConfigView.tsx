@@ -1,8 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RemoteConfigVersion } from "../../core";
+import type { TFunction } from "i18next";
+import { apiErrorKind, type RemoteConfigVersion } from "../../core";
 import { useRcEditor } from "../../store/rcEditor";
+import { ErrorNotice } from "../errors/ErrorNotice";
+import { ioErrorMessage } from "../Firestore/crud/ioErrors";
 import { PublishDialog, RcConfirmDialog, RcConflictDialog } from "./dialogs";
 import { countEntries, type RcIssue } from "./rcModel";
 import { TemplateEditor } from "./TemplateEditor";
@@ -14,6 +17,12 @@ type Dialog =
   | { kind: "conflict" }
   | { kind: "reload" }
   | { kind: "rollback"; version: RemoteConfigVersion };
+
+/** Only a real API rejection reads as "the template was rejected"; offline, permission and similar failures are explained on their own. */
+function rejectionText(t: TFunction, error: unknown): string {
+  const message = ioErrorMessage(t, error);
+  return apiErrorKind(error) === "other" ? t("rc.validationServer", { message }) : message;
+}
 
 const BTN = "rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 dark:border-slate-600";
 
@@ -51,20 +60,15 @@ export function RemoteConfigView() {
     }
     if (outcome.kind === "conflict") return setDialog({ kind: "conflict" });
     if (outcome.kind === "invalid") {
-      return setDialogError(outcome.message ? t("rc.validationServer", { message: outcome.message }) : outcome.issues.map(issueText).join(" "));
+      return setDialogError(outcome.error !== undefined ? rejectionText(t, outcome.error) : outcome.issues.map(issueText).join(" "));
     }
-    setDialogError(t("rc.publishFailed", { message: outcome.message }));
+    setDialogError(t("rc.publishFailed", { message: ioErrorMessage(t, outcome.error) }));
   };
 
   const session = rc.session;
   if (rc.loadError) {
     return (
-      <div role="alert" data-testid="rc-load-error" className="text-sm text-red-700 dark:text-red-300">
-        {t("rc.loadError", { message: rc.loadError })}
-        <button type="button" data-testid="rc-retry" className="ml-2 underline" onClick={rc.retryLoad}>
-          {t("connection.retry")}
-        </button>
-      </div>
+      <ErrorNotice testId="rc-load-error" error={rc.loadError.error} summary={t("rc.loadError")} onRetry={rc.retryLoad} retryTestId="rc-retry" />
     );
   }
   if (rc.loading || !session) {
@@ -147,7 +151,7 @@ export function RemoteConfigView() {
       {rc.notice && <Notice notice={rc.notice} onDismiss={rc.dismissNotice} />}
       {rc.actionError && (
         <p role="alert" data-testid="rc-action-error" className="text-sm text-red-700 dark:text-red-300">
-          {t("rc.actionError", { message: rc.actionError })}
+          {t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })}
         </p>
       )}
 
@@ -220,7 +224,7 @@ export function RemoteConfigView() {
           )}
           {rc.actionError && (
             <p role="alert" className="text-sm text-red-700 dark:text-red-300">
-              {t("rc.actionError", { message: rc.actionError })}
+              {t("rc.actionError", { message: ioErrorMessage(t, rc.actionError.error) })}
             </p>
           )}
         </RcConfirmDialog>
@@ -257,7 +261,7 @@ function ValidationMessage({
           </ul>
         </>
       )}
-      {validation.kind === "server" && <p>{t("rc.validationServer", { message: validation.message })}</p>}
+      {validation.kind === "server" && <p>{rejectionText(t, validation.error)}</p>}
       {validation.kind === "conflict" && <p>{t("rc.validationConflict")}</p>}
     </div>
   );

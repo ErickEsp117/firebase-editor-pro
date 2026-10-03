@@ -6,7 +6,7 @@ import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreNav } from "../../../store/firestoreNav";
 import { parseDraft } from "../../DocumentEditor/editorModel";
-import { errorMessage } from "../TreeNodes";
+import { describeError } from "../../errors/describeError";
 import { useFirestoreApi } from "../useFirestore";
 import { autoId, invalidateTree } from "./invalidate";
 import { BTN, Modal } from "./Modal";
@@ -64,7 +64,7 @@ export function CreateDocDialog({ parentDocPath, collectionPath }: Props) {
       select(path);
       close();
     } catch (e) {
-      setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? t("crud.alreadyExists", { path }) : t("crud.createError", { message: errorMessage(e) }));
+      setError(e instanceof ApiError && e.status === "ALREADY_EXISTS" ? t("crud.alreadyExists", { path }) : t("crud.createError", { message: describeError(t, e) }));
       setBusy(false);
     }
   };

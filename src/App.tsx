@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ConnectedView } from "./components/ConnectedView";
+import { OfflineBanner } from "./components/errors/OfflineBanner";
 import { SettingsBar } from "./components/SettingsBar";
 import { WelcomeView } from "./components/WelcomeView";
 import { queryClient } from "./queryClient";
@@ -37,6 +38,7 @@ function Shell() {
         <h1 className="text-lg font-bold">{t("app.title")}</h1>
         <SettingsBar />
       </header>
+      <OfflineBanner />
       <main className="p-6">
         {phase === "restoring" && <p>{t("connection.connecting")}</p>}
         {(phase === "welcome" || phase === "verifying") && <WelcomeView />}

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { RemoteConfigApi, RemoteConfigVersion } from "../../core";
+import { describeError } from "../errors/describeError";
 import { useRcVersions } from "./useRemoteConfig";
 
 interface Props {
@@ -44,7 +45,7 @@ export function VersionsPanel({ api, currentVersion, busy, onRollback }: Props) 
       )}
       {query.isError && (
         <p role="alert" data-testid="rc-versions-error" className="text-xs text-red-700 dark:text-red-300">
-          {t("rc.versionsError", { message: query.error instanceof Error ? query.error.message : String(query.error) })}
+          {t("rc.versionsError", { message: describeError(t, query.error) })}
           <button type="button" className="ml-2 underline" onClick={() => void query.refetch()}>
             {t("connection.retry")}
           </button>

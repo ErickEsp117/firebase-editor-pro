@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { describeError } from "../errors/describeError";
 import { useEditorStore } from "../../store/documentEditor";
 import type { Draft } from "./editorModel";
 import type { SaveState } from "./useDocumentEditor";
@@ -74,7 +75,7 @@ export function SaveBar({ draft, dirty, canSave, state, updateTime, onSave, onDi
       )}
       {state.phase === "error" && (
         <p role="alert" data-testid="save-error" className="text-sm text-red-700 dark:text-red-300">
-          {t("editor.saveFailed", { message: state.message })}
+          {t("editor.saveFailed", { message: describeError(t, state.error) })}
         </p>
       )}
     </div>

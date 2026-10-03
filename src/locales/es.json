@@ -39,7 +39,7 @@
     "keyUnreadable": "No se pudo leer la clave privada del archivo. Comprueba que sea el key.json original.",
     "rejected": "Google rechazó la credencial ({{cause}}). Comprueba que la clave no esté revocada y que el archivo sea el correcto.",
     "offline": "Sin conexión: no se pudo contactar con Google ({{cause}}).",
-    "forbidden": "La cuenta de servicio no tiene permisos o la API de Firestore no está habilitada ({{cause}}).",
+    "forbidden": "Permiso denegado: la cuenta de servicio no tiene un rol IAM necesario o la API de Firestore no está habilitada en Google Cloud. Concede el rol (por ejemplo Cloud Datastore User) o habilita la API y reintenta. ({{cause}})",
     "unknown": "Error inesperado: {{cause}}",
     "fileRead": "No se pudo leer el archivo seleccionado.",
     "technicalDetails": "Detalles técnicos",
@@ -49,7 +49,17 @@
       "badType": "el campo «type» debe ser «service_account»",
       "badField": "falta el campo «{{field}}» o no es válido",
       "badPem": "el campo «{{field}}» no es una clave PEM PKCS#8"
-    }
+    },
+    "api": {
+      "offline": "Sin conexión: no se pudo contactar con Google. Comprueba tu conexión a internet y reintenta.",
+      "unauthenticated": "Google rechazó la credencial (401). Puede que la clave de la cuenta de servicio esté revocada o desactivada. Desconecta e importa un key.json válido.",
+      "forbidden": "Permiso denegado (403). A la cuenta de servicio le falta un rol IAM necesario (por ejemplo Cloud Datastore User para Firestore o Firebase Remote Config Admin para Remote Config) o la API no está habilitada en Google Cloud. Concede el rol o habilita la API en la consola de Google Cloud y reintenta.",
+      "notFound": "No encontrado (404): el elemento no existe (puede haberse borrado o la versión ya no está disponible).",
+      "rateLimited": "Google está limitando las peticiones (429). Espera un momento y reintenta.",
+      "server": "Google tuvo un problema temporal (5xx). Reintenta en unos instantes."
+    },
+    "offlineBanner": "Sin conexión. Los cambios del editor se conservan; las acciones volverán a funcionar cuando regrese la conexión.",
+    "offlineRetry": "Reintentar ahora"
   },
   "firestore": {
     "refresh": "Refrescar",
@@ -65,9 +75,10 @@
     "missingHint": "Este documento no tiene campos; solo existe como padre de subcolecciones.",
     "selectDocument": "Selecciona un documento para verlo.",
     "documentLoading": "Cargando documento…",
-    "documentMissing": "Este documento no existe (solo tiene subcolecciones).",
-    "documentError": "No se pudo cargar el documento: {{message}}",
-    "documentContent": "Contenido del documento"
+    "documentMissing": "Este documento no existe. Puede que se haya borrado o que solo exista como padre de subcolecciones.",
+    "documentError": "No se pudo cargar el documento.",
+    "documentContent": "Contenido del documento",
+    "backToTree": "Volver a la lista de documentos"
   },
   "editor": {
     "viewTable": "Tabla",
@@ -229,7 +240,7 @@
   },
   "rc": {
     "loading": "Cargando la plantilla de Remote Config…",
-    "loadError": "No se pudo cargar la plantilla: {{message}}",
+    "loadError": "No se pudo cargar la plantilla.",
     "etag": "ETag: {{etag}}",
     "version": "Versión {{version}}",
     "noVersion": "Aún no hay versión publicada",

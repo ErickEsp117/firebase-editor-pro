@@ -39,7 +39,7 @@
     "keyUnreadable": "The private key in the file could not be read. Make sure it is the original key.json.",
     "rejected": "Google rejected the credential ({{cause}}). Check that the key has not been revoked and that the file is the right one.",
     "offline": "Offline: could not reach Google ({{cause}}).",
-    "forbidden": "The service account lacks permissions or the Firestore API is not enabled ({{cause}}).",
+    "forbidden": "Permission denied: the service account is missing a required IAM role or the Firestore API is not enabled in Google Cloud. Grant the role (for example Cloud Datastore User) or enable the API, then retry. ({{cause}})",
     "unknown": "Unexpected error: {{cause}}",
     "fileRead": "The selected file could not be read.",
     "technicalDetails": "Technical details",
@@ -49,7 +49,17 @@
       "badType": "field \"type\" must be \"service_account\"",
       "badField": "field \"{{field}}\" is missing or invalid",
       "badPem": "field \"{{field}}\" is not a PEM PKCS#8 key"
-    }
+    },
+    "api": {
+      "offline": "No connection: Google could not be reached. Check your internet connection and retry.",
+      "unauthenticated": "Google rejected the credential (401). The service account key may have been revoked or disabled. Disconnect and import a valid key.json.",
+      "forbidden": "Permission denied (403). The service account is missing a required IAM role (for example Cloud Datastore User for Firestore, or Firebase Remote Config Admin for Remote Config) or the API is not enabled in Google Cloud. Grant the role or enable the API in the Google Cloud console, then retry.",
+      "notFound": "Not found (404): the item does not exist (it may have been deleted or the version is no longer available).",
+      "rateLimited": "Google is limiting requests (429). Wait a moment and retry.",
+      "server": "Google had a temporary problem (5xx). Retry in a few moments."
+    },
+    "offlineBanner": "You are offline. Changes in the editor are kept; actions will work again when the connection returns.",
+    "offlineRetry": "Retry now"
   },
   "firestore": {
     "refresh": "Refresh",
@@ -65,9 +75,10 @@
     "missingHint": "This document has no fields; it only exists as the parent of subcollections.",
     "selectDocument": "Select a document to view it.",
     "documentLoading": "Loading document…",
-    "documentMissing": "This document does not exist (it only has subcollections).",
-    "documentError": "Could not load the document: {{message}}",
-    "documentContent": "Document content"
+    "documentMissing": "This document does not exist. It may have been deleted, or it only exists as the parent of subcollections.",
+    "documentError": "Could not load the document.",
+    "documentContent": "Document content",
+    "backToTree": "Back to the document list"
   },
   "editor": {
     "viewTable": "Table",
@@ -229,7 +240,7 @@
   },
   "rc": {
     "loading": "Loading the Remote Config template…",
-    "loadError": "Could not load the template: {{message}}",
+    "loadError": "Could not load the template.",
     "etag": "ETag: {{etag}}",
     "version": "Version {{version}}",
     "noVersion": "No version published yet",

@@ -1,12 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { ApiError } from "../../core";
+import { describeError } from "../errors/describeError";
 import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
 import { isMissing, relativePath, useCollectionIds, useDocsPage } from "./useFirestore";
-
-export function errorMessage(e: unknown): string {
-  return e instanceof ApiError || e instanceof Error ? e.message : String(e);
-}
 
 function Chevron({ open }: { open: boolean }) {
   return <span aria-hidden="true" className="inline-block w-4 text-center">{open ? "▾" : "▸"}</span>;
@@ -38,7 +34,7 @@ export function CollectionList({ docPath }: { docPath: string }) {
   if (ids.isError)
     return (
       <Status error testId="collections-error" onRetry={() => void ids.refetch()}>
-        {t("connection.collectionsError", { message: errorMessage(ids.error) })}
+        {t("connection.collectionsError", { message: describeError(t, ids.error) })}
       </Status>
     );
   if (ids.data.length === 0)
@@ -129,7 +125,7 @@ function DocList({ collectionPath }: { collectionPath: string }) {
   if (query.isError)
     return (
       <Status error testId="docs-error" onRetry={() => void query.refetch()}>
-        {t("firestore.docsError", { message: errorMessage(query.error) })}
+        {t("firestore.docsError", { message: describeError(t, query.error) })}
       </Status>
     );
   return (

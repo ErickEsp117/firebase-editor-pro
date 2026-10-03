@@ -3,7 +3,7 @@ import { ApiError } from "../../core";
 import { DocumentEditor } from "../DocumentEditor/DocumentEditor";
 import { useCrudDialog } from "../../store/crudDialog";
 import { useFirestoreNav } from "../../store/firestoreNav";
-import { errorMessage } from "./TreeNodes";
+import { ErrorNotice } from "../errors/ErrorNotice";
 import { useDocument } from "./useFirestore";
 
 export function DocumentView() {
@@ -11,6 +11,7 @@ export function DocumentView() {
   const path = useFirestoreNav((s) => s.selectedDoc);
   const doc = useDocument(path);
   const openDialog = useCrudDialog((s) => s.open);
+  const select = useFirestoreNav((s) => s.select);
 
   if (!path) return <p data-testid="doc-empty" className="text-slate-500">{t("firestore.selectDocument")}</p>;
   return (
@@ -53,16 +54,19 @@ export function DocumentView() {
       {doc.isPending && <p data-testid="document-loading">{t("firestore.documentLoading")}</p>}
       {doc.isError &&
         (doc.error instanceof ApiError && doc.error.status === "NOT_FOUND" ? (
-          <p data-testid="document-missing" className="text-sm text-amber-700 dark:text-amber-300">
-            {t("firestore.documentMissing")}
-          </p>
-        ) : (
-          <div role="alert" data-testid="document-error" className="text-sm text-red-700 dark:text-red-300">
-            {t("firestore.documentError", { message: errorMessage(doc.error) })}
-            <button type="button" className="ml-2 underline" onClick={() => void doc.refetch()}>
-              {t("connection.retry")}
+          <div role="status" data-testid="document-missing" className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+            <p>{t("firestore.documentMissing")}</p>
+            <button type="button" data-testid="document-back" className="underline" onClick={() => select(null)}>
+              {t("firestore.backToTree")}
             </button>
           </div>
+        ) : (
+          <ErrorNotice
+            testId="document-error"
+            error={doc.error}
+            summary={t("firestore.documentError")}
+            onRetry={() => void doc.refetch()}
+          />
         ))}
       {doc.data && !doc.isError && path && <DocumentEditor path={path} serverDoc={doc.data} />}
     </div>

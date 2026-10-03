@@ -41,3 +41,5 @@ export {
   exportCollection,
 } from "./FirestoreIO";
 export type { ImportEntry } from "./FirestoreIO";
+export { apiErrorKind } from "./errorKind";
+export type { ApiErrorKind } from "./errorKind";

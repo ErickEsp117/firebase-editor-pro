@@ -5,7 +5,7 @@ import { planCollectionImport, planDocumentImport, runImport, type ImportEntry }
 import { getPlatform } from "../../../platform";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
-import { errorMessage } from "../TreeNodes";
+import { describeError } from "../../errors/describeError";
 import { useFirestoreApi } from "../useFirestore";
 import { invalidateTree } from "./invalidate";
 import { ioErrorMessage } from "./ioErrors";
@@ -71,7 +71,7 @@ export function ImportDialog({ scope, path }: Props) {
       });
       setDoneCount(written);
     } catch (e) {
-      setError(t("io.importWriteError", { written, total: entries.length, message: errorMessage(e) }));
+      setError(t("io.importWriteError", { written, total: entries.length, message: describeError(t, e) }));
     } finally {
       setBusy(false);
       setProgress(null);

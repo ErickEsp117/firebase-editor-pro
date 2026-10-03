@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useConnection } from "../../../store/connection";
 import { useCrudDialog } from "../../../store/crudDialog";
 import { useFirestoreNav } from "../../../store/firestoreNav";
-import { errorMessage } from "../TreeNodes";
+import { describeError } from "../../errors/describeError";
 import { useFirestoreApi } from "../useFirestore";
 import { invalidateTree } from "./invalidate";
 import { BTN, BTN_DANGER, Modal } from "./Modal";
@@ -29,7 +29,7 @@ export function DeleteDocDialog({ path }: { path: string }) {
       await invalidateTree(queryClient, projectId);
       close();
     } catch (e) {
-      setError(t("crud.deleteError", { message: errorMessage(e) }));
+      setError(t("crud.deleteError", { message: describeError(t, e) }));
       setBusy(false);
     }
   };
