@@ -15,8 +15,16 @@ Release builds are **not code-signed**, so each operating system shows a warning
 
 1. Download `Firebase Editor Pro_<version>_universal.dmg` (one build for Apple Silicon and Intel).
 2. Open the `.dmg` and drag **Firebase Editor Pro** to `Applications`.
-3. The first time, **do not double-click**. Right-click (or Control-click) the app and choose **Open**, then confirm **Open** in the dialog. This is how you get past Gatekeeper for an unsigned app.
-4. If macOS still blocks it, go to **System Settings > Privacy & Security** and click **Open Anyway** next to the app name. You only need to do this once.
+3. Open the app once. macOS says it cannot verify the developer; close that message.
+4. Go to **System Settings > Privacy & Security** and click **Open Anyway** next to the app name, then confirm. You only need to do this once per installed version. (On macOS 14 and earlier, right-click the app and choose **Open** also works; macOS 15 and later removed that shortcut.)
+
+#### The keychain password prompt
+
+The first time a version of the app reads your saved keys, macOS asks for your **login keychain password** ("Firebase Editor Pro wants to use your confidential information…"). Enter it and click **Always Allow**. Because release builds are not signed with an Apple Developer ID, macOS treats every new version as a different app and asks once again after each update; reopening the same version does not ask.
+
+All saved keys live in a single keychain item, so after **Always Allow** it is one prompt per update and none when you reopen the same version. Choosing **Allow** (the default button) instead makes macOS ask again on every later change, such as switching or adding an account.
+
+Keys saved by versions before this layout are moved into that item the first time each one is read: about 6 prompts on the first launch (2 for the account list and 4 for the open account) and 4 more the first time you open each other saved account. Click **Always Allow** on each so the app can also delete the old copies; if it cannot, removing that account shows the warning that the credential could not be deleted, and you can remove the leftover `com.firebaseeditorpro.app` items in Keychain Access.
 
 ### Windows
 
@@ -89,13 +97,15 @@ Requirements: Node 24 with npm, the Rust toolchain (`rustup`), and the [Tauri 2 
 npm install
 
 npm run dev          # browser mode at http://127.0.0.1:1420 (localStorage + WebCrypto adapters, Google APIs through the Vite proxy)
-npm run tauri dev    # native window with the real keychain and HTTP plugin
+npm run tauri dev    # native window with the real keychain (own service "com.firebaseeditorpro.app.dev") and HTTP plugin
 
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm run test         # vitest unit tests
 cargo test --manifest-path src-tauri/Cargo.toml   # Rust tests (keychain roundtrip, JWT, file commands)
 ```
+
+Development builds keep their keys under a separate keychain service, so they never read or rewrite the keys saved by the installed app. The app runs as a single instance: opening it again focuses the running window. On macOS all saved keys live in one keychain item (`fbep-vault-v1`); keys saved by earlier versions in the old per-key layout move into it the first time they are read, and that move is one-way (older builds no longer see them).
 
 Run all checks at once:
 
@@ -134,9 +144,9 @@ If a key was ever committed or shared, revoke it in the Firebase console (Servic
 
 ## Manual acceptance checklist
 
-1. Install the `.dmg` (or `.exe`), open the app natively with the right-click > Open flow, and confirm the window appears and stays open.
+1. Install the `.dmg` (or `.exe`), open the app natively (Privacy & Security > Open Anyway on macOS 15+), and confirm the window appears and stays open.
 2. Import a `key.json`. Confirm the project name and the collection list appear.
-3. Quit the app completely (Cmd+Q on macOS) and open it again. Confirm it connects without asking for the key again (the credential persisted in the keychain).
+3. Quit the app completely (Cmd+Q on macOS) and open it again. Confirm it connects without asking for the key again (the credential persisted in the keychain) and, after **Always Allow** on the first launch, without a keychain password prompt.
 4. Switch the language selector between Español and English. Confirm the whole interface changes immediately and the choice is kept after a restart.
 5. Click **Sign out** (confirm if there are unsaved changes). Restart the app and confirm the welcome screen lists your saved accounts. Select one to reconnect.
 6. Remote Config in the native app: connect an account, open **Remote Config**, and confirm the template loads with its ETag and version visible and without the "Offline" notice.

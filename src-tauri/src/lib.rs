@@ -7,6 +7,8 @@ mod secure_store;
 mod native_http_tests;
 
 use serde_json::Value;
+#[cfg(not(debug_assertions))]
+use tauri::Manager;
 
 #[tauri::command]
 fn native_appearance() -> appearance::NativeAppearance {
@@ -54,7 +56,19 @@ fn write_text_file(path: String, contents: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // One installed process at a time: the keychain vault is cached in memory, so a second copy of the
+    // app must not write back its own snapshot. A second launch focuses the running window instead.
+    // Development builds use their own keychain service, so they may run next to the installed app.
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+    builder
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(tauri_plugin_log::log::LevelFilter::Info)
