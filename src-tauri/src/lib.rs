@@ -2,6 +2,9 @@ mod files;
 mod jwt;
 mod secure_store;
 
+#[cfg(test)]
+mod native_http_tests;
+
 use serde_json::Value;
 
 #[tauri::command]
