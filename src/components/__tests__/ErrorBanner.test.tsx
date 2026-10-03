@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../../i18n";
-import { ApiError, classifyError } from "../../core";
+import { ApiError, classifyError, ConnectionError } from "../../core";
 import { useSettings } from "../../store/settings";
 import { ErrorBanner } from "../ErrorBanner";
 
@@ -47,5 +47,16 @@ describe("other connection failures", () => {
     expect(screen.getByTestId("connection-error-message").textContent).toContain("Permiso denegado");
     act(() => useSettings.getState().setLanguage("en"));
     expect(screen.getByTestId("connection-error-message").textContent).toContain("Permission denied");
+  });
+});
+
+describe("ErrorBanner for denied keychain access", () => {
+  it("explains it in the active language and offers Retry", () => {
+    const onRetry = vi.fn();
+    useSettings.getState().setLanguage("es");
+    render(<ErrorBanner error={new ConnectionError("keychainDenied", "KEYCHAIN_DENIED: User canceled")} onDismiss={() => undefined} onRetry={onRetry} />);
+    expect(screen.getByTestId("connection-error-message").textContent).toContain("Permitir siempre");
+    fireEvent.click(screen.getByTestId("connection-error-retry"));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 });

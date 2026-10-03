@@ -11,6 +11,7 @@ import { WelcomeView } from "./components/WelcomeView";
 import { queryClient } from "./queryClient";
 import { useConnection } from "./store/connection";
 import { useSettings } from "./store/settings";
+import { getPlatform } from "./platform";
 
 function useApplyTheme() {
   const theme = useSettings((s) => s.theme);
@@ -67,7 +68,12 @@ function Shell() {
           </header>
           <OfflineBanner />
           <main className="mx-auto w-full max-w-2xl p-8">
-            {phase === "restoring" && <p>{t("connection.connecting")}</p>}
+            {phase === "restoring" && (
+              <div className="space-y-2">
+                <p>{t("connection.connecting")}</p>
+                {getPlatform().mode === "tauri" && <p className="text-sm text-fg-muted">{t("connection.keychainHint")}</p>}
+              </div>
+            )}
             {(phase === "welcome" || phase === "verifying") && <WelcomeView />}
           </main>
         </div>

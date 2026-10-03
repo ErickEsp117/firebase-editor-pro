@@ -15,11 +15,41 @@ const SERVICE: &str = "com.firebaseeditorpro.app.dev";
 #[cfg_attr(target_os = "macos", allow(dead_code))]
 const CHUNK_BYTES: usize = 1000;
 
+/// Prefix of the error returned when the user answered "Deny" (or cancelled) in a keychain prompt; the
+/// app shows its own message and a retry for it.
+const DENIED: &str = "KEYCHAIN_DENIED";
+
+/// errSecUserCanceled, errSecAuthFailed, errSecInteractionNotAllowed, errSecInvalidOwnerEdit.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+const DENIED_STATUSES: [i32; 4] = [-128, -25293, -25308, -25244];
+
+fn keychain_error(e: Error) -> String {
+    #[cfg(target_os = "macos")]
+    if let Error::PlatformFailure(inner) | Error::NoStorageAccess(inner) = &e {
+        if let Some(status) = inner.downcast_ref::<security_framework::base::Error>() {
+            if DENIED_STATUSES.contains(&status.code()) {
+                return format!("{DENIED}: {e}");
+            }
+        }
+    }
+    format!("keychain error: {e}")
+}
+
 /// Raw entry storage, abstracted so failures can be injected in tests.
 trait Backend {
     fn read(&self, name: &str) -> Result<Option<String>, String>;
     fn write(&self, name: &str, value: &str) -> Result<(), String>;
     fn remove(&self, name: &str) -> Result<(), String>;
+    /// Removes `key` and every chunk stored under `key#…` without reading their values, when the
+    /// backend can do that (macOS, by attributes, which never prompts). `None` means it cannot.
+    fn remove_family(&self, _key: &str) -> Option<Result<(), String>> {
+        None
+    }
+}
+
+/// Removes a per-key entry of the old layout, without decrypting it when the platform allows.
+fn remove_old_copy(b: &dyn Backend, key: &str) -> Result<(), String> {
+    b.remove_family(key).unwrap_or_else(|| delete_with(b, key))
 }
 
 struct Keychain<'a> {
@@ -28,7 +58,7 @@ struct Keychain<'a> {
 
 impl Keychain<'_> {
     fn entry(&self, name: &str) -> Result<Entry, String> {
-        Entry::new(self.service, name).map_err(|e| format!("keychain error: {e}"))
+        Entry::new(self.service, name).map_err(keychain_error)
     }
 }
 
@@ -37,19 +67,77 @@ impl Backend for Keychain<'_> {
         match self.entry(name)?.get_password() {
             Ok(v) => Ok(Some(v)),
             Err(Error::NoEntry) => Ok(None),
-            Err(e) => Err(format!("keychain error: {e}")),
+            Err(e) => Err(keychain_error(e)),
         }
     }
     fn write(&self, name: &str, value: &str) -> Result<(), String> {
         self.entry(name)?
             .set_password(value)
-            .map_err(|e| format!("keychain error: {e}"))
+            .map_err(keychain_error)
     }
     fn remove(&self, name: &str) -> Result<(), String> {
         match self.entry(name)?.delete_credential() {
             Ok(()) | Err(Error::NoEntry) => Ok(()),
-            Err(e) => Err(format!("keychain error: {e}")),
+            Err(e) => Err(keychain_error(e)),
         }
+    }
+    #[cfg(target_os = "macos")]
+    fn remove_family(&self, key: &str) -> Option<Result<(), String>> {
+        Some(mac::remove_family(self.service, key))
+    }
+}
+
+/// Keychain operations that only touch item attributes. Reading a value asks the user for access;
+/// listing and deleting by name does not.
+#[cfg(target_os = "macos")]
+mod mac {
+    use security_framework::item::{ItemClass, ItemSearchOptions, Limit};
+
+    const NOT_FOUND: i32 = -25300;
+
+    fn status_error(e: security_framework::base::Error) -> String {
+        if super::DENIED_STATUSES.contains(&e.code()) {
+            format!("{}: {e}", super::DENIED)
+        } else {
+            format!("keychain error: {e}")
+        }
+    }
+
+    fn search(service: &str) -> ItemSearchOptions {
+        let mut options = ItemSearchOptions::new();
+        options
+            .class(ItemClass::generic_password())
+            .service(service);
+        options
+    }
+
+    /// Deletes `key` and its `key#…` chunks: chunks first, the marker last.
+    pub fn remove_family(service: &str, key: &str) -> Result<(), String> {
+        let found = match search(service)
+            .load_attributes(true)
+            .limit(Limit::All)
+            .search()
+        {
+            Ok(found) => found,
+            Err(e) if e.code() == NOT_FOUND => return Ok(()),
+            Err(e) => return Err(status_error(e)),
+        };
+        let prefix = format!("{key}#");
+        let mut names: Vec<String> = found
+            .iter()
+            .filter_map(|r| r.simplify_dict())
+            .filter_map(|attrs| attrs.get("acct").cloned())
+            .filter(|account| account == key || account.starts_with(&prefix))
+            .collect();
+        names.sort_by_key(|account| account == key);
+        for account in names {
+            match search(service).account(&account).delete() {
+                Ok(()) => {}
+                Err(e) if e.code() == NOT_FOUND => {}
+                Err(e) => return Err(status_error(e)),
+            }
+        }
+        Ok(())
     }
 }
 
@@ -304,11 +392,12 @@ impl Vault {
                         return Ok(Some(v));
                     }
                     // The vault copy is live; remove the old items, chunks first and the marker last,
-                    // so a failure never strands chunks that nothing points to.
-                    if remove_chunks(b, key, marker)
-                        .and_then(|_| b.remove(key))
-                        .is_err()
-                    {
+                    // so a failure never strands chunks that nothing points to. Without name-based
+                    // removal the marker that was just read gives the chunk names.
+                    let removed = b.remove_family(key).unwrap_or_else(|| {
+                        remove_chunks(b, key, marker).and_then(|_| b.remove(key))
+                    });
+                    if removed.is_err() {
                         d.stale.insert(key.to_string());
                         let _ = Self::save(b, d);
                     }
@@ -332,7 +421,7 @@ impl Vault {
                 }
                 return Err(e);
             }
-            if first_time && delete_with(b, key).is_err() {
+            if first_time && remove_old_copy(b, key).is_err() {
                 // A per-key copy left by an earlier version could not be removed: remember it.
                 d.stale.insert(key.to_string());
                 let _ = Self::save(b, d);
@@ -361,7 +450,7 @@ impl Vault {
                 }
             }
             if old_copy_possible {
-                if let Err(e) = delete_with(b, key) {
+                if let Err(e) = remove_old_copy(b, key) {
                     if d.stale.insert(key.to_string()) {
                         let _ = Self::save(b, d);
                     }
@@ -435,6 +524,8 @@ mod tests {
         vault_reads: Cell<usize>,
         other_reads: Cell<usize>,
         fail_removes: Cell<bool>,
+        /// Simulates macOS name-based removal (no value reads).
+        by_name: Cell<bool>,
     }
 
     impl Backend for Mem {
@@ -464,6 +555,19 @@ mod tests {
             }
             self.map.borrow_mut().remove(name);
             Ok(())
+        }
+        fn remove_family(&self, key: &str) -> Option<Result<(), String>> {
+            if !self.by_name.get() {
+                return None;
+            }
+            if self.fail_removes.get() {
+                return Some(Err("injected remove failure".into()));
+            }
+            let prefix = format!("{key}#");
+            self.map
+                .borrow_mut()
+                .retain(|name, _| name != key && !name.starts_with(&prefix));
+            Some(Ok(()))
         }
     }
 
@@ -738,6 +842,61 @@ mod tests {
             "old copy finally removed"
         );
         assert_eq!(Vault::new().get(&b, "sa:1").unwrap(), None);
+    }
+
+    #[test]
+    fn vault_removes_old_items_by_name_without_reading_them_again() {
+        let b = Mem::default();
+        b.by_name.set(true);
+        set_with(&b, "sa:1", &"k".repeat(CHUNK_BYTES * 3)).unwrap();
+        set_with(&b, "sa:2", &"k".repeat(CHUNK_BYTES * 2)).unwrap();
+        set_with(&b, "sa:10", "sibling").unwrap();
+        let v = Vault::new();
+        b.other_reads.set(0);
+        assert!(v.get(&b, "sa:1").unwrap().is_some());
+        assert_eq!(
+            b.other_reads.get(),
+            4,
+            "marker + 3 chunks read once, never again"
+        );
+        v.delete(&b, "sa:2").unwrap(); // never moved: removed by name, nothing read
+        assert_eq!(b.other_reads.get(), 4);
+        let names: Vec<String> = b.map.borrow().keys().cloned().collect();
+        assert!(names.iter().all(|n| !n.starts_with("sa:1#") && n != "sa:1"));
+        assert!(names.iter().all(|n| !n.starts_with("sa:2")));
+        assert!(
+            names.contains(&"sa:10".to_string()),
+            "a key sharing the prefix is untouched"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn denied_keychain_access_has_a_stable_error_code() {
+        let denied =
+            Error::PlatformFailure(Box::new(security_framework::base::Error::from_code(-128)));
+        assert!(keychain_error(denied).starts_with(DENIED));
+        let other =
+            Error::PlatformFailure(Box::new(security_framework::base::Error::from_code(-25299)));
+        assert!(keychain_error(other).starts_with("keychain error:"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn real_keychain_removes_a_chunked_entry_by_name() {
+        let service = format!("{TEST_SERVICE}.family.{}", std::process::id());
+        let k = Keychain { service: &service };
+        let _cleanup = CleanUp(&k, &["fam", "fam2"]);
+        set_in(&service, "fam", &"áb€".repeat(700)).unwrap();
+        set_in(&service, "fam2", "sibling").unwrap();
+        mac::remove_family(&service, "fam").unwrap();
+        assert_eq!(get_in(&service, "fam").unwrap(), None);
+        assert_eq!(k.read("fam#1#0").unwrap(), None, "chunks removed too");
+        assert_eq!(
+            get_in(&service, "fam2").unwrap().as_deref(),
+            Some("sibling")
+        );
+        mac::remove_family(&service, "absent").unwrap();
     }
 
     #[test]

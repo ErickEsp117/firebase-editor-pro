@@ -29,6 +29,8 @@ interface ConnectionState {
   /** Id of the last removed account whose credential could not be deleted (leftover `sa:<id>` entry). */
   orphaned: string | null;
   restore(): Promise<void>;
+  /** Restores again from the welcome screen, e.g. after the user denied keychain access. */
+  retryRestore(): Promise<void>;
   /** Internal: the actual restore work; `restore` dedupes concurrent invocations. */
   doRestore(): Promise<void>;
   addFromPicker(): Promise<void>;
@@ -75,6 +77,11 @@ export const useConnection = create<ConnectionState>((set, get) => ({
         restoreInFlight = null;
       });
     return restoreInFlight;
+  },
+
+  retryRestore() {
+    set({ phase: "restoring", error: null });
+    return get().restore();
   },
 
   async doRestore() {

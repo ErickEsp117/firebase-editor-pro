@@ -53,7 +53,8 @@
     "disconnectDirtyBody": "Tienes cambios sin guardar que se descartarán. Las keys guardadas se conservan en el llavero, así que podrás volver a conectar sin importarlas otra vez.",
     "disconnectConfirm": "Sí, cerrar sesión",
     "cancel": "Cancelar",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "keychainHint": "macOS puede pedirte la contraseña del llavero, a veces varias veces seguidas: escríbela y elige «Permitir siempre» (Always Allow) en cada ventana."
   },
   "errors": {
     "keyInvalid": "El archivo key.json no es válido: {{detail}}",
@@ -84,7 +85,8 @@
       "other": "Google rechazó la solicitud (HTTP {{http}}, {{status}})."
     },
     "offlineBanner": "Sin conexión. Los cambios del editor se conservan; las acciones volverán a funcionar cuando regrese la conexión.",
-    "offlineRetry": "Reintentar ahora"
+    "offlineRetry": "Reintentar ahora",
+    "keychainDenied": "macOS no dio acceso a tus keys guardadas en el llavero. Pulsa «Reintentar» y, en cada ventana del llavero, escribe la contraseña de tu Mac y elige «Permitir siempre» (Always Allow)."
   },
   "firestore": {
     "refresh": "Refrescar",

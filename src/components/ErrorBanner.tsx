@@ -4,7 +4,7 @@ import { TechnicalDetails } from "./errors/TechnicalDetails";
 
 const MAX_KEY_ID_CHARS = 80;
 
-export function ErrorBanner({ error, onDismiss }: { error: ConnectionError; onDismiss: () => void }) {
+export function ErrorBanner({ error, onDismiss, onRetry }: { error: ConnectionError; onDismiss: () => void; onRetry?: () => void }) {
   const { t } = useTranslation();
   const text =
     error.kind === "keyInvalid" && error.reason
@@ -27,9 +27,16 @@ export function ErrorBanner({ error, onDismiss }: { error: ConnectionError; onDi
         <span data-testid="connection-error-message">{text}</span>
         {technical && <TechnicalDetails text={technical} testId="connection-error-technical" />}
       </div>
-      <button type="button" className="shrink-0 underline" onClick={onDismiss}>
-        {t("connection.dismiss")}
-      </button>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {onRetry && (
+          <button type="button" data-testid="connection-error-retry" className="underline" onClick={onRetry}>
+            {t("connection.retry")}
+          </button>
+        )}
+        <button type="button" className="underline" onClick={onDismiss}>
+          {t("connection.dismiss")}
+        </button>
+      </div>
     </div>
   );
 }

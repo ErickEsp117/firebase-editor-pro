@@ -1388,6 +1388,7 @@ dependencies = [
  "keyring",
  "objc2-app-kit",
  "rsa",
+ "security-framework",
  "serde",
  "serde_json",
  "tauri",

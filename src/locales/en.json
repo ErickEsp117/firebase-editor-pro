@@ -53,7 +53,8 @@
     "disconnectDirtyBody": "You have unsaved changes that will be discarded. Your saved keys stay in the keychain, so you can reconnect later without importing them again.",
     "disconnectConfirm": "Yes, sign out",
     "cancel": "Cancel",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "keychainHint": "macOS may ask for your keychain password, sometimes several times in a row: enter it and choose Always Allow in each window."
   },
   "errors": {
     "keyInvalid": "The key.json file is not valid: {{detail}}",
@@ -84,7 +85,8 @@
       "other": "Google rejected the request (HTTP {{http}}, {{status}})."
     },
     "offlineBanner": "You are offline. Changes in the editor are kept; actions will work again when the connection returns.",
-    "offlineRetry": "Retry now"
+    "offlineRetry": "Retry now",
+    "keychainDenied": "macOS did not give access to your keys saved in the keychain. Click Retry and, in each keychain window, enter your Mac password and choose Always Allow."
   },
   "firestore": {
     "refresh": "Refresh",

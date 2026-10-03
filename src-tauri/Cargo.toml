@@ -44,6 +44,8 @@ flate2 = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSColor", "NSColorSpace", "objc2-core-foundation"] }
+# Same version keyring uses: reads keychain error codes and removes old items by name without decrypting.
+security-framework = "3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["UI_ViewManagement"] }

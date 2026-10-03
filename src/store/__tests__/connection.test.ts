@@ -437,3 +437,31 @@ describe("clearError", () => {
     expect(useConnection.getState()).toMatchObject({ error: null, duplicateOf: null });
   });
 });
+
+describe("keychain access denied (macOS prompt answered with Deny)", () => {
+  it("reports keychainDenied instead of an unexpected error, and Retry connects once access is given", async () => {
+    await addTwo();
+    let deny = true;
+    setPlatformForTests({
+      mode: "tauri",
+      signJwtRsa: async () => "a.b.c",
+      secureStore: {
+        get: async (k: string) => {
+          if (deny) throw "KEYCHAIN_DENIED: User canceled the operation.";
+          return data.get(k) ?? null;
+        },
+        set: async (k: string, v: string) => void data.set(k, v),
+        delete: async (k: string) => void data.delete(k),
+      },
+      pickJsonFile: async () => picked,
+    } as unknown as Platform);
+    useConnection.setState(initial);
+    await useConnection.getState().restore();
+    expect(useConnection.getState().phase).toBe("welcome");
+    expect(useConnection.getState().error?.kind).toBe("keychainDenied");
+    deny = false;
+    await useConnection.getState().retryRestore();
+    expect(useConnection.getState()).toMatchObject({ phase: "connected", error: null });
+    expect(useConnection.getState().accounts).toHaveLength(2);
+  });
+});
