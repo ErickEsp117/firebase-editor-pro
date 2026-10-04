@@ -57,9 +57,10 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
     const keydown = (event: KeyboardEvent) => {
       if (!isTop()) return;
       if (event.key === "Escape") {
-        // An open editor panel (CodeMirror search or lint) closes on Escape first, keeping the dialog and its edits.
-        const editor = event.target instanceof Element ? event.target.closest(".cm-editor") : null;
-        if (editor?.querySelector(".cm-panel")) return;
+        // CodeMirror panels that close on Escape get it first, keeping the dialog and its edits: the search
+        // panel (from the text or the panel), and the lint panel and go-to-line dialog (from inside them).
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest(".cm-editor")?.querySelector(".cm-search") || target?.closest(".cm-panel-lint, .cm-dialog")) return;
         event.preventDefault(); event.stopImmediatePropagation();
         if (!current.current.busy) current.current.onClose();
       } else if (event.key === "Tab") {

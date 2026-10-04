@@ -488,6 +488,34 @@ describe("keychain access denied (macOS prompt answered with Deny)", () => {
     expect(second.id).not.toBe(first.id);
   });
 
+  it("a successful retried removal on the welcome screen clears the denied banner", async () => {
+    await addTwo();
+    await useConnection.getState().signOut();
+    const [first] = useConnection.getState().accounts;
+    let deny = true;
+    const store = {
+      get: async (k: string) => data.get(k) ?? null,
+      set: async (k: string, v: string) => {
+        if (deny) throw "KEYCHAIN_DENIED: User canceled the operation.";
+        data.set(k, v);
+      },
+      delete: async (k: string) => void data.delete(k),
+    };
+    setPlatformForTests({ mode: "tauri", signJwtRsa: async () => "a.b.c", secureStore: store, pickJsonFile: async () => picked } as unknown as Platform);
+    await useConnection.getState().remove(first.id);
+    expect(useConnection.getState().error?.kind).toBe("keychainDenied");
+    deny = false;
+    await useConnection.getState().retry!();
+    expect(useConnection.getState()).toMatchObject({ phase: "welcome", error: null, retry: null });
+    expect(useConnection.getState().accounts.map((a) => a.id)).not.toContain(first.id);
+  });
+
+  it("does not restore while a switch is still waiting on the keychain", async () => {
+    useConnection.setState({ phase: "verifying" });
+    await useConnection.getState().retryRestore();
+    expect(useConnection.getState().phase).toBe("verifying");
+  });
+
   it("offers no Retry for errors that cannot be repeated, and clearError drops it", async () => {
     await useConnection.getState().addText("{ not a key");
     expect(useConnection.getState().error).not.toBeNull();

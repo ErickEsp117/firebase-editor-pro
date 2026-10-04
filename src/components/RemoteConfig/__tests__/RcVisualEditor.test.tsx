@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { openLintPanel } from "@codemirror/lint";
 import { EditorView } from "@codemirror/view";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -277,6 +278,38 @@ describe("Remote Config visual editor", () => {
     expect(screen.getByTestId("rc-param-dialog")).toBeTruthy();
     fireEvent.keyDown(content, { key: "Escape" });
     expect(screen.queryByTestId("rc-param-dialog")).toBeNull();
+  });
+
+  it("lets the lint panel take Escape from inside it, and the dialog take it from the text", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.click(screen.getByTestId("rc-param-open:config"));
+    const editor = screen.getByTestId("rc-param-cond:beta");
+    setCodeMirror(editor, "{ broken");
+    act(() => void openLintPanel(EditorView.findFromDOM(editor.querySelector(".cm-editor") as HTMLElement)!));
+    const list = editor.querySelector<HTMLElement>(".cm-panel-lint ul")!;
+    expect(list).toBeTruthy();
+    fireEvent.keyDown(list, { key: "Escape", keyCode: 27 });
+    expect(editor.querySelector(".cm-panel-lint")).toBeNull();
+    expect(screen.getByTestId("rc-param-dialog")).toBeTruthy();
+    // From the text, CodeMirror does not close the lint panel on Escape, so the dialog must still close.
+    act(() => void openLintPanel(EditorView.findFromDOM(editor.querySelector(".cm-editor") as HTMLElement)!));
+    fireEvent.keyDown(editor.querySelector(".cm-content") as HTMLElement, { key: "Escape", keyCode: 27 });
+    expect(screen.queryByTestId("rc-param-dialog")).toBeNull();
+  });
+
+  it("leaves focus and scroll alone when a dialog is cancelled", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    // WebKit does not focus a clicked button, so the dialog has no opener to return to.
+    fireEvent.click(screen.getByTestId("rc-param-open:flag"));
+    fireEvent.click(screen.getByTestId("rc-param-cancel"));
+    expect(document.activeElement).not.toBe(screen.getByTestId("rc-param-new"));
+    fireEvent.click(screen.getByTestId("rc-tab-conditions"));
+    fireEvent.click(screen.getByTestId("rc-cond-edit:beta"));
+    fireEvent.keyDown(screen.getByTestId("rc-cond-name"), { key: "Escape" });
+    expect(screen.queryByTestId("rc-cond-dialog")).toBeNull();
+    expect(document.activeElement).not.toBe(screen.getByTestId("rc-cond-new"));
   });
 
   it("returns focus to the renamed card, or to New after a delete", async () => {

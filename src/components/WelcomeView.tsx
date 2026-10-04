@@ -44,7 +44,7 @@ export function WelcomeView() {
         <ErrorBanner
           error={error}
           onDismiss={clearError}
-          onRetry={error.kind === "keychainDenied" && retry ? () => void retry() : undefined}
+          onRetry={error.kind === "keychainDenied" && retry && !busy ? () => void retry() : undefined}
         />
       )}
       <OrphanedCredentialNotice />

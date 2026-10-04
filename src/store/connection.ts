@@ -83,6 +83,8 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   },
 
   retryRestore() {
+    // A switch, sign out or removal in flight owns the state; restoring now would race it.
+    if (get().phase === "verifying") return Promise.resolve();
     set({ phase: "restoring", error: null, retry: null });
     return get().restore();
   },
@@ -188,7 +190,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
     // orphaned `sa:<id>` entry that the UI must surface instead of ignoring.
     set({ orphaned: result.orphaned ? id : null });
     if (!wasActive) {
-      set({ phase: previousPhase, accounts: index.accounts, duplicateOf: null });
+      set({ phase: previousPhase, accounts: index.accounts, error: null, retry: null, duplicateOf: null });
       return;
     }
     // Discard in the same tick as the state that leaves the removed account, like switchTo: discarding

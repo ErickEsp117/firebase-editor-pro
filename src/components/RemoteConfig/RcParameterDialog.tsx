@@ -56,11 +56,17 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
     return [...known, ...unknown].map((n) => [n, initialConditional[n]]);
   });
   const [pick, setPick] = useState("");
-  // Where focus goes on close when the card that opened the dialog is gone (renamed or deleted).
-  const applied = useRef<string | null>(null);
-  const returnFocus = () =>
-    Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-param-open:"]')).find((el) => el.dataset.testid === `rc-param-open:${applied.current}`) ??
-    document.querySelector<HTMLElement>('[data-testid="rc-param-new"]');
+  // Where focus goes on close when the card that opened the dialog is gone or never took focus (WebKit
+  // does not focus a clicked button): the applied card, or New after a delete. Cancel leaves focus alone,
+  // so the list keeps its scroll position.
+  const closedBy = useRef<{ kind: "apply"; id: string } | { kind: "delete" } | null>(null);
+  const returnFocus = () => {
+    const done = closedBy.current;
+    if (done?.kind === "apply") {
+      return Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-param-open:"]')).find((el) => el.dataset.testid === `rc-param-open:${done.id}`) ?? null;
+    }
+    return done?.kind === "delete" ? document.querySelector<HTMLElement>('[data-testid="rc-param-new"]') : null;
+  };
   const available = conditionNames.filter((n) => !conditional.some(([c]) => c === n));
 
   const trimmedKey = key.trim();
@@ -100,7 +106,7 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
     if (type) next.valueType = type;
     if (description.trim()) next.description = description;
     const ref = row ? { key: row.key, group: row.group } : { key: trimmedKey, group: null };
-    applied.current = row?.group ? `${row.group}/${trimmedKey}` : trimmedKey;
+    closedBy.current = { kind: "apply", id: row?.group ? `${row.group}/${trimmedKey}` : trimmedKey };
     onChange((cur) => replaceParameter(cur, ref, trimmedKey, next));
     onClose();
   };
@@ -214,7 +220,7 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
         {onDelete && (
-          <button type="button" data-testid="rc-param-delete" className={BTN_DANGER} onClick={() => { onDelete(); onClose(); }}>
+          <button type="button" data-testid="rc-param-delete" className={BTN_DANGER} onClick={() => { closedBy.current = { kind: "delete" }; onDelete(); onClose(); }}>
             {t("rc.visual.deleteParameter")}
           </button>
         )}

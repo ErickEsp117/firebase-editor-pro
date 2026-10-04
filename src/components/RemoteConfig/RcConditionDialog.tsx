@@ -27,11 +27,16 @@ export function RcConditionDialog({ condition, existingNames, danglingNames = []
   const [expression, setExpression] = useState(typeof condition?.expression === "string" ? condition.expression : "");
   const [color, setColor] = useState(typeof condition?.tagColor === "string" ? condition.tagColor : "");
 
-  // Where focus goes on close when the edit button that opened the dialog is gone (renamed or deleted).
-  const applied = useRef<string | null>(null);
-  const returnFocus = () =>
-    Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-cond-edit:"]')).find((el) => el.dataset.testid === `rc-cond-edit:${applied.current}`) ??
-    document.querySelector<HTMLElement>('[data-testid="rc-cond-new"]');
+  // Where focus goes on close when the button that opened the dialog is gone or never took focus (WebKit
+  // does not focus a clicked button): the applied condition, or New after a delete. Cancel leaves focus alone.
+  const closedBy = useRef<{ kind: "apply"; name: string } | { kind: "delete" } | null>(null);
+  const returnFocus = () => {
+    const done = closedBy.current;
+    if (done?.kind === "apply") {
+      return Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-cond-edit:"]')).find((el) => el.dataset.testid === `rc-cond-edit:${done.name}`) ?? null;
+    }
+    return done?.kind === "delete" ? document.querySelector<HTMLElement>('[data-testid="rc-cond-new"]') : null;
+  };
   const trimmed = name.trim();
   const nameError = !trimmed
     ? t("rc.visual.conditionNameRequired")
@@ -44,7 +49,7 @@ export function RcConditionDialog({ condition, existingNames, danglingNames = []
   const apply = () => {
     if (!canApply) return;
     const next = { name: trimmed, expression: expression.trim(), tagColor: color || undefined };
-    applied.current = trimmed;
+    closedBy.current = { kind: "apply", name: trimmed };
     onChange((cur) => (originalName === null ? addCondition(cur, next.name, next.expression, next.tagColor) : replaceCondition(cur, originalName, next)));
     onClose();
   };
@@ -118,6 +123,7 @@ export function RcConditionDialog({ condition, existingNames, danglingNames = []
             disabled={usage > 0}
             title={usage > 0 ? t("rc.table.conditionInUse", { count: usage, name: originalName }) : undefined}
             onClick={() => {
+              closedBy.current = { kind: "delete" };
               onChange((cur) => deleteCondition(cur, originalName));
               onClose();
             }}
