@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RemoteConfigTemplate } from "../../core";
 import { BTN, BTN_DANGER, Modal } from "../Firestore/crud/Modal";
@@ -27,6 +27,11 @@ export function RcConditionDialog({ condition, existingNames, danglingNames = []
   const [expression, setExpression] = useState(typeof condition?.expression === "string" ? condition.expression : "");
   const [color, setColor] = useState(typeof condition?.tagColor === "string" ? condition.tagColor : "");
 
+  // Where focus goes on close when the edit button that opened the dialog is gone (renamed or deleted).
+  const applied = useRef<string | null>(null);
+  const returnFocus = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-cond-edit:"]')).find((el) => el.dataset.testid === `rc-cond-edit:${applied.current}`) ??
+    document.querySelector<HTMLElement>('[data-testid="rc-cond-new"]');
   const trimmed = name.trim();
   const nameError = !trimmed
     ? t("rc.visual.conditionNameRequired")
@@ -39,6 +44,7 @@ export function RcConditionDialog({ condition, existingNames, danglingNames = []
   const apply = () => {
     if (!canApply) return;
     const next = { name: trimmed, expression: expression.trim(), tagColor: color || undefined };
+    applied.current = trimmed;
     onChange((cur) => (originalName === null ? addCondition(cur, next.name, next.expression, next.tagColor) : replaceCondition(cur, originalName, next)));
     onClose();
   };
@@ -52,6 +58,7 @@ export function RcConditionDialog({ condition, existingNames, danglingNames = []
       onClose={onClose}
       role="dialog"
       size="wide"
+      returnFocus={returnFocus}
     >
       <label className="block space-y-1 text-sm">
         <span className="font-medium">{t("rc.table.colCondition")}</span>

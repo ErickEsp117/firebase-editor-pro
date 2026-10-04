@@ -64,7 +64,8 @@ export function DocumentEditor({ path, serverDoc, actions }: { path: string; ser
   return (
     <div data-testid="document-editor">
       <div className="editor-toolbar" data-tauri-drag-region="deep">
-        <div className="mr-auto min-w-0">
+        {/* Not a drag handle, so the document path can be selected and copied. */}
+        <div className="mr-auto min-w-0" data-tauri-drag-region="false">
           <h3 data-testid="document-title" title={path} className="truncate font-semibold select-text">{path.slice(slash + 1)}</h3>
           <p data-testid="document-subtitle" title={path} className="truncate text-xs text-fg-muted select-text">{path.slice(0, slash)}</p>
         </div>

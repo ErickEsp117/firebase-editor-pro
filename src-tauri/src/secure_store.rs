@@ -70,6 +70,11 @@ impl Backend for Keychain<'_> {
             Err(e) => Err(keychain_error(e)),
         }
     }
+    #[cfg(target_os = "macos")]
+    fn write(&self, name: &str, value: &str) -> Result<(), String> {
+        mac::write(self.service, name, value)
+    }
+    #[cfg(not(target_os = "macos"))]
     fn write(&self, name: &str, value: &str) -> Result<(), String> {
         self.entry(name)?
             .set_password(value)
@@ -92,6 +97,7 @@ impl Backend for Keychain<'_> {
 #[cfg(target_os = "macos")]
 mod mac {
     use security_framework::item::{ItemClass, ItemSearchOptions, Limit};
+    use security_framework::os::macos::keychain::{SecKeychain, SecPreferencesDomain};
 
     const NOT_FOUND: i32 = -25300;
 
@@ -109,6 +115,21 @@ mod mac {
             .class(ItemClass::generic_password())
             .service(service);
         options
+    }
+
+    /// Saves a value in the login keychain, as keyring does, except that a denied or cancelled prompt on
+    /// the existing item is reported as DENIED. keyring treats any failed lookup as "absent" and then
+    /// fails to add the item with "already exists", which hid the Deny behind an unrelated error.
+    pub fn write(service: &str, account: &str, value: &str) -> Result<(), String> {
+        let keychain =
+            SecKeychain::default_for_domain(SecPreferencesDomain::User).map_err(status_error)?;
+        match keychain.find_generic_password(service, account) {
+            Ok((_, mut item)) => item.set_password(value.as_bytes()).map_err(status_error),
+            Err(e) if e.code() == NOT_FOUND => keychain
+                .add_generic_password(service, account, value.as_bytes())
+                .map_err(status_error),
+            Err(e) => Err(status_error(e)),
+        }
     }
 
     /// Deletes `key` and its `key#…` chunks: chunks first, the marker last.
@@ -459,6 +480,9 @@ impl Vault {
                 if d.stale.remove(key) {
                     let _ = Self::save(b, d);
                 }
+            } else if let Some(Err(_)) = b.remove_family(key) {
+                // Best effort, and free on macOS (by name, no prompt): an app quit between saving the vault
+                // and removing the old items during a move leaves a copy that nothing tracks.
             }
             Ok(())
         })
@@ -944,6 +968,27 @@ mod tests {
             Vault::new().get(&b, "k").unwrap().as_deref(),
             Some("previous")
         );
+    }
+
+    #[test]
+    fn vault_delete_sweeps_an_old_copy_left_by_an_interrupted_move() {
+        let b = Mem::default();
+        b.by_name.set(true);
+        set_with(&b, "sa:1", &"x".repeat(CHUNK_BYTES * 2)).unwrap();
+        // The vault already holds the key (saved before the app quit), but the old items are still there.
+        b.write(
+            VAULT_ENTRY,
+            "{\"values\":{\"sa:1\":\"secret\"},\"migrated\":[\"sa:1\"],\"stale\":[]}",
+        )
+        .unwrap();
+        let v = Vault::new();
+        v.delete(&b, "sa:1").unwrap();
+        assert!(
+            b.map.borrow().keys().all(|name| name == VAULT_ENTRY),
+            "old marker and chunks removed: {:?}",
+            b.map.borrow().keys().collect::<Vec<_>>()
+        );
+        assert_eq!(Vault::new().get(&b, "sa:1").unwrap(), None);
     }
 
     #[test]

@@ -27,13 +27,15 @@ interface Props {
   onChange: Update;
   /** The versions panel, shown in its own tab. */
   versions: ReactNode;
+  /** A validate, publish, reload or rollback is running: editing is paused so nothing is lost when it lands. */
+  busy?: boolean;
 }
 
 /**
  * Readable Remote Config editor: parameters and conditions as cards with their full values, edited in
  * roomy dialogs. Every edit goes to the same draft as the JSON view, so validate and publish are unchanged.
  */
-export function RcVisualEditor({ template, onChange, versions }: Props) {
+export function RcVisualEditor({ template, onChange, versions, busy = false }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("parameters");
   const [query, setQuery] = useState("");
@@ -84,7 +86,7 @@ export function RcVisualEditor({ template, onChange, versions }: Props) {
                 className="w-full rounded-md border border-line bg-surface py-2 pl-9 pr-3"
               />
             </label>
-            <button type="button" data-testid="rc-param-new" className="btn-primary flex items-center gap-1.5" disabled={!editable.parameters} onClick={() => setEditing({ kind: "param", row: null })}>
+            <button type="button" data-testid="rc-param-new" className="btn-primary flex items-center gap-1.5" disabled={!editable.parameters || busy} onClick={() => setEditing({ kind: "param", row: null })}>
               <Plus size={16} aria-hidden="true" />
               {t("rc.visual.newParameter")}
             </button>
@@ -94,7 +96,7 @@ export function RcVisualEditor({ template, onChange, versions }: Props) {
           {params.length > 0 && shown.length === 0 && <p className="text-fg-muted">{t("rc.visual.noMatches")}</p>}
           <ul className="space-y-2">
             {shown.map((row) => (
-              <ParameterCard key={`${row.group ?? ""}/${row.key}`} row={row} conditions={conditions} onOpen={() => setEditing({ kind: "param", row })} />
+              <ParameterCard key={`${row.group ?? ""}/${row.key}`} row={row} conditions={conditions} disabled={busy} onOpen={() => setEditing({ kind: "param", row })} />
             ))}
           </ul>
         </section>
@@ -104,7 +106,7 @@ export function RcVisualEditor({ template, onChange, versions }: Props) {
         <section id="rc-tab-conditions" role="tabpanel" className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <p className="mr-auto text-sm text-fg-muted">{t("rc.table.conditionOrderHint")}</p>
-            <button type="button" data-testid="rc-cond-new" className="btn-primary flex items-center gap-1.5" disabled={!editable.conditions} onClick={() => setEditing({ kind: "cond", condition: null })}>
+            <button type="button" data-testid="rc-cond-new" className="btn-primary flex items-center gap-1.5" disabled={!editable.conditions || busy} onClick={() => setEditing({ kind: "cond", condition: null })}>
               <Plus size={16} aria-hidden="true" />
               {t("rc.visual.newCondition")}
             </button>
@@ -122,13 +124,13 @@ export function RcVisualEditor({ template, onChange, versions }: Props) {
                     <ConditionChip name={name} color={typeof c.tagColor === "string" ? c.tagColor : undefined} />
                     <span className="text-xs text-fg-muted">{t("rc.visual.usedBy", { count: usage })}</span>
                     <div className="ml-auto flex items-center">
-                      <IconButton data-testid={`rc-cond-up:${name}`} label={t("rc.table.moveUp", { name })} disabled={i === 0} onClick={() => onChange((cur) => moveCondition(cur, name, -1))}>
+                      <IconButton data-testid={`rc-cond-up:${name}`} label={t("rc.table.moveUp", { name })} disabled={busy || i === 0} onClick={() => onChange((cur) => moveCondition(cur, name, -1))}>
                         <ArrowUp size={16} aria-hidden="true" />
                       </IconButton>
-                      <IconButton data-testid={`rc-cond-down:${name}`} label={t("rc.table.moveDown", { name })} disabled={i === conditions.length - 1} onClick={() => onChange((cur) => moveCondition(cur, name, 1))}>
+                      <IconButton data-testid={`rc-cond-down:${name}`} label={t("rc.table.moveDown", { name })} disabled={busy || i === conditions.length - 1} onClick={() => onChange((cur) => moveCondition(cur, name, 1))}>
                         <ArrowDown size={16} aria-hidden="true" />
                       </IconButton>
-                      <IconButton data-testid={`rc-cond-edit:${name}`} label={t("rc.visual.editCondition", { name })} onClick={() => setEditing({ kind: "cond", condition: c })}>
+                      <IconButton data-testid={`rc-cond-edit:${name}`} label={t("rc.visual.editCondition", { name })} disabled={busy} onClick={() => setEditing({ kind: "cond", condition: c })}>
                         <Pencil size={16} aria-hidden="true" />
                       </IconButton>
                     </div>
@@ -171,7 +173,7 @@ export function RcVisualEditor({ template, onChange, versions }: Props) {
   );
 }
 
-function ParameterCard({ row, conditions, onOpen }: { row: ParamRow; conditions: Obj[]; onOpen(): void }) {
+function ParameterCard({ row, conditions, disabled, onOpen }: { row: ParamRow; conditions: Obj[]; disabled: boolean; onOpen(): void }) {
   const { t } = useTranslation();
   const { key, group, param } = row;
   const id = group ? `${group}/${key}` : key;
@@ -185,8 +187,9 @@ function ParameterCard({ row, conditions, onOpen }: { row: ParamRow; conditions:
         type="button"
         data-testid={`rc-param-open:${id}`}
         onClick={onOpen}
+        disabled={disabled}
         aria-label={t("rc.visual.editParameter", { name: key })}
-        className="block w-full space-y-2 rounded-lg border border-line bg-surface p-3 text-left hover:border-accent focus-visible:border-accent"
+        className="block w-full space-y-2 rounded-lg border border-line bg-surface p-3 text-left hover:border-accent focus-visible:border-accent disabled:cursor-wait disabled:hover:border-line"
       >
         <span className="flex flex-wrap items-center gap-2">
           <span className="break-all font-mono font-semibold">{key}</span>

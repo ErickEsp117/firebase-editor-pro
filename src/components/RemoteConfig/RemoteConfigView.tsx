@@ -124,6 +124,8 @@ export function RemoteConfigView() {
 
   // The table edits the same draft text as the JSON editor, always on top of the latest text.
   const editTemplate = (update: (current: RemoteConfigTemplate) => RemoteConfigTemplate) => {
+    // A reload or rollback in flight replaces the draft when it lands, which would drop this edit.
+    if (working) return;
     const latest = useRcEditor.getState().session?.text;
     if (latest === undefined) return;
     let current: unknown;
@@ -236,7 +238,7 @@ export function RemoteConfigView() {
           {versions}
         </div>
       ) : tableTemplate ? (
-        <RcVisualEditor template={tableTemplate} onChange={editTemplate} versions={versions} />
+        <RcVisualEditor template={tableTemplate} onChange={editTemplate} versions={versions} busy={working} />
       ) : (
         <p data-testid="rc-table-unavailable" className="text-sm text-fg-muted">{t("rc.table.needsValidJson")}</p>
       )}

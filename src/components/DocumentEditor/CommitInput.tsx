@@ -40,14 +40,20 @@ export function CommitInput({ value, onCommit, validate, label, testId, classNam
     if (draft === value) return;
     if (!validate || validate(draft)) onCommit(draft);
   };
-  const multiline = /[\r\n]/.test(value) || /[\r\n]/.test(draft);
+  // A focused textarea stays one until blur: swapping it for an input after a commit or Escape that
+  // removes the last line break would drop the keyboard focus mid-edit.
+  const [keepTextarea, setKeepTextarea] = useState(false);
+  const multiline = keepTextarea || /[\r\n]/.test(value) || /[\r\n]/.test(draft);
   const common = {
     "aria-label": label,
     "aria-invalid": !valid,
     "data-testid": testId,
     "data-commit-input": "",
     value: draft,
-    onBlur: commit,
+    onBlur: () => {
+      setKeepTextarea(false);
+      commit();
+    },
     className: `min-w-0 rounded border px-2 py-1 font-mono text-sm ${valid ? "border-line bg-surface" : "border-danger bg-danger/10"} ${className}`,
   };
 
@@ -55,6 +61,7 @@ export function CommitInput({ value, onCommit, validate, label, testId, classNam
     <textarea
       {...common}
       rows={Math.min(8, draft.split(/\r\n|\r|\n/).length)}
+      onFocus={() => setKeepTextarea(true)}
       onChange={(e) => setDraft(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commit();

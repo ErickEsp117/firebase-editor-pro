@@ -57,6 +57,9 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
     const keydown = (event: KeyboardEvent) => {
       if (!isTop()) return;
       if (event.key === "Escape") {
+        // An open editor panel (CodeMirror search or lint) closes on Escape first, keeping the dialog and its edits.
+        const editor = event.target instanceof Element ? event.target.closest(".cm-editor") : null;
+        if (editor?.querySelector(".cm-panel")) return;
         event.preventDefault(); event.stopImmediatePropagation();
         if (!current.current.busy) current.current.onClose();
       } else if (event.key === "Tab") {

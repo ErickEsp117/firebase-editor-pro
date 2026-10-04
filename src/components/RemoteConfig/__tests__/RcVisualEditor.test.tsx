@@ -8,6 +8,7 @@ import { useConnection } from "../../../store/connection";
 import { useRcEditor } from "../../../store/rcEditor";
 import { useSettings } from "../../../store/settings";
 import { prettyJson } from "../RcValueField";
+import { RcVisualEditor } from "../RcVisualEditor";
 import { RemoteConfigView } from "../RemoteConfigView";
 
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -249,6 +250,51 @@ describe("Remote Config visual editor", () => {
     fireEvent.change(screen.getByTestId("rc-cond-name"), { target: { value: "old_ios" } });
     fireEvent.change(screen.getByTestId("rc-cond-expression"), { target: { value: "true" } });
     expect((screen.getByTestId("rc-cond-apply") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("pauses editing while a reload or rollback is running", () => {
+    render(<RcVisualEditor template={TEMPLATE} onChange={() => {}} versions={null} busy />);
+    expect((screen.getByTestId("rc-param-open:welcome") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("rc-param-new") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId("rc-tab-conditions"));
+    expect((screen.getByTestId("rc-cond-edit:ios") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("rc-cond-down:ios") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("rc-cond-new") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("closes the JSON search box on Escape without closing the dialog", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.click(screen.getByTestId("rc-param-open:config"));
+    const editor = screen.getByTestId("rc-param-cond:beta");
+    const content = editor.querySelector(".cm-content") as HTMLElement;
+    content.focus();
+    fireEvent.keyDown(content, { key: "f", code: "KeyF", ctrlKey: true });
+    const search = editor.querySelector<HTMLInputElement>(".cm-search input")!;
+    expect(search).toBeTruthy();
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(editor.querySelector(".cm-search")).toBeNull();
+    expect(screen.getByTestId("rc-param-dialog")).toBeTruthy();
+    fireEvent.keyDown(content, { key: "Escape" });
+    expect(screen.queryByTestId("rc-param-dialog")).toBeNull();
+  });
+
+  it("returns focus to the renamed card, or to New after a delete", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.click(screen.getByTestId("rc-param-open:welcome"));
+    fireEvent.change(screen.getByTestId("rc-param-key"), { target: { value: "greeting" } });
+    fireEvent.click(screen.getByTestId("rc-param-apply"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("rc-param-open:greeting")));
+    fireEvent.click(screen.getByTestId("rc-param-open:greeting"));
+    fireEvent.click(screen.getByTestId("rc-param-delete"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("rc-param-new")));
+
+    fireEvent.click(screen.getByTestId("rc-tab-conditions"));
+    fireEvent.click(screen.getByTestId("rc-cond-edit:beta"));
+    fireEvent.change(screen.getByTestId("rc-cond-name"), { target: { value: "beta_users" } });
+    fireEvent.click(screen.getByTestId("rc-cond-apply"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("rc-cond-edit:beta_users")));
   });
 
   it("keeps the version history in its own tab", async () => {

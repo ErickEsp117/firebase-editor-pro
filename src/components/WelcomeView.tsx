@@ -5,7 +5,7 @@ import { OrphanedCredentialNotice, RemoveAccountButton } from "./RemoveAccountBu
 
 export function WelcomeView() {
   const { t } = useTranslation();
-  const { phase, error, accounts, addFromPicker, switchTo, clearError, retryRestore } = useConnection();
+  const { phase, error, retry, accounts, addFromPicker, switchTo, clearError } = useConnection();
   const busy = phase === "verifying";
   return (
     <section data-testid="welcome" className="mx-auto flex max-w-xl flex-col gap-4">
@@ -44,7 +44,7 @@ export function WelcomeView() {
         <ErrorBanner
           error={error}
           onDismiss={clearError}
-          onRetry={error.kind === "keychainDenied" ? () => void retryRestore() : undefined}
+          onRetry={error.kind === "keychainDenied" && retry ? () => void retry() : undefined}
         />
       )}
       <OrphanedCredentialNotice />

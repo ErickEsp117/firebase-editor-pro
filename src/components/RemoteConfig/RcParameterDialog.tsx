@@ -1,5 +1,5 @@
 import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RemoteConfigTemplate } from "../../core";
 import { BTN, BTN_DANGER, Modal } from "../Firestore/crud/Modal";
@@ -56,6 +56,11 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
     return [...known, ...unknown].map((n) => [n, initialConditional[n]]);
   });
   const [pick, setPick] = useState("");
+  // Where focus goes on close when the card that opened the dialog is gone (renamed or deleted).
+  const applied = useRef<string | null>(null);
+  const returnFocus = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-param-open:"]')).find((el) => el.dataset.testid === `rc-param-open:${applied.current}`) ??
+    document.querySelector<HTMLElement>('[data-testid="rc-param-new"]');
   const available = conditionNames.filter((n) => !conditional.some(([c]) => c === n));
 
   const trimmedKey = key.trim();
@@ -95,13 +100,14 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
     if (type) next.valueType = type;
     if (description.trim()) next.description = description;
     const ref = row ? { key: row.key, group: row.group } : { key: trimmedKey, group: null };
+    applied.current = row?.group ? `${row.group}/${trimmedKey}` : trimmedKey;
     onChange((cur) => replaceParameter(cur, ref, trimmedKey, next));
     onClose();
   };
 
   const title = row ? t("rc.visual.editParameter", { name: row.key }) : t("rc.visual.newParameter");
   return (
-    <Modal titleId="rc-param-dialog-title" testId="rc-param-dialog" title={title} onClose={onClose} role="dialog" size="wide">
+    <Modal titleId="rc-param-dialog-title" testId="rc-param-dialog" title={title} onClose={onClose} role="dialog" size="wide" returnFocus={returnFocus}>
       <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
         <label className="block space-y-1 text-sm">
           <span className="font-medium">{t("rc.table.colParameter")}</span>
