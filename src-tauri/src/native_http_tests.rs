@@ -134,7 +134,7 @@ fn pct(s: &str) -> String {
 /// client and the app's own JWT signer. Never prints the key, JWT, token or
 /// any response body.
 #[test]
-#[ignore = "hits Google; run with FBEP_TEST_KEY via services.yaml commands.test_rust_native_real"]
+#[ignore = "hits Google; run with FBEP_TEST_KEY=<path to key.json> cargo test -- --ignored"]
 fn native_real_remote_config_template_has_etag_and_list_versions_ok() {
     let Some(path) = env_key_path() else {
         eprintln!("native_real: FBEP_TEST_KEY not set, skipping");

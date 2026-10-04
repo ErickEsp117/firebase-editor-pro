@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Read-only GET of a Firestore document for validation. Prints the HTTP status and the decoded
-// field values (never the credential). Works with either mission key.
+// field values (never the credential). Works with any service-account key.
 //
 //   node scripts/fs-get.mjs <keyfile-name> <collection/doc>
 //

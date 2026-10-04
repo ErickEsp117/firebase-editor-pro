@@ -274,7 +274,7 @@ describe("switchTo", () => {
     expect(useRcEditor.getState().session).toBeNull();
   });
 
-  it("sends every later request with the new account's project and token (VAL-ACCT-010)", async () => {
+  it("sends every later request with the new account's project and token", async () => {
     const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString("base64url");
     const calls: { url: string; auth: string | null }[] = [];
     setPlatformForTests({

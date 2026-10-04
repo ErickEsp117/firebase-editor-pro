@@ -35,7 +35,7 @@ const testEntryCount = (t: RemoteConfigTemplate) =>
   ((t.conditions ?? []) as Cond[]).filter((c) => isTestName(c.name)).length;
 
 // Every publish/force/rollback creates a version in the real project, and Firebase keeps only the last 300.
-// Write cases therefore run only with FBEP_RC_WRITE_TESTS=1 (services.yaml: commands.test_rc_writes).
+// Write cases therefore run only with FBEP_RC_WRITE_TESTS=1 (FBEP_RC_WRITE_TESTS=1 npx vitest run tests-integration).
 const writesEnabled = process.env.FBEP_RC_WRITE_TESTS === "1";
 
 describe.skipIf(!existsSync(keyPath))("real Remote Config (project of dev-secrets/test-key.json)", () => {

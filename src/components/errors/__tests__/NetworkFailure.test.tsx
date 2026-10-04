@@ -20,7 +20,7 @@ afterEach(() => {
   reportReachable(true);
 });
 
-describe("a request that gets no response (VAL-UI-008, VAL-CROSS-012)", () => {
+describe("a request that gets no response", () => {
   it("marks Google unreachable; any later response clears it; an abort does not count", async () => {
     let down = true;
     const transport = createTransport({

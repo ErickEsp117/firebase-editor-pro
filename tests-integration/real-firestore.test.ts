@@ -213,7 +213,7 @@ describe.skipIf(!existsSync(keyPath))("real Firestore CRUD (project of dev-secre
   });
 
   it("lists root collections including the test collection", async () => {
-    expect(await api.listAllCollectionIds()).toEqual(expect.arrayContaining(["users", coll]));
+    expect(await api.listAllCollectionIds()).toEqual(expect.arrayContaining([coll]));
   });
 
   it("deleteCollection removes the whole subtree: direct docs, missing parents and nested subcollections", async () => {

@@ -128,12 +128,12 @@ export async function addAccount(keyText: string, platform: Platform = getPlatfo
 }
 
 /**
- * Loads the account index, first folding a pre-M6 `service-account` entry into it. The legacy entry is
+ * Loads the account index, first folding a legacy single-key `service-account` entry into it. The legacy entry is
  * deleted only after the credential and the index are written, so a crash at any point can be re-run.
  */
 export async function loadAccounts(platform: Platform = getPlatform()): Promise<AccountsIndex> {
   const index = await readIndex(platform);
-  // Once an index exists the pre-M6 entry was already folded into it; a copy left behind (its delete
+  // Once an index exists the legacy single-key entry was already folded into it; a copy left behind (its delete
   // failed) is never read again, because every read can make macOS ask for keychain access.
   if (index) return index;
   const legacy = await platform.secureStore.get(LEGACY_CREDENTIAL_KEY);

@@ -1,11 +1,33 @@
 # Firebase Editor Pro
 
-Firebase Editor Pro is a lightweight desktop app (macOS and Windows, built with Tauri 2) to edit **Firestore documents as JSON** and the **Remote Config template as JSON**. The interface is bilingual (Español / English) and has light and dark themes.
+Firebase Editor Pro is a lightweight desktop app (macOS and Windows, built with Tauri 2) to edit **Firestore documents** (as a typed table or as JSON) and the **Remote Config template** (in a visual editor or as JSON). The interface is bilingual (Español / English) and has light and dark themes.
+
+**[Download the latest release](https://github.com/ErickEsp117/firebase-editor-pro/releases/latest)** (macOS universal `.dmg`, Windows `.exe`).
 
 - **Sign-in with `key.json` only.** You import the service account key of your Firebase project. There is no Google login.
 - **Credential in the system keychain.** On the desktop app the key is stored only in the macOS Keychain or the Windows Credential Manager. It is never written to a plain file.
 - **Small installers** (about 8 MB on macOS, under 15 MB on Windows).
 - The app talks directly to the Google APIs (`firestore.googleapis.com` and `firebaseremoteconfig.googleapis.com`). There is no server in between.
+
+## Screenshots
+
+Remote Config visual editor: every parameter with its description, default value and conditional values.
+
+![Remote Config parameters](docs/screenshots/rc-parameters.png)
+
+Editing a parameter: editors by type, JSON shown formatted and validated, conditional values with their condition colors.
+
+![Editing a Remote Config parameter](docs/screenshots/rc-edit.png)
+
+| Conditions in evaluation order | Firestore document as a typed table |
+| --- | --- |
+| ![Remote Config conditions](docs/screenshots/rc-conditions.png) | ![Firestore table view](docs/screenshots/firestore-table.png) |
+
+Firestore document as JSON, dark theme:
+
+![Firestore JSON editor in dark mode](docs/screenshots/firestore-json-dark.png)
+
+<sub>The screenshots use a fictional demo project; no real data.</sub>
 
 ## Install
 
@@ -83,7 +105,9 @@ Use the sidebar to move between Firestore and Remote Config. Language and theme 
 
 ### Remote Config editor
 
-- The whole template (conditions, parameters, conditional values) is shown as JSON, with the current **ETag** and version.
+- Switch between the **Visual** editor and the **JSON** editor at the top right; both edit the same draft. The current **ETag** and version are shown above.
+- **Visual**: tabs for Parameters, Conditions and Versions. Each parameter is a card with its type, description, default value and conditional values; search by name, description or value. Click a card to edit it in a dialog (multi-line text, number, true/false, or JSON with formatting and validation) and **Apply** all changes at once. Conditions show their full expression and how many parameters use them; reorder them (the first match wins) or rename them, which also renames them in every parameter. Fields the editor does not know are preserved.
+- **JSON**: the whole template (conditions, parameters, conditional values) in a code editor with **Format**.
 - **Validate** checks the template locally and with Remote Config (nothing is published). **Publish** asks for an optional version description and always sends the ETag.
 - If the template changed in Remote Config since you loaded it, the conflict dialog lets you **Reload** (your edits are re-applied to the new template) or **Force publish**.
 - The **Versions** list shows the history, and **Rollback** restores an older version as a new one.
@@ -140,7 +164,7 @@ The first signed build asks once (macOS also asks once to let `codesign` use the
 
 ### Release
 
-The `release` workflow (`.github/workflows/release.yml`) runs on every tag `v*` and can also be started by hand (**Actions > release > Run workflow**). It builds the macOS universal `.dmg` and the Windows NSIS `.exe` and uploads them as run artifacts. On a tag it also creates a **draft release** with both files.
+The `release` workflow (`.github/workflows/release.yml`) runs on every tag `v*` and can also be started by hand (**Actions > release > Run workflow**). It builds the macOS universal `.dmg` and the Windows NSIS `.exe` and uploads them as run artifacts. On a tag it also creates a **draft release** with both files; review its notes and publish it from **Releases**.
 
 ## Do not commit `dev-secrets/`
 
@@ -168,3 +192,9 @@ If a key was ever committed or shared, revoke it in the Firebase console (Servic
 10. Verify the keyboard shortcuts above in the native app, especially data reload without a webview reload and publish confirmation without automatic publication.
 
 The native Remote Config transport enables gzip so Google returns its ETag. A missing ETag is reported as an unexpected server response instead of being mislabeled as an offline connection.
+
+## License
+
+[MIT](LICENSE) © 2026 Erick Espinoza.
+
+Firebase Editor Pro is an independent project. It is not affiliated with, endorsed by or sponsored by Google. Firebase, Cloud Firestore and Remote Config are trademarks of Google LLC.

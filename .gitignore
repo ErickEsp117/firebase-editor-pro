@@ -1,5 +1,4 @@
 
-!.vscode/extensions.json
 # Editor directories and files
 # Logs
 *.local
@@ -13,7 +12,7 @@
 .env
 .env.*
 .idea
-.vscode/*
+.vscode/
 coverage/
 dev-secrets/
 dist
@@ -29,3 +28,14 @@ src-tauri/gen/
 src-tauri/target/
 yarn-debug.log*
 yarn-error.log*
+
+# Local files that must never be committed
+output/
+.claude/settings.local.json
+key.json
+*-firebase-adminsdk-*.json
+*service-account*.json
+*.pem
+*.p12
+*.p8
+*.mobileprovision

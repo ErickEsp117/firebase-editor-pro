@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-describe("system accent resolution (VAL-UI-004)", () => {
+describe("system accent resolution", () => {
   it("uses the color the platform provides, with readable text on it", async () => {
     native.tauri = true;
     await refreshAppearance();
