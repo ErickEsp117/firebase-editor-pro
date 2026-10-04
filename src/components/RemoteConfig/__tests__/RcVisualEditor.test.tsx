@@ -292,9 +292,16 @@ describe("Remote Config visual editor", () => {
     fireEvent.keyDown(list, { key: "Escape", keyCode: 27 });
     expect(editor.querySelector(".cm-panel-lint")).toBeNull();
     expect(screen.getByTestId("rc-param-dialog")).toBeTruthy();
-    // From the text, CodeMirror does not close the lint panel on Escape, so the dialog must still close.
+    // Its close button has no Escape handler either, so there the dialog closes as usual.
     act(() => void openLintPanel(EditorView.findFromDOM(editor.querySelector(".cm-editor") as HTMLElement)!));
-    fireEvent.keyDown(editor.querySelector(".cm-content") as HTMLElement, { key: "Escape", keyCode: 27 });
+    fireEvent.keyDown(editor.querySelector('.cm-panel-lint [name="close"]') as HTMLElement, { key: "Escape", keyCode: 27 });
+    expect(screen.queryByTestId("rc-param-dialog")).toBeNull();
+    fireEvent.click(screen.getByTestId("rc-param-open:config"));
+    const reopened = screen.getByTestId("rc-param-cond:beta");
+    setCodeMirror(reopened, "{ broken");
+    // From the text, CodeMirror does not close the lint panel on Escape, so the dialog must still close.
+    act(() => void openLintPanel(EditorView.findFromDOM(reopened.querySelector(".cm-editor") as HTMLElement)!));
+    fireEvent.keyDown(reopened.querySelector(".cm-content") as HTMLElement, { key: "Escape", keyCode: 27 });
     expect(screen.queryByTestId("rc-param-dialog")).toBeNull();
   });
 
@@ -310,6 +317,19 @@ describe("Remote Config visual editor", () => {
     fireEvent.keyDown(screen.getByTestId("rc-cond-name"), { key: "Escape" });
     expect(screen.queryByTestId("rc-cond-dialog")).toBeNull();
     expect(document.activeElement).not.toBe(screen.getByTestId("rc-cond-new"));
+  });
+
+  it("keeps focus in the list when the search filter hides the edited card", async () => {
+    mount();
+    await screen.findByTestId("rc-table-view");
+    fireEvent.change(screen.getByTestId("rc-param-search"), { target: { value: "hola" } });
+    const card = screen.getByTestId("rc-param-open:welcome");
+    card.focus();
+    fireEvent.click(card);
+    fireEvent.change(screen.getByTestId("rc-param-default"), { target: { value: "Buenos días" } });
+    fireEvent.click(screen.getByTestId("rc-param-apply"));
+    expect(screen.queryByTestId("rc-param-open:welcome")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("rc-param-new")));
   });
 
   it("returns focus to the renamed card, or to New after a delete", async () => {

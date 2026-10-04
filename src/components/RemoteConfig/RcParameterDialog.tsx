@@ -63,7 +63,11 @@ export function RcParameterDialog({ template, row, conditions, onChange, onDelet
   const returnFocus = () => {
     const done = closedBy.current;
     if (done?.kind === "apply") {
-      return Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-param-open:"]')).find((el) => el.dataset.testid === `rc-param-open:${done.id}`) ?? null;
+      // The search filter may hide the card after the edit; New keeps focus in the list then.
+      return (
+        Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="rc-param-open:"]')).find((el) => el.dataset.testid === `rc-param-open:${done.id}`) ??
+        document.querySelector<HTMLElement>('[data-testid="rc-param-new"]')
+      );
     }
     return done?.kind === "delete" ? document.querySelector<HTMLElement>('[data-testid="rc-param-new"]') : null;
   };
