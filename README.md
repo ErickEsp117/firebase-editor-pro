@@ -6,8 +6,8 @@ Firebase Editor Pro is a lightweight desktop app (macOS and Windows, built with 
 
 - **Sign-in with `key.json` only.** You import the service account key of your Firebase project. There is no Google login.
 - **Credential in the system keychain.** On the desktop app the key is stored only in the macOS Keychain or the Windows Credential Manager. It is never written to a plain file.
-- **Small installers** (about 8 MB on macOS, under 15 MB on Windows).
-- The app talks directly to the Google APIs (`firestore.googleapis.com` and `firebaseremoteconfig.googleapis.com`). There is no server in between.
+- **Small installers** (about 8 MB on macOS and 3 MB on Windows).
+- The app talks directly to the Google APIs (`oauth2.googleapis.com` for the access token, `firestore.googleapis.com` and `firebaseremoteconfig.googleapis.com`). There is no server in between.
 
 ## Screenshots
 
@@ -35,7 +35,7 @@ Release builds are **not code-signed**, so each operating system shows a warning
 
 ### macOS
 
-1. Download `Firebase Editor Pro_<version>_universal.dmg` (one build for Apple Silicon and Intel).
+1. From [Releases](https://github.com/ErickEsp117/firebase-editor-pro/releases/latest), download `Firebase.Editor.Pro_<version>_universal.dmg` (one build for Apple Silicon and Intel).
 2. Open the `.dmg` and drag **Firebase Editor Pro** to `Applications`.
 3. Open the app once. macOS says it cannot verify the developer; close that message.
 4. Go to **System Settings > Privacy & Security** and click **Open Anyway** next to the app name, then confirm. You only need to do this once per installed version. (On macOS 14 and earlier, right-click the app and choose **Open** also works; macOS 15 and later removed that shortcut.)
@@ -46,11 +46,9 @@ The first time a version of the app reads your saved keys, macOS asks for your *
 
 All saved keys live in a single keychain item, so after **Always Allow** it is one prompt per update and none when you reopen the same version. Choosing **Allow** (the default button) instead makes macOS ask again on every later change, such as switching or adding an account.
 
-Keys saved by versions before this layout are moved into that item the first time each one is read: about 6 prompts on the first launch (2 for the account list and 4 for the open account) and 4 more the first time you open each other saved account. Click **Always Allow** on each so the app can also delete the old copies; if it cannot, removing that account shows the warning that the credential could not be deleted, and you can remove the leftover `com.firebaseeditorpro.app` items in Keychain Access.
-
 ### Windows
 
-1. Download `Firebase Editor Pro_<version>_x64-setup.exe` (NSIS installer).
+1. From [Releases](https://github.com/ErickEsp117/firebase-editor-pro/releases/latest), download `Firebase.Editor.Pro_<version>_x64-setup.exe` (NSIS installer).
 2. Run it. If SmartScreen shows "Windows protected your PC", click **More info** (*Más información*) and then **Run anyway** (*Ejecutar de todas formas*).
 3. The app needs **Microsoft WebView2**. It is already included in Windows 11 and in up-to-date Windows 10. If it is missing, the installer downloads it. You can also install the Evergreen runtime from Microsoft.
 
@@ -73,7 +71,7 @@ Use **Add key** to save more than one service account. Each account is labeled w
 - **Sign out** keeps every saved key and returns to the account list.
 - **Delete key** asks for confirmation, then removes that account and its keychain credential. Deleting the active account selects another saved account, or returns to the welcome screen.
 - Switching accounts, adding a key, signing out, or deleting the active key asks before discarding unsaved document or Remote Config changes. Cancel keeps the draft.
-- An older single saved key migrates automatically on startup. Native credentials remain in the system keychain; account metadata contains no private keys or access tokens.
+- Native credentials remain in the system keychain; account metadata contains no private keys or access tokens.
 - If the system cannot delete a removed credential, the app shows a warning so the failure is visible.
 
 ## Appearance and keyboard shortcuts
@@ -125,11 +123,11 @@ npm run tauri dev    # native window with the real keychain (own service "com.fi
 
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
-npm run test         # vitest unit tests
+npm run test         # vitest (also runs tests-integration/ when dev-secrets/test-key.json exists)
 cargo test --manifest-path src-tauri/Cargo.toml   # Rust tests (keychain roundtrip, JWT, file commands)
 ```
 
-Development builds keep their keys under a separate keychain service, so they never read or rewrite the keys saved by the installed app. The app runs as a single instance: opening it again focuses the running window. On macOS all saved keys live in one keychain item (`fbep-vault-v1`); keys saved by earlier versions in the old per-key layout move into it the first time they are read, and that move is one-way (older builds no longer see them).
+Development builds keep their keys under a separate keychain service, so they never read or rewrite the keys saved by the installed app. Release builds run as a single instance: opening the app again focuses the running window. On macOS all saved keys live in one keychain item (`fbep-vault-v1`).
 
 Run all checks at once:
 
@@ -140,6 +138,8 @@ npm run typecheck && npm run lint && npm run test && cargo test --manifest-path 
 ### Integration tests against a real project
 
 `tests-integration/` talks to a real Firebase project. It is skipped automatically when `dev-secrets/test-key.json` is missing. Tests only write documents and Remote Config entries whose names start with `fbep_test_`, and they clean up after themselves. Use a test project, never production data.
+
+The Remote Config cases that publish and roll back the template are opt-in (`FBEP_RC_WRITE_TESTS=1 npx vitest run tests-integration`); each run creates real template versions. The Rust tests that call Google are ignored by default (`FBEP_TEST_KEY=dev-secrets/test-key.json cargo test --manifest-path src-tauri/Cargo.toml -- --ignored`). `scripts/` has small helpers for manual testing with the same key (read a document, touch a test document, publish a test parameter); they only change names that start with `fbep_test_`.
 
 ### Build installers
 
@@ -177,7 +177,7 @@ git grep -n -e '-----BEGIN [A-Z ]*PRIVATE KEY' -e 'MII[E]'    # must print nothi
 
 If a key was ever committed or shared, revoke it in the Firebase console (Service accounts > manage keys) and create a new one.
 
-## Manual acceptance checklist
+## Release smoke test
 
 1. Install the `.dmg` (or `.exe`), open the app natively (Privacy & Security > Open Anyway on macOS 15+), and confirm the window appears and stays open.
 2. Import a `key.json`. Confirm the project name and the collection list appear.
@@ -185,13 +185,10 @@ If a key was ever committed or shared, revoke it in the Firebase console (Servic
 4. Switch the language selector between Español and English. Confirm the whole interface changes immediately and the choice is kept after a restart.
 5. Click **Sign out** (confirm if there are unsaved changes). Restart the app and confirm the welcome screen lists your saved accounts. Select one to reconnect.
 6. Remote Config in the native app: connect an account, open **Remote Config**, and confirm the template loads with its ETag and version visible and without the "Offline" notice.
-
 7. Switch between two saved accounts natively; confirm the project, collection tree and Remote Config template all change. Verify canceling a dirty switch keeps the draft.
 8. In macOS check sidebar translucency, traffic-light spacing and window dragging. Change the OS accent and return to the app; verify the accent updates. In Windows 11 check Mica; in Windows 10 check the solid sidebar.
 9. Select System, change the OS theme, and confirm the shell and JSON editors update. Resize the sidebar and restart; confirm its width persists.
 10. Verify the keyboard shortcuts above in the native app, especially data reload without a webview reload and publish confirmation without automatic publication.
-
-The native Remote Config transport enables gzip so Google returns its ETag. A missing ETag is reported as an unexpected server response instead of being mislabeled as an offline connection.
 
 ## License
 

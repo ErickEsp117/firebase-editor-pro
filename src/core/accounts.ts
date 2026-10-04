@@ -4,7 +4,7 @@ import { ConnectionError, connectionFromKeyText, verifyKey, type Connection } fr
 import { normalizeKeyId, parseKeyJson, type ServiceAccountKey } from "./ServiceAccountAuth";
 
 export const ACCOUNTS_KEY = "accounts";
-/** Pre-M6 single-credential entry, migrated into the account index by loadAccounts. */
+/** Legacy single-credential entry (before multiple accounts), migrated into the account index by loadAccounts. */
 export const LEGACY_CREDENTIAL_KEY = "service-account";
 
 export const accountSecretKey = (id: string): string => `sa:${id}`;

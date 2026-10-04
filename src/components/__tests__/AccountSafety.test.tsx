@@ -282,7 +282,7 @@ describe("delete key", () => {
   });
 });
 
-describe("account list in the sidebar (M7 layout)", () => {
+describe("account list in the sidebar", () => {
   it("is an expanded list whose header toggle collapses and expands it", async () => {
     const [a] = await addTwo();
     render(<AccountSwitcher sidebar />);

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Mutates one field of an existing Firestore test document so its updateTime changes.
-// Used to provoke save conflicts (stale updateTime) during validation.
+// Used to provoke save conflicts (stale updateTime) during manual testing.
 //
 //   node scripts/fs-touch.mjs fbep_test_x/doc1 [fieldName]
 //

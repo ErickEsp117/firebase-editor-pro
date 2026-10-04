@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Desktop editor for Firestore documents and the Firebase Remote Config template",
   "license": "MIT",
+  "author": "Erick Espinoza",
   "repository": {
     "type": "git",
     "url": "https://github.com/ErickEsp117/firebase-editor-pro.git"

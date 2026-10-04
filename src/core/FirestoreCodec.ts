@@ -4,7 +4,7 @@ import { jsonrepair } from "jsonrepair";
 /**
  * Bidirectional codec between the tagged-JSON editor model and Firestore REST `Value` envelopes.
  * Editor numbers are `LosslessNumber`s (what lossless-json parses), so int64 never loses precision
- * and `3.0` stays a double while `3` stays an integer. See library/codec-format.md.
+ * and `3.0` stays a double while `3` stays an integer. The tags are listed in the README (Firestore editor).
  */
 
 export type RestValue = Record<string, unknown>;

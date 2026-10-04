@@ -1,7 +1,7 @@
 # UI test ID baseline
 
-Test IDs that end-to-end checks rely on, captured at commit `d4294715d53a5ac0a7bc98754873d9af612affcb` plus
-`ConfirmDialog` and `RemoveAccountButton`. No ID listed here may be removed or renamed; `src/components/__tests__/testIds.test.ts`
+Test IDs the UI relies on, captured before the native redesign (plus `ConfirmDialog` and `RemoveAccountButton`).
+No ID listed here may be removed or renamed; `src/components/__tests__/testIds.test.ts`
 checks every entry against `src/`.
 
 IDs come from `data-testid`, `testId` and `retryTestId` props: string literals (including both branches of a conditional) are

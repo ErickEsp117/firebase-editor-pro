@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Publishes an external Remote Config change so an open editor holds a stale ETag.
-// Used to provoke validate/publish conflicts during validation.
+// Used to provoke validate/publish conflicts during manual testing.
 //
 //   node scripts/rc-mutate.mjs add [name] [value]   # default: fbep_test_external = "external"
 //   node scripts/rc-mutate.mjs remove <name>

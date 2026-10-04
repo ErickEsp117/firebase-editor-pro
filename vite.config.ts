@@ -24,7 +24,7 @@ export default defineConfig(() => ({
     watch: {
       ignored: ["**/src-tauri/**", "**/dev-secrets/**"],
     },
-    // Browser mode (dev/E2E) reaches Google APIs same-origin to avoid CORS.
+    // Browser mode (npm run dev) reaches Google APIs same-origin to avoid CORS.
     proxy: {
       "/g/firestore": googleProxy("https://firestore.googleapis.com", "/g/firestore"),
       "/g/remoteconfig": googleProxy("https://firebaseremoteconfig.googleapis.com", "/g/remoteconfig"),
