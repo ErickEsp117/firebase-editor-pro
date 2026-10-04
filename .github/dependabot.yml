@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # The workflows pin third-party actions to commit SHAs; this keeps those pins current.
+  # npm and Cargo vulnerabilities are handled by Dependabot security updates (repository setting).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
