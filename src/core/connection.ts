@@ -11,7 +11,15 @@ export interface Connection {
   clientEmail: string;
 }
 
-export type ConnectionErrorKind = "keyInvalid" | "keyUnreadable" | "rejected" | "offline" | "forbidden" | "fileRead" | "unknown";
+export type ConnectionErrorKind =
+  | "keyInvalid"
+  | "keyUnreadable"
+  | "rejected"
+  | "offline"
+  | "forbidden"
+  | "fileRead"
+  | "keychainDenied"
+  | "unknown";
 
 /** Non-secret identifiers that tell a wrong file apart from a revoked key. */
 export interface ConnectionErrorContext {
@@ -63,6 +71,8 @@ export function classifyError(e: unknown): ConnectionError {
     return new ConnectionError("rejected", `${e.status}: ${e.message}`);
   }
   const msg = e instanceof Error ? e.message : String(e);
+  // Stable code from the native store when the user answered "Deny" in the macOS keychain prompt.
+  if (msg.startsWith("KEYCHAIN_DENIED")) return new ConnectionError("keychainDenied", msg);
   if (/private key/i.test(msg)) return new ConnectionError("keyUnreadable", msg);
   return new ConnectionError("unknown", msg);
 }

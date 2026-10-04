@@ -35,7 +35,7 @@ const okFetch = () =>
       : new Response(JSON.stringify({ collectionIds: ["users"] }), { status: 200 }),
   );
 
-const initial = { phase: "restoring" as const, accounts: [], activeId: null, connection: null, error: null, duplicateOf: null };
+const initial = { phase: "restoring" as const, accounts: [], activeId: null, connection: null, error: null, duplicateOf: null, retry: null };
 const storedIndex = () => JSON.parse(data.get(ACCOUNTS_KEY) ?? "null");
 
 beforeEach(() => {
@@ -435,5 +435,93 @@ describe("clearError", () => {
     useConnection.setState({ error: new Error("x") as never, duplicateOf: "id" });
     useConnection.getState().clearError();
     expect(useConnection.getState()).toMatchObject({ error: null, duplicateOf: null });
+  });
+});
+
+describe("keychain access denied (macOS prompt answered with Deny)", () => {
+  it("reports keychainDenied instead of an unexpected error, and Retry connects once access is given", async () => {
+    await addTwo();
+    let deny = true;
+    setPlatformForTests({
+      mode: "tauri",
+      signJwtRsa: async () => "a.b.c",
+      secureStore: {
+        get: async (k: string) => {
+          if (deny) throw "KEYCHAIN_DENIED: User canceled the operation.";
+          return data.get(k) ?? null;
+        },
+        set: async (k: string, v: string) => void data.set(k, v),
+        delete: async (k: string) => void data.delete(k),
+      },
+      pickJsonFile: async () => picked,
+    } as unknown as Platform);
+    useConnection.setState(initial);
+    await useConnection.getState().restore();
+    expect(useConnection.getState().phase).toBe("welcome");
+    expect(useConnection.getState().error?.kind).toBe("keychainDenied");
+    deny = false;
+    await useConnection.getState().retryRestore();
+    expect(useConnection.getState()).toMatchObject({ phase: "connected", error: null, retry: null });
+    expect(useConnection.getState().accounts).toHaveLength(2);
+  });
+
+  it("Retry repeats the denied switch, so it connects the account the user picked", async () => {
+    await addTwo();
+    await useConnection.getState().signOut();
+    const [first, second] = useConnection.getState().accounts;
+    let deny = true;
+    const store = {
+      get: async (k: string) => {
+        if (deny && k !== ACCOUNTS_KEY) throw "KEYCHAIN_DENIED: User canceled the operation.";
+        return data.get(k) ?? null;
+      },
+      set: async (k: string, v: string) => void data.set(k, v),
+      delete: async (k: string) => void data.delete(k),
+    };
+    setPlatformForTests({ mode: "tauri", signJwtRsa: async () => "a.b.c", secureStore: store, pickJsonFile: async () => picked } as unknown as Platform);
+    await useConnection.getState().switchTo(second.id);
+    expect(useConnection.getState()).toMatchObject({ phase: "welcome", activeId: null });
+    expect(useConnection.getState().error?.kind).toBe("keychainDenied");
+    deny = false;
+    await useConnection.getState().retry!();
+    expect(useConnection.getState()).toMatchObject({ phase: "connected", activeId: second.id, error: null, retry: null });
+    expect(second.id).not.toBe(first.id);
+  });
+
+  it("a successful retried removal on the welcome screen clears the denied banner", async () => {
+    await addTwo();
+    await useConnection.getState().signOut();
+    const [first] = useConnection.getState().accounts;
+    let deny = true;
+    const store = {
+      get: async (k: string) => data.get(k) ?? null,
+      set: async (k: string, v: string) => {
+        if (deny) throw "KEYCHAIN_DENIED: User canceled the operation.";
+        data.set(k, v);
+      },
+      delete: async (k: string) => void data.delete(k),
+    };
+    setPlatformForTests({ mode: "tauri", signJwtRsa: async () => "a.b.c", secureStore: store, pickJsonFile: async () => picked } as unknown as Platform);
+    await useConnection.getState().remove(first.id);
+    expect(useConnection.getState().error?.kind).toBe("keychainDenied");
+    deny = false;
+    await useConnection.getState().retry!();
+    expect(useConnection.getState()).toMatchObject({ phase: "welcome", error: null, retry: null });
+    expect(useConnection.getState().accounts.map((a) => a.id)).not.toContain(first.id);
+  });
+
+  it("does not restore while a switch is still waiting on the keychain", async () => {
+    useConnection.setState({ phase: "verifying" });
+    await useConnection.getState().retryRestore();
+    expect(useConnection.getState().phase).toBe("verifying");
+  });
+
+  it("offers no Retry for errors that cannot be repeated, and clearError drops it", async () => {
+    await useConnection.getState().addText("{ not a key");
+    expect(useConnection.getState().error).not.toBeNull();
+    expect(useConnection.getState().retry).toBeNull();
+    useConnection.setState({ retry: async () => {} });
+    useConnection.getState().clearError();
+    expect(useConnection.getState().retry).toBeNull();
   });
 });

@@ -1,15 +1,55 @@
 use keyring::{Entry, Error};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Mutex;
 
+/// Development builds use their own service, so `tauri dev` never reads or rewrites the credentials
+/// of the installed app.
+#[cfg(not(debug_assertions))]
 const SERVICE: &str = "com.firebaseeditorpro.app";
+#[cfg(debug_assertions)]
+const SERVICE: &str = "com.firebaseeditorpro.app.dev";
 // Windows Credential Manager caps a blob at 2560 bytes and a service-account
-// key.json is close to that, so values are split across several entries.
+// key.json is close to that, so values are split across several entries. (macOS
+// keeps all values in one vault item instead; see `Vault`.)
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 const CHUNK_BYTES: usize = 1000;
+
+/// Prefix of the error returned when the user answered "Deny" (or cancelled) in a keychain prompt; the
+/// app shows its own message and a retry for it.
+const DENIED: &str = "KEYCHAIN_DENIED";
+
+/// errSecUserCanceled, errSecAuthFailed, errSecInteractionNotAllowed, errSecInvalidOwnerEdit.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+const DENIED_STATUSES: [i32; 4] = [-128, -25293, -25308, -25244];
+
+fn keychain_error(e: Error) -> String {
+    #[cfg(target_os = "macos")]
+    if let Error::PlatformFailure(inner) | Error::NoStorageAccess(inner) = &e {
+        if let Some(status) = inner.downcast_ref::<security_framework::base::Error>() {
+            if DENIED_STATUSES.contains(&status.code()) {
+                return format!("{DENIED}: {e}");
+            }
+        }
+    }
+    format!("keychain error: {e}")
+}
 
 /// Raw entry storage, abstracted so failures can be injected in tests.
 trait Backend {
     fn read(&self, name: &str) -> Result<Option<String>, String>;
     fn write(&self, name: &str, value: &str) -> Result<(), String>;
     fn remove(&self, name: &str) -> Result<(), String>;
+    /// Removes `key` and every chunk stored under `key#…` without reading their values, when the
+    /// backend can do that (macOS, by attributes, which never prompts). `None` means it cannot.
+    fn remove_family(&self, _key: &str) -> Option<Result<(), String>> {
+        None
+    }
+}
+
+/// Removes a per-key entry of the old layout, without decrypting it when the platform allows.
+fn remove_old_copy(b: &dyn Backend, key: &str) -> Result<(), String> {
+    b.remove_family(key).unwrap_or_else(|| delete_with(b, key))
 }
 
 struct Keychain<'a> {
@@ -18,7 +58,7 @@ struct Keychain<'a> {
 
 impl Keychain<'_> {
     fn entry(&self, name: &str) -> Result<Entry, String> {
-        Entry::new(self.service, name).map_err(|e| format!("keychain error: {e}"))
+        Entry::new(self.service, name).map_err(keychain_error)
     }
 }
 
@@ -27,19 +67,98 @@ impl Backend for Keychain<'_> {
         match self.entry(name)?.get_password() {
             Ok(v) => Ok(Some(v)),
             Err(Error::NoEntry) => Ok(None),
-            Err(e) => Err(format!("keychain error: {e}")),
+            Err(e) => Err(keychain_error(e)),
         }
     }
+    #[cfg(target_os = "macos")]
+    fn write(&self, name: &str, value: &str) -> Result<(), String> {
+        mac::write(self.service, name, value)
+    }
+    #[cfg(not(target_os = "macos"))]
     fn write(&self, name: &str, value: &str) -> Result<(), String> {
         self.entry(name)?
             .set_password(value)
-            .map_err(|e| format!("keychain error: {e}"))
+            .map_err(keychain_error)
     }
     fn remove(&self, name: &str) -> Result<(), String> {
         match self.entry(name)?.delete_credential() {
             Ok(()) | Err(Error::NoEntry) => Ok(()),
-            Err(e) => Err(format!("keychain error: {e}")),
+            Err(e) => Err(keychain_error(e)),
         }
+    }
+    #[cfg(target_os = "macos")]
+    fn remove_family(&self, key: &str) -> Option<Result<(), String>> {
+        Some(mac::remove_family(self.service, key))
+    }
+}
+
+/// Keychain operations that only touch item attributes. Reading a value asks the user for access;
+/// listing and deleting by name does not.
+#[cfg(target_os = "macos")]
+mod mac {
+    use security_framework::item::{ItemClass, ItemSearchOptions, Limit};
+    use security_framework::os::macos::keychain::{SecKeychain, SecPreferencesDomain};
+
+    const NOT_FOUND: i32 = -25300;
+
+    fn status_error(e: security_framework::base::Error) -> String {
+        if super::DENIED_STATUSES.contains(&e.code()) {
+            format!("{}: {e}", super::DENIED)
+        } else {
+            format!("keychain error: {e}")
+        }
+    }
+
+    fn search(service: &str) -> ItemSearchOptions {
+        let mut options = ItemSearchOptions::new();
+        options
+            .class(ItemClass::generic_password())
+            .service(service);
+        options
+    }
+
+    /// Saves a value in the login keychain, as keyring does, except that a denied or cancelled prompt on
+    /// the existing item is reported as DENIED. keyring treats any failed lookup as "absent" and then
+    /// fails to add the item with "already exists", which hid the Deny behind an unrelated error.
+    pub fn write(service: &str, account: &str, value: &str) -> Result<(), String> {
+        let keychain =
+            SecKeychain::default_for_domain(SecPreferencesDomain::User).map_err(status_error)?;
+        match keychain.find_generic_password(service, account) {
+            Ok((_, mut item)) => item.set_password(value.as_bytes()).map_err(status_error),
+            Err(e) if e.code() == NOT_FOUND => keychain
+                .add_generic_password(service, account, value.as_bytes())
+                .map_err(status_error),
+            Err(e) => Err(status_error(e)),
+        }
+    }
+
+    /// Deletes `key` and its `key#…` chunks: chunks first, the marker last.
+    pub fn remove_family(service: &str, key: &str) -> Result<(), String> {
+        let found = match search(service)
+            .load_attributes(true)
+            .limit(Limit::All)
+            .search()
+        {
+            Ok(found) => found,
+            Err(e) if e.code() == NOT_FOUND => return Ok(()),
+            Err(e) => return Err(status_error(e)),
+        };
+        let prefix = format!("{key}#");
+        let mut names: Vec<String> = found
+            .iter()
+            .filter_map(|r| r.simplify_dict())
+            .filter_map(|attrs| attrs.get("acct").cloned())
+            .filter(|account| account == key || account.starts_with(&prefix))
+            .collect();
+        names.sort_by_key(|account| account == key);
+        for account in names {
+            match search(service).account(&account).delete() {
+                Ok(()) => {}
+                Err(e) if e.code() == NOT_FOUND => {}
+                Err(e) => return Err(status_error(e)),
+            }
+        }
+        Ok(())
     }
 }
 
@@ -65,6 +184,7 @@ impl Marker {
             }),
         }
     }
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
     fn encode(&self) -> String {
         format!("{}:{}", self.gen, self.count)
     }
@@ -86,7 +206,9 @@ fn read_marker(b: &dyn Backend, key: &str) -> Result<Option<Marker>, String> {
     }
 }
 
-fn get_with(b: &dyn Backend, key: &str) -> Result<Option<String>, String> {
+/// The value of a per-key entry and the marker it was read through (so callers can remove exactly
+/// those chunks without reading the marker again).
+fn get_with_marker(b: &dyn Backend, key: &str) -> Result<Option<(Marker, String)>, String> {
     let Some(m) = read_marker(b, key)? else {
         return Ok(None);
     };
@@ -97,7 +219,11 @@ fn get_with(b: &dyn Backend, key: &str) -> Result<Option<String>, String> {
             None => return Err("corrupt keychain entry".to_string()),
         }
     }
-    Ok(Some(out))
+    Ok(Some((m, out)))
+}
+
+fn get_with(b: &dyn Backend, key: &str) -> Result<Option<String>, String> {
+    Ok(get_with_marker(b, key)?.map(|(_, v)| v))
 }
 
 fn remove_chunks(b: &dyn Backend, key: &str, m: Marker) -> Result<(), String> {
@@ -119,6 +245,7 @@ fn delete_with(b: &dyn Backend, key: &str) -> Result<(), String> {
     b.remove(key)
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 fn split_chunks(value: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut rest = value;
@@ -136,6 +263,7 @@ fn split_chunks(value: &str) -> Vec<&str> {
 
 /// Writes the new chunks first, switches the marker, and only then removes the
 /// old chunks. Any failure before the switch leaves the previous value intact.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 fn set_with(b: &dyn Backend, key: &str, value: &str) -> Result<(), String> {
     // Only an absent marker means "no previous value"; any other read failure
     // must abort before writing, or live chunks could be overwritten or orphaned.
@@ -166,22 +294,239 @@ fn set_with(b: &dyn Backend, key: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// The legacy macOS keychain asks the user, item by item, whether this app may use an entry, and an
+/// unsigned app is identified by its exact build, so each update asks again. The per-key chunked
+/// layout meant about six prompts per launch. On macOS every value therefore lives in this ONE item,
+/// read once per process and then served from memory: after "Always Allow", one prompt per new build
+/// and none on later launches. (Writes need the same authorization; a one-time "Allow" makes each
+/// write ask again.) The first time a key of the old per-key layout is moved, each of its old items
+/// asks once more. The move is one-way: older builds no longer see the moved values.
+const VAULT_ENTRY: &str = "fbep-vault-v1";
+
+#[derive(Default, Serialize, Deserialize)]
+struct VaultData {
+    /// Secret values by key.
+    values: BTreeMap<String, String>,
+    /// Keys whose per-key entries from earlier versions were already moved, removed or found absent.
+    /// They are never read again, so an old entry cannot prompt on every launch or bring a deleted
+    /// value back.
+    #[serde(default)]
+    migrated: BTreeSet<String>,
+    /// Keys whose old per-key copy could not be removed (e.g. the user answered "Allow" rather than
+    /// "Always Allow"). Deleting such a key retries the removal and reports a failure, so a full copy
+    /// of a credential is never left behind silently.
+    #[serde(default)]
+    stale: BTreeSet<String>,
+}
+
+/// The item as written by the first vault builds: a flat map of values.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StoredVault {
+    Current(VaultData),
+    Flat(BTreeMap<String, String>),
+}
+
+impl From<StoredVault> for VaultData {
+    fn from(stored: StoredVault) -> Self {
+        match stored {
+            StoredVault::Current(d) => d,
+            StoredVault::Flat(values) => VaultData {
+                migrated: values.keys().cloned().collect(),
+                values,
+                stale: BTreeSet::new(),
+            },
+        }
+    }
+}
+
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+struct Vault {
+    cache: Mutex<Option<VaultData>>,
+}
+
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+impl Vault {
+    const fn new() -> Self {
+        Vault {
+            cache: Mutex::new(None),
+        }
+    }
+
+    /// Runs `f` on the in-memory vault, loading the item on first use. The app is single-instance,
+    /// so no other process changes the item behind this cache.
+    fn with_data<T>(
+        &self,
+        b: &dyn Backend,
+        f: impl FnOnce(&mut VaultData) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let mut guard = self
+            .cache
+            .lock()
+            .map_err(|_| "keychain cache unavailable".to_string())?;
+        if guard.is_none() {
+            let loaded = match b.read(VAULT_ENTRY)? {
+                None => VaultData::default(),
+                Some(raw) => serde_json::from_str::<StoredVault>(&raw)
+                    .map(VaultData::from)
+                    .map_err(|_| "corrupt keychain entry".to_string())?,
+            };
+            *guard = Some(loaded);
+        }
+        f(guard.as_mut().expect("loaded above"))
+    }
+
+    fn save(b: &dyn Backend, data: &VaultData) -> Result<(), String> {
+        if data.values.is_empty() && data.migrated.is_empty() && data.stale.is_empty() {
+            return b.remove(VAULT_ENTRY);
+        }
+        let raw = serde_json::to_string(data).map_err(|e| format!("keychain error: {e}"))?;
+        b.write(VAULT_ENTRY, &raw)
+    }
+
+    fn get(&self, b: &dyn Backend, key: &str) -> Result<Option<String>, String> {
+        self.with_data(b, |d| {
+            if let Some(v) = d.values.get(key) {
+                return Ok(Some(v.clone()));
+            }
+            if d.migrated.contains(key) {
+                return Ok(None);
+            }
+            // First look at this key: move a per-key entry of an earlier version into the vault.
+            // An absent entry is answered by the keychain without asking the user.
+            match get_with_marker(b, key)? {
+                None => {
+                    d.migrated.insert(key.to_string());
+                    if Self::save(b, d).is_err() {
+                        // Only bookkeeping: look again next time.
+                        d.migrated.remove(key);
+                    }
+                    Ok(None)
+                }
+                Some((marker, v)) => {
+                    d.values.insert(key.to_string(), v.clone());
+                    d.migrated.insert(key.to_string());
+                    if Self::save(b, d).is_err() {
+                        // The value was read fine; keep the old entry and retry the move later.
+                        d.values.remove(key);
+                        d.migrated.remove(key);
+                        return Ok(Some(v));
+                    }
+                    // The vault copy is live; remove the old items, chunks first and the marker last,
+                    // so a failure never strands chunks that nothing points to. Without name-based
+                    // removal the marker that was just read gives the chunk names.
+                    let removed = b.remove_family(key).unwrap_or_else(|| {
+                        remove_chunks(b, key, marker).and_then(|_| b.remove(key))
+                    });
+                    if removed.is_err() {
+                        d.stale.insert(key.to_string());
+                        let _ = Self::save(b, d);
+                    }
+                    Ok(Some(v))
+                }
+            }
+        })
+    }
+
+    fn set(&self, b: &dyn Backend, key: &str, value: &str) -> Result<(), String> {
+        self.with_data(b, |d| {
+            let previous = d.values.insert(key.to_string(), value.to_string());
+            let first_time = d.migrated.insert(key.to_string());
+            if let Err(e) = Self::save(b, d) {
+                match previous {
+                    Some(p) => d.values.insert(key.to_string(), p),
+                    None => d.values.remove(key),
+                };
+                if first_time {
+                    d.migrated.remove(key);
+                }
+                return Err(e);
+            }
+            if first_time && remove_old_copy(b, key).is_err() {
+                // A per-key copy left by an earlier version could not be removed: remember it.
+                d.stale.insert(key.to_string());
+                let _ = Self::save(b, d);
+            }
+            Ok(())
+        })
+    }
+
+    /// Deletes the value from the vault and then any per-key copy of an earlier version that may still
+    /// exist (first sight of the key, or a copy that could not be removed before): both must go for the
+    /// credential to be really deleted. A failure is returned so the UI reports the leftover.
+    fn delete(&self, b: &dyn Backend, key: &str) -> Result<(), String> {
+        self.with_data(b, |d| {
+            let old_copy_possible = !d.migrated.contains(key) || d.stale.contains(key);
+            let previous = d.values.remove(key);
+            let newly_migrated = d.migrated.insert(key.to_string());
+            if previous.is_some() || newly_migrated {
+                if let Err(e) = Self::save(b, d) {
+                    if let Some(p) = previous {
+                        d.values.insert(key.to_string(), p);
+                    }
+                    if newly_migrated {
+                        d.migrated.remove(key);
+                    }
+                    return Err(e);
+                }
+            }
+            if old_copy_possible {
+                if let Err(e) = remove_old_copy(b, key) {
+                    if d.stale.insert(key.to_string()) {
+                        let _ = Self::save(b, d);
+                    }
+                    return Err(e);
+                }
+                if d.stale.remove(key) {
+                    let _ = Self::save(b, d);
+                }
+            } else if let Some(Err(_)) = b.remove_family(key) {
+                // Best effort, and free on macOS (by name, no prompt): an app quit between saving the vault
+                // and removing the old items during a move leaves a copy that nothing tracks.
+            }
+            Ok(())
+        })
+    }
+}
+
+#[cfg(target_os = "macos")]
+static APP_VAULT: Vault = Vault::new();
+
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn get_in(service: &str, key: &str) -> Result<Option<String>, String> {
     get_with(&Keychain { service }, key)
 }
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn delete_in(service: &str, key: &str) -> Result<(), String> {
     delete_with(&Keychain { service }, key)
 }
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn set_in(service: &str, key: &str, value: &str) -> Result<(), String> {
     set_with(&Keychain { service }, key, value)
 }
 
+#[cfg(target_os = "macos")]
+pub fn get(key: &str) -> Result<Option<String>, String> {
+    APP_VAULT.get(&Keychain { service: SERVICE }, key)
+}
+#[cfg(target_os = "macos")]
+pub fn set(key: &str, value: &str) -> Result<(), String> {
+    APP_VAULT.set(&Keychain { service: SERVICE }, key, value)
+}
+#[cfg(target_os = "macos")]
+pub fn delete(key: &str) -> Result<(), String> {
+    APP_VAULT.delete(&Keychain { service: SERVICE }, key)
+}
+
+#[cfg(not(target_os = "macos"))]
 pub fn get(key: &str) -> Result<Option<String>, String> {
     get_in(SERVICE, key)
 }
+#[cfg(not(target_os = "macos"))]
 pub fn set(key: &str, value: &str) -> Result<(), String> {
     set_in(SERVICE, key, value)
 }
+#[cfg(not(target_os = "macos"))]
 pub fn delete(key: &str) -> Result<(), String> {
     delete_in(SERVICE, key)
 }
@@ -200,12 +545,22 @@ mod tests {
         writes: Cell<usize>,
         fail_on_write: Cell<Option<usize>>,
         fail_reads: Cell<bool>,
+        vault_reads: Cell<usize>,
+        other_reads: Cell<usize>,
+        fail_removes: Cell<bool>,
+        /// Simulates macOS name-based removal (no value reads).
+        by_name: Cell<bool>,
     }
 
     impl Backend for Mem {
         fn read(&self, name: &str) -> Result<Option<String>, String> {
             if self.fail_reads.get() {
                 return Err("injected read failure".into());
+            }
+            if name == VAULT_ENTRY {
+                self.vault_reads.set(self.vault_reads.get() + 1);
+            } else {
+                self.other_reads.set(self.other_reads.get() + 1);
             }
             Ok(self.map.borrow().get(name).cloned())
         }
@@ -219,8 +574,24 @@ mod tests {
             Ok(())
         }
         fn remove(&self, name: &str) -> Result<(), String> {
+            if self.fail_removes.get() {
+                return Err("injected remove failure".into());
+            }
             self.map.borrow_mut().remove(name);
             Ok(())
+        }
+        fn remove_family(&self, key: &str) -> Option<Result<(), String>> {
+            if !self.by_name.get() {
+                return None;
+            }
+            if self.fail_removes.get() {
+                return Some(Err("injected remove failure".into()));
+            }
+            let prefix = format!("{key}#");
+            self.map
+                .borrow_mut()
+                .retain(|name, _| name != key && !name.starts_with(&prefix));
+            Some(Ok(()))
         }
     }
 
@@ -319,18 +690,19 @@ mod tests {
 
     #[test]
     fn roundtrip_set_get_overwrite_delete() {
+        let service = format!("{TEST_SERVICE}.{}", std::process::id());
         let key = "roundtrip-test";
         let big: String = "áb€".repeat(700); // multi-chunk, multibyte
-        set_in(TEST_SERVICE, key, "first").unwrap();
-        assert_eq!(get_in(TEST_SERVICE, key).unwrap().as_deref(), Some("first"));
-        set_in(TEST_SERVICE, key, &big).unwrap();
+        set_in(&service, key, "first").unwrap();
+        assert_eq!(get_in(&service, key).unwrap().as_deref(), Some("first"));
+        set_in(&service, key, &big).unwrap();
         assert_eq!(
-            get_in(TEST_SERVICE, key).unwrap().as_deref(),
+            get_in(&service, key).unwrap().as_deref(),
             Some(big.as_str())
         );
-        delete_in(TEST_SERVICE, key).unwrap();
-        assert_eq!(get_in(TEST_SERVICE, key).unwrap(), None);
-        delete_in(TEST_SERVICE, key).unwrap();
+        delete_in(&service, key).unwrap();
+        assert_eq!(get_in(&service, key).unwrap(), None);
+        delete_in(&service, key).unwrap();
     }
 
     #[test]
@@ -354,6 +726,317 @@ mod tests {
         assert!(
             b.map.borrow().keys().all(|k| !k.starts_with(sa1)),
             "no leftover chunks of the deleted account"
+        );
+    }
+
+    /// Counts reads of the vault item, to prove it is read once per process.
+    fn vault_reads(b: &Mem) -> usize {
+        b.vault_reads.get()
+    }
+
+    #[test]
+    fn vault_is_read_once_and_then_served_from_memory() {
+        let b = Mem::default();
+        let v = Vault::new();
+        v.set(&b, "accounts", "{\"version\":1}").unwrap();
+        v.set(&b, "sa:1", &"k".repeat(CHUNK_BYTES * 3)).unwrap();
+        let fresh = Vault::new(); // a new process
+        b.vault_reads.set(0);
+        assert_eq!(
+            fresh.get(&b, "accounts").unwrap().as_deref(),
+            Some("{\"version\":1}")
+        );
+        assert_eq!(
+            fresh.get(&b, "sa:1").unwrap().map(|s| s.len()),
+            Some(CHUNK_BYTES * 3)
+        );
+        assert_eq!(
+            fresh.get(&b, "sa:1").unwrap().map(|s| s.len()),
+            Some(CHUNK_BYTES * 3)
+        );
+        assert_eq!(vault_reads(&b), 1, "one keychain item read per launch");
+        let names: Vec<String> = b.map.borrow().keys().cloned().collect();
+        assert_eq!(
+            names,
+            vec![VAULT_ENTRY.to_string()],
+            "everything lives in one item"
+        );
+    }
+
+    #[test]
+    fn vault_moves_per_key_entries_of_earlier_versions_and_deletes_them() {
+        let b = Mem::default();
+        set_with(&b, "accounts", "{\"version\":1}").unwrap();
+        set_with(&b, "sa:1", &"k".repeat(CHUNK_BYTES * 3 + 7)).unwrap();
+        let v = Vault::new();
+        assert_eq!(
+            v.get(&b, "accounts").unwrap().as_deref(),
+            Some("{\"version\":1}")
+        );
+        assert_eq!(
+            v.get(&b, "sa:1").unwrap().map(|s| s.len()),
+            Some(CHUNK_BYTES * 3 + 7)
+        );
+        assert_eq!(v.get(&b, "service-account").unwrap(), None);
+        let names: Vec<String> = b.map.borrow().keys().cloned().collect();
+        assert_eq!(
+            names,
+            vec![VAULT_ENTRY.to_string()],
+            "old chunks removed after the move"
+        );
+        let next = Vault::new();
+        assert_eq!(
+            next.get(&b, "sa:1").unwrap().map(|s| s.len()),
+            Some(CHUNK_BYTES * 3 + 7)
+        );
+    }
+
+    #[test]
+    fn vault_delete_removes_the_value_and_any_old_per_key_copy() {
+        let b = Mem::default();
+        let v = Vault::new();
+        v.set(&b, "sa:1", "one").unwrap();
+        v.set(&b, "sa:2", "two").unwrap();
+        set_with(&b, "sa:3", &"x".repeat(CHUNK_BYTES * 2)).unwrap(); // never migrated
+        v.delete(&b, "sa:1").unwrap();
+        v.delete(&b, "sa:3").unwrap();
+        assert_eq!(v.get(&b, "sa:1").unwrap(), None);
+        assert_eq!(v.get(&b, "sa:3").unwrap(), None);
+        assert!(
+            b.map.borrow().keys().all(|k| !k.starts_with("sa:3")),
+            "old chunks gone"
+        );
+        assert_eq!(
+            Vault::new().get(&b, "sa:2").unwrap().as_deref(),
+            Some("two")
+        );
+        v.delete(&b, "sa:2").unwrap();
+        let names: Vec<String> = b.map.borrow().keys().cloned().collect();
+        assert_eq!(names, vec![VAULT_ENTRY.to_string()]);
+        let raw = b.read(VAULT_ENTRY).unwrap().unwrap();
+        assert!(
+            !raw.contains("one") && !raw.contains("two"),
+            "no secret left: {raw}"
+        );
+    }
+
+    #[test]
+    fn vault_never_rereads_or_resurrects_an_old_entry_it_could_not_delete() {
+        let b = Mem::default();
+        set_with(&b, "service-account", &"x".repeat(CHUNK_BYTES * 2)).unwrap();
+        let v = Vault::new();
+        b.fail_removes.set(true); // e.g. the user denied the delete
+        assert!(v.get(&b, "service-account").unwrap().is_some());
+        b.fail_removes.set(false);
+        v.delete(&b, "service-account").unwrap();
+        let next = Vault::new(); // next launch
+        b.other_reads.set(0);
+        assert_eq!(
+            next.get(&b, "service-account").unwrap(),
+            None,
+            "not brought back"
+        );
+        assert_eq!(next.get(&b, "accounts").unwrap(), None);
+        assert_eq!(next.get(&b, "accounts").unwrap(), None);
+        assert_eq!(
+            b.other_reads.get(),
+            1,
+            "old layout checked once, for the new key only"
+        );
+    }
+
+    #[test]
+    fn vault_retries_an_old_copy_it_could_not_remove_and_reports_a_failed_delete() {
+        let b = Mem::default();
+        set_with(&b, "sa:1", &"k".repeat(CHUNK_BYTES * 3)).unwrap();
+        let v = Vault::new();
+        b.fail_removes.set(true); // "Allow" instead of "Always Allow": old items cannot be deleted
+        assert!(v.get(&b, "sa:1").unwrap().is_some());
+        assert!(
+            b.read("sa:1").unwrap().is_some(),
+            "marker kept while its chunks remain"
+        );
+        // Removing the account still cannot delete the old copy: that must be reported.
+        assert!(Vault::new().delete(&b, "sa:1").is_err());
+        b.fail_removes.set(false);
+        let next = Vault::new();
+        next.delete(&b, "sa:1").unwrap();
+        assert!(
+            b.map.borrow().keys().all(|k| !k.starts_with("sa:1")),
+            "old copy finally removed"
+        );
+        assert_eq!(Vault::new().get(&b, "sa:1").unwrap(), None);
+    }
+
+    #[test]
+    fn vault_removes_old_items_by_name_without_reading_them_again() {
+        let b = Mem::default();
+        b.by_name.set(true);
+        set_with(&b, "sa:1", &"k".repeat(CHUNK_BYTES * 3)).unwrap();
+        set_with(&b, "sa:2", &"k".repeat(CHUNK_BYTES * 2)).unwrap();
+        set_with(&b, "sa:10", "sibling").unwrap();
+        let v = Vault::new();
+        b.other_reads.set(0);
+        assert!(v.get(&b, "sa:1").unwrap().is_some());
+        assert_eq!(
+            b.other_reads.get(),
+            4,
+            "marker + 3 chunks read once, never again"
+        );
+        v.delete(&b, "sa:2").unwrap(); // never moved: removed by name, nothing read
+        assert_eq!(b.other_reads.get(), 4);
+        let names: Vec<String> = b.map.borrow().keys().cloned().collect();
+        assert!(names.iter().all(|n| !n.starts_with("sa:1#") && n != "sa:1"));
+        assert!(names.iter().all(|n| !n.starts_with("sa:2")));
+        assert!(
+            names.contains(&"sa:10".to_string()),
+            "a key sharing the prefix is untouched"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn denied_keychain_access_has_a_stable_error_code() {
+        let denied =
+            Error::PlatformFailure(Box::new(security_framework::base::Error::from_code(-128)));
+        assert!(keychain_error(denied).starts_with(DENIED));
+        let other =
+            Error::PlatformFailure(Box::new(security_framework::base::Error::from_code(-25299)));
+        assert!(keychain_error(other).starts_with("keychain error:"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn real_keychain_removes_a_chunked_entry_by_name() {
+        let service = format!("{TEST_SERVICE}.family.{}", std::process::id());
+        let k = Keychain { service: &service };
+        let _cleanup = CleanUp(&k, &["fam", "fam2"]);
+        set_in(&service, "fam", &"áb€".repeat(700)).unwrap();
+        set_in(&service, "fam2", "sibling").unwrap();
+        mac::remove_family(&service, "fam").unwrap();
+        assert_eq!(get_in(&service, "fam").unwrap(), None);
+        assert_eq!(k.read("fam#1#0").unwrap(), None, "chunks removed too");
+        assert_eq!(
+            get_in(&service, "fam2").unwrap().as_deref(),
+            Some("sibling")
+        );
+        mac::remove_family(&service, "absent").unwrap();
+    }
+
+    #[test]
+    fn vault_reads_the_flat_shape_of_the_first_vault_builds() {
+        let b = Mem::default();
+        b.write(VAULT_ENTRY, "{\"accounts\":\"idx\",\"sa:1\":\"secret\"}")
+            .unwrap();
+        set_with(&b, "sa:1", "older per-key copy").unwrap();
+        let v = Vault::new();
+        assert_eq!(v.get(&b, "sa:1").unwrap().as_deref(), Some("secret"));
+        v.set(&b, "sa:2", "two").unwrap();
+        let raw = b.read(VAULT_ENTRY).unwrap().unwrap();
+        assert!(raw.contains("\"values\""), "rewritten in the current shape");
+        assert_eq!(
+            Vault::new().get(&b, "accounts").unwrap().as_deref(),
+            Some("idx")
+        );
+    }
+
+    #[test]
+    fn vault_returns_a_value_it_read_even_when_moving_it_fails() {
+        let b = Mem::default();
+        set_with(&b, "sa:1", "secret").unwrap();
+        let before = b.map.borrow().clone();
+        let v = Vault::new();
+        b.writes.set(0);
+        b.fail_on_write.set(Some(1));
+        assert_eq!(v.get(&b, "sa:1").unwrap().as_deref(), Some("secret"));
+        assert_eq!(*b.map.borrow(), before, "old entry kept for a later retry");
+        b.fail_on_write.set(None);
+        assert_eq!(v.get(&b, "sa:1").unwrap().as_deref(), Some("secret"));
+        assert!(b.read("sa:1").unwrap().is_none(), "moved on the retry");
+    }
+
+    #[test]
+    fn vault_keeps_memory_and_keychain_consistent_when_a_write_fails() {
+        let b = Mem::default();
+        let v = Vault::new();
+        v.set(&b, "k", "previous").unwrap();
+        b.writes.set(0);
+        b.fail_on_write.set(Some(1));
+        assert!(v.set(&b, "k", "new").is_err());
+        assert_eq!(v.get(&b, "k").unwrap().as_deref(), Some("previous"));
+        assert_eq!(
+            Vault::new().get(&b, "k").unwrap().as_deref(),
+            Some("previous")
+        );
+    }
+
+    #[test]
+    fn vault_delete_sweeps_an_old_copy_left_by_an_interrupted_move() {
+        let b = Mem::default();
+        b.by_name.set(true);
+        set_with(&b, "sa:1", &"x".repeat(CHUNK_BYTES * 2)).unwrap();
+        // The vault already holds the key (saved before the app quit), but the old items are still there.
+        b.write(
+            VAULT_ENTRY,
+            "{\"values\":{\"sa:1\":\"secret\"},\"migrated\":[\"sa:1\"],\"stale\":[]}",
+        )
+        .unwrap();
+        let v = Vault::new();
+        v.delete(&b, "sa:1").unwrap();
+        assert!(
+            b.map.borrow().keys().all(|name| name == VAULT_ENTRY),
+            "old marker and chunks removed: {:?}",
+            b.map.borrow().keys().collect::<Vec<_>>()
+        );
+        assert_eq!(Vault::new().get(&b, "sa:1").unwrap(), None);
+    }
+
+    #[test]
+    fn vault_refuses_a_corrupt_item_without_overwriting_it() {
+        let b = Mem::default();
+        b.write(VAULT_ENTRY, "not json").unwrap();
+        let v = Vault::new();
+        assert!(v.get(&b, "k").unwrap_err().contains("corrupt"));
+        assert!(v.set(&b, "k", "x").is_err());
+        assert_eq!(b.read(VAULT_ENTRY).unwrap().as_deref(), Some("not json"));
+    }
+
+    /// Removes the test entries even when an assertion fails.
+    #[cfg(target_os = "macos")]
+    struct CleanUp<'a>(&'a Keychain<'a>, &'a [&'a str]);
+    #[cfg(target_os = "macos")]
+    impl Drop for CleanUp<'_> {
+        fn drop(&mut self) {
+            for key in self.1 {
+                let _ = delete_with(self.0, key);
+            }
+            let _ = self.0.remove(VAULT_ENTRY);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn vault_roundtrip_in_the_real_keychain() {
+        // Own service per test process, so concurrent `cargo test` runs never share the item.
+        let service = format!("{TEST_SERVICE}.vault.{}", std::process::id());
+        let k = Keychain { service: &service };
+        let _cleanup = CleanUp(&k, &["vault-a", "vault-b"]);
+        let v = Vault::new();
+        let big: String = "áb€".repeat(900);
+        v.set(&k, "vault-a", &big).unwrap();
+        v.set(&k, "vault-b", "second").unwrap();
+        let fresh = Vault::new();
+        assert_eq!(
+            fresh.get(&k, "vault-a").unwrap().as_deref(),
+            Some(big.as_str())
+        );
+        fresh.delete(&k, "vault-a").unwrap();
+        fresh.delete(&k, "vault-b").unwrap();
+        assert_eq!(Vault::new().get(&k, "vault-a").unwrap(), None);
+        let raw = k.read(VAULT_ENTRY).unwrap().unwrap_or_default();
+        assert!(
+            !raw.contains("second"),
+            "deleted values are gone from the item"
         );
     }
 

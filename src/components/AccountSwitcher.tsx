@@ -14,11 +14,12 @@ import { OrphanedCredentialNotice, RemoveAccountButton } from "./RemoveAccountBu
  */
 export function AccountSwitcher({ sidebar = false }: { sidebar?: boolean }) {
   const { t } = useTranslation();
-  const { phase, accounts, activeId, error, duplicateOf, switchTo, addFromPicker, clearError } = useConnection();
+  const { phase, accounts, activeId, error, retry, duplicateOf, switchTo, addFromPicker, clearError } = useConnection();
   // In the sidebar the list is a disclosure that starts expanded; elsewhere it is a popup menu.
   const [open, setOpen] = useState(sidebar);
   const [pendingAdd, setPendingAdd] = useState(false);
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
+  const [pendingRetry, setPendingRetry] = useState(false);
   const busy = phase === "verifying";
   const active = accounts.find((a) => a.id === activeId);
   const duplicate = duplicateOf ? accounts.find((a) => a.id === duplicateOf) : undefined;
@@ -28,6 +29,12 @@ export function AccountSwitcher({ sidebar = false }: { sidebar?: boolean }) {
     if (!sidebar) setOpen(false);
     if (hasUnsavedChanges()) setPendingSwitch(id);
     else void switchTo(id);
+  };
+  // Retrying a denied switch, sign out or removal leaves this account too, so drafts get the same confirmation.
+  const requestRetry = () => {
+    if (!retry) return;
+    if (hasUnsavedChanges()) setPendingRetry(true);
+    else void retry();
   };
 
   // Notices sit in the flow of the narrow sidebar; the header popup keeps them floating.
@@ -127,6 +134,13 @@ export function AccountSwitcher({ sidebar = false }: { sidebar?: boolean }) {
           <p>{t("accounts.unsavedBody")}</p>
         </ConfirmDialog>
       )}
+      {pendingRetry && (
+        <ConfirmDialog testId="retry-account" danger title={t("accounts.unsavedTitle")}
+          confirmLabel={t("accounts.unsavedConfirm")} onCancel={() => setPendingRetry(false)}
+          onConfirm={() => { setPendingRetry(false); if (retry) void retry(); }}>
+          <p>{t("accounts.unsavedBody")}</p>
+        </ConfirmDialog>
+      )}
       {pendingSwitch && (
         <ConfirmDialog
           testId="switch-account"
@@ -158,7 +172,7 @@ export function AccountSwitcher({ sidebar = false }: { sidebar?: boolean }) {
       )}
       {error && (
         <div className={noticeClass}>
-          <ErrorBanner error={error} onDismiss={clearError} />
+          <ErrorBanner error={error} onDismiss={clearError} onRetry={error.kind === "keychainDenied" && retry ? requestRetry : undefined} />
         </div>
       )}
     </div>

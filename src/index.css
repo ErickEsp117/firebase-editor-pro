@@ -62,18 +62,18 @@ html:not(.vibrancy) body { background: var(--surface); }
   --color-selection: var(--selection);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
-  /* The root is 13 px (14 px on Windows) for native density; text sizes stay in px so they do not shrink with it. */
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px;
-  --text-lg: 15px;
-  --text-xl: 17px;
-  --text-2xl: 22px;
+  /* The root is 14 px (15 px on Windows); text sizes stay in px so they do not scale with it. */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 24px;
 }
 
 @layer base {
-  html { font-family: var(--font-sans); font-size: 13px; -webkit-font-smoothing: antialiased; }
-  html.platform-windows { font-size: 14px; }
+  html { font-family: var(--font-sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
+  html.platform-windows { font-size: 15px; }
   body { margin: 0; }
   button, select, input, textarea { font: inherit; }
   button { cursor: default; transition: background-color 100ms; }
@@ -87,24 +87,26 @@ html:not(.vibrancy) body { background: var(--surface); }
   .sidebar-header { height: 64px; display: flex; align-items: center; padding: 0 16px; }
   .native.platform-macos .sidebar-header { padding-top: 40px; height: 88px; }
   .sidebar-section { padding: 10px 12px; }
-  .section-label { color: var(--text-secondary); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .section-label { color: var(--text-secondary); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
   .native-sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--border); }
   .editor-toolbar {
     position: sticky; top: 0; z-index: 10;
     display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
-    min-height: 52px; padding: 8px 18px;
+    min-height: 56px; padding: 8px 20px;
     border-bottom: 1px solid var(--border); background: var(--toolbar-bg);
   }
-  .panel-body { padding: 18px; }
+  .panel-body { padding: 20px; }
+  /* Document options under the toolbar: save controls on the left, document actions on the right. */
+  .options-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
   .segmented { display: flex; border: 1px solid var(--border); background: var(--hover); border-radius: 7px; padding: 2px; }
-  .segmented button { border: 0; border-radius: 5px; min-width: 64px; padding: 2px 12px; font-size: 12px; color: var(--text-secondary); }
+  .segmented button { border: 0; border-radius: 5px; min-width: 72px; padding: 3px 14px; font-size: 13px; color: var(--text-secondary); }
   .segmented [aria-selected="true"] { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 1px 3px #0002; }
-  .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 5px; flex-shrink: 0; }
+  .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0; }
   .icon-button:hover { background: var(--hover); }
   .icon-button:disabled { opacity: .5; }
-  .btn { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 3px 10px; font-size: 12px; }
+  .btn { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 4px 12px; font-size: 13px; }
   .btn:disabled { opacity: .5; }
-  .btn-primary { border-radius: var(--radius); background: var(--accent); color: var(--accent-contrast); padding: 4px 14px; font-size: 13px; font-weight: 500; }
+  .btn-primary { border-radius: var(--radius); background: var(--accent); color: var(--accent-contrast); padding: 5px 16px; font-size: 14px; font-weight: 500; }
   .btn-primary:disabled { opacity: .5; }
   .tree-actions { opacity: .45; }
   li:hover > div .tree-actions, .tree-actions:focus-visible, .tree-actions:focus-within { opacity: 1; }

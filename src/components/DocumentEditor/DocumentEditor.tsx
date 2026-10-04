@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { RotateCw, Braces, Upload } from "lucide-react";
 import { useShortcutActions } from "../../hooks/shortcuts";
 import { formatEditorJson, repairEditorJson } from "../../core";
 import { useCrudDialog } from "../../store/crudDialog";
-import { hasPendingInputs, usePendingInputs } from "../../store/pendingInputs";
+import { hasPendingInputs, usePendingIn } from "../../store/pendingInputs";
 import { IconButton } from "../IconButton";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { useTranslation } from "react-i18next";
@@ -11,16 +11,16 @@ import type { FirestoreDocument } from "../../core";
 import { useEditorStore, type EditorView } from "../../store/documentEditor";
 import { ConflictDialog } from "./ConflictDialog";
 import { JsonView } from "./JsonView";
-import { SaveBar, SaveButton } from "./SaveBar";
+import { DraftError, SaveBar, SaveButton } from "./SaveBar";
 import { TableView } from "./TableView";
 import { useDocumentEditor } from "./useDocumentEditor";
 
-export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: FirestoreDocument }) {
+export function DocumentEditor({ path, serverDoc, actions }: { path: string; serverDoc: FirestoreDocument; actions?: ReactNode }) {
   const { t } = useTranslation();
   const view = useEditorStore((s) => s.view);
   const setView = useEditorStore((s) => s.setView);
   const ed = useDocumentEditor(path, serverDoc);
-  const pendingInput = usePendingInputs((s) => Object.keys(s.ids).length > 0);
+  const pendingInput = usePendingIn("firestore");
   const [reloadPending, setReloadPending] = useState(false);
   // The text a Format/Repair failed on; the error stays only until that text changes.
   const [failedOn, setFailedOn] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
   const format = () => runJson(formatEditorJson);
   const reload = () => {
     if (ed.state.phase === "reloading") return;
-    if (ed.dirty || hasPendingInputs()) setReloadPending(true);
+    if (ed.dirty || hasPendingInputs("firestore")) setReloadPending(true);
     else void ed.reload();
   };
   // The same reload as the toolbar button: the tree refresh skips a document with unsaved edits.
@@ -64,9 +64,10 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
   return (
     <div data-testid="document-editor">
       <div className="editor-toolbar" data-tauri-drag-region="deep">
-        <div className="mr-auto min-w-0">
-          <h3 data-testid="document-title" className="truncate font-semibold">{path.slice(slash + 1)}</h3>
-          <p data-testid="document-subtitle" className="truncate text-xs text-fg-muted">{path.slice(0, slash)}</p>
+        {/* Not a drag handle, so the document path can be selected and copied. */}
+        <div className="mr-auto min-w-0" data-tauri-drag-region="false">
+          <h3 data-testid="document-title" title={path} className="truncate font-semibold select-text">{path.slice(slash + 1)}</h3>
+          <p data-testid="document-subtitle" title={path} className="truncate text-xs text-fg-muted select-text">{path.slice(0, slash)}</p>
         </div>
         <div role="tablist" aria-label={t("editor.viewMode")} className="segmented">
           {tab("json", t("editor.viewJson"))}
@@ -74,13 +75,24 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
         </div>
         <div className="flex items-center gap-1">
           <IconButton data-testid="document-reload" label={t("editor.reload")} shortcut="reload" aria-disabled={ed.state.phase === "reloading"} onClick={reload}>
-            <RotateCw size={16} aria-hidden="true" className={ed.state.phase === "reloading" ? "animate-spin" : ""} />
+            <RotateCw size={18} aria-hidden="true" className={ed.state.phase === "reloading" ? "animate-spin" : ""} />
           </IconButton>
-          <IconButton data-testid="json-format" label={t("editor.format")} shortcut="format" onClick={format}><Braces size={16} aria-hidden="true" /></IconButton>
-          <IconButton data-testid="export-document" label={t("io.exportDocument")} onClick={() => openDialog({ kind: "export", scope: "doc", path })}><Upload size={16} aria-hidden="true" /></IconButton>
+          <IconButton data-testid="json-format" label={t("editor.format")} shortcut="format" onClick={format}><Braces size={18} aria-hidden="true" /></IconButton>
+          <IconButton data-testid="export-document" label={t("io.exportDocument")} onClick={() => openDialog({ kind: "export", scope: "doc", path })}><Upload size={18} aria-hidden="true" /></IconButton>
         </div>
         <SaveButton canSave={ed.canSave} state={ed.state} onSave={() => void ed.save()} />
       </div>
+      <SaveBar
+        draft={ed.draft}
+        dirty={ed.dirty}
+        pending={pendingInput}
+        canSave={ed.canSave}
+        state={ed.state}
+        updateTime={ed.updateTime}
+        onSave={() => void ed.save()}
+        onDiscard={ed.discard}
+        actions={actions}
+      />
       <div className="panel-body space-y-3">
         {jsonActionFailed && (
           <p role="alert" data-testid="json-action-error" className="text-sm text-danger">
@@ -98,16 +110,7 @@ export function DocumentEditor({ path, serverDoc }: { path: string; serverDoc: F
         ) : (
           <JsonView text={ed.text} onChange={ed.updateText} onRepair={() => runJson(repairEditorJson)} />
         )}
-        <SaveBar
-          draft={ed.draft}
-          dirty={ed.dirty}
-          pending={pendingInput}
-          canSave={ed.canSave}
-          state={ed.state}
-          updateTime={ed.updateTime}
-          onSave={() => void ed.save()}
-          onDiscard={ed.discard}
-        />
+        <DraftError draft={ed.draft} />
       </div>
       {reloadPending && <ConfirmDialog testId="reload-document" title={t("accounts.unsavedTitle")} confirmLabel={t("editor.reload")}
         onCancel={() => setReloadPending(false)} onConfirm={() => { setReloadPending(false); void ed.reload(); }}>

@@ -61,7 +61,7 @@ export function useKeyboardShortcuts() {
       // The connected view is inert while an account action runs; its commands must stay inert too.
       if (useConnection.getState().phase === "verifying") return;
       const focused = document.activeElement;
-      if (focused instanceof HTMLInputElement && focused.dataset.commitInput !== undefined) {
+      if (focused instanceof HTMLElement && focused.dataset.commitInput !== undefined) {
         // A table cell commits on blur. Commit it first so a save includes it and a reload sees it as a
         // change, then run the command once React has applied the commit.
         focused.blur();

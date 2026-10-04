@@ -96,8 +96,16 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
+/** Google omits empty sections, so an empty `parameters`, `parameterGroups` or `conditions` equals none. */
+function withoutEmptySections(t: RemoteConfigTemplate): RemoteConfigTemplate {
+  const out = { ...t };
+  for (const key of ["parameters", "parameterGroups"]) if (isObj(out[key]) && Object.keys(out[key] as Obj).length === 0) delete out[key];
+  if (Array.isArray(out.conditions) && out.conditions.length === 0) delete out.conditions;
+  return out;
+}
+
 export function sameTemplate(a: RemoteConfigTemplate, b: RemoteConfigTemplate): boolean {
-  return deepEqual(a, b);
+  return deepEqual(withoutEmptySections(a), withoutEmptySections(b));
 }
 
 export interface Reapplied {
@@ -118,10 +126,11 @@ const CONDITION_ORDER_LABEL = "conditions[order]";
 const sameSequence = (a: string[], b: string[]) => a.length === b.length && a.every((n, i) => n === b[i]);
 
 /**
- * Conditions are evaluated first-match-wins, so their order is data. When the user only permuted the
- * conditions (same names as the base, different sequence), their sequence is kept; conditions that exist
- * only on the server follow in the server's order. `serverReordered` is set when the server also moved
- * the shared conditions to a sequence other than the user's.
+ * Conditions are evaluated first-match-wins, so their order is data. When the user changed the order
+ * (moved shared conditions, or placed a new condition before existing ones), their sequence is kept for
+ * every condition they kept or added; conditions that exist only on the server follow in the server's
+ * order. `serverReordered` is set when the server also moved the shared conditions to a sequence other
+ * than both the base and the user's.
  */
 function reorderLikeUser(
   merged: Obj[],
@@ -132,20 +141,28 @@ function reorderLikeUser(
   const names = (list: Obj[]) => list.map((c) => c.name as string);
   const baseNames = names(baseList);
   const editedNames = names(editedList);
-  if (sameSequence(baseNames, editedNames) || !sameSequence([...baseNames].sort(), [...editedNames].sort())) return null;
   if (new Set(editedNames).size !== editedNames.length) return null;
+  const inBase = new Set(baseNames);
+  const mine = new Set(editedNames);
+  const sharedBase = baseNames.filter((n) => mine.has(n));
+  const sharedEdited = editedNames.filter((n) => inBase.has(n));
+  const firstAdded = editedNames.findIndex((n) => !inBase.has(n));
+  const lastShared = editedNames.reduce((last, n, i) => (inBase.has(n) ? i : last), -1);
+  const addedBeforeShared = firstAdded >= 0 && firstAdded < lastShared;
+  if (sameSequence(sharedBase, sharedEdited) && !addedBeforeShared) return null;
 
-  const shared = new Set(baseNames);
   const inMerged = new Set(names(merged));
   const userSeq = editedNames.filter((n) => inMerged.has(n));
-  const serverSeq = names(latestList).filter((n) => shared.has(n));
-  const baseSeq = baseNames.filter((n) => inMerged.has(n));
-  const serverReordered = !sameSequence(serverSeq, baseSeq) && !sameSequence(serverSeq, userSeq);
-
   const byName = new Map(merged.map((c) => [c.name as string, c]));
-  const ordered = userSeq.map((n) => byName.get(n)!);
-  const rest = merged.filter((c) => !shared.has(c.name as string));
-  return { merged: [...ordered, ...rest], serverReordered };
+  const ordered = [...userSeq.map((n) => byName.get(n)!), ...merged.filter((c) => !mine.has(c.name as string))];
+  if (sameSequence(names(ordered), names(merged))) return null;
+
+  const shared = new Set(sharedEdited.filter((n) => inMerged.has(n)));
+  const userShared = userSeq.filter((n) => shared.has(n));
+  const baseSeq = baseNames.filter((n) => shared.has(n));
+  const serverSeq = names(latestList).filter((n) => shared.has(n));
+  const serverReordered = !sameSequence(serverSeq, baseSeq) && !sameSequence(serverSeq, userShared);
+  return { merged: ordered, serverReordered };
 }
 
 /**

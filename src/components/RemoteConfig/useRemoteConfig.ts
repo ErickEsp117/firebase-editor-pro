@@ -8,6 +8,7 @@ import {
 } from "../../core";
 import { getPlatform } from "../../platform";
 import { useConnection } from "../../store/connection";
+import { usePendingInputs } from "../../store/pendingInputs";
 import { useRcEditor } from "../../store/rcEditor";
 import { parseTemplateText, reapplyEdits, sameTemplate, templateToText, type RcDraft, type RcIssue } from "./rcModel";
 
@@ -89,6 +90,8 @@ export function useRcController() {
         baseText,
         text: text ?? baseText,
       });
+      // Reload, conflict reapply, publish and rollback all land here: table cells start from the new text.
+      usePendingInputs.getState().resetAll("rc");
       queryClient.setQueryData(templateKey, res);
     },
     [projectId, queryClient, templateKey],

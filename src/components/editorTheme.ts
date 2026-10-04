@@ -8,7 +8,7 @@ import { tags } from "@lezer/highlight";
  * without swapping themes: the library themes are disabled (`theme="none"`) and nothing overrides these.
  */
 const tokenTheme = EditorView.theme({
-  "&": { backgroundColor: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: "12px" },
+  "&": { backgroundColor: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-mono)", fontSize: "13px" },
   ".cm-scroller": { fontFamily: "inherit" },
   ".cm-content": { caretColor: "var(--accent)", padding: "16px 0" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--accent)" },

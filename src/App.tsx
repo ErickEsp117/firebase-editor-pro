@@ -1,4 +1,4 @@
-import { useKeyboardShortcuts } from "./hooks/shortcuts";
+import { isMac, useKeyboardShortcuts } from "./hooks/shortcuts";
 import { useResolvedTheme } from "./store/useResolvedTheme";
 import { syncWindowTheme, refreshAppearance } from "./platform/appearance";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { WelcomeView } from "./components/WelcomeView";
 import { queryClient } from "./queryClient";
 import { useConnection } from "./store/connection";
 import { useSettings } from "./store/settings";
+import { getPlatform } from "./platform";
 
 function useApplyTheme() {
   const theme = useSettings((s) => s.theme);
@@ -67,7 +68,13 @@ function Shell() {
           </header>
           <OfflineBanner />
           <main className="mx-auto w-full max-w-2xl p-8">
-            {phase === "restoring" && <p>{t("connection.connecting")}</p>}
+            {phase === "restoring" && (
+              <div className="space-y-2">
+                <p>{t("connection.connecting")}</p>
+                {/* Only the macOS keychain asks for a password; Windows Credential Manager never prompts. */}
+                {getPlatform().mode === "tauri" && isMac() && <p data-testid="keychain-hint" className="text-sm text-fg-muted">{t("connection.keychainHint")}</p>}
+              </div>
+            )}
             {(phase === "welcome" || phase === "verifying") && <WelcomeView />}
           </main>
         </div>

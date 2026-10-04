@@ -340,31 +340,26 @@ describe("legacy migration", () => {
     const idx = await loadAccounts(p);
     expect(idx.accounts).toHaveLength(1);
     expect(idx.activeId).toBe(idx.accounts[0].id);
-    expect(data.has(LEGACY_CREDENTIAL_KEY)).toBe(false);
+    // A legacy copy whose delete failed stays as never-read garbage once the index exists.
+    if (failure.op !== "delete") expect(data.has(LEGACY_CREDENTIAL_KEY)).toBe(false);
     const conn = await connectAccount(p, idx.accounts[0].id);
     expect(conn.projectId).toBe("proj-a");
   });
 
-  it("dedupes a legacy key already present in the index and just drops the legacy entry", async () => {
-    const { p, data, index } = mockPlatform();
+  it.each([
+    ["the same key", keyJson],
+    ["another key", keyB],
+  ])("never reads a legacy entry (%s) once an index exists, so it cannot prompt on every launch", async (_name, legacyKey) => {
+    const { p, data } = mockPlatform();
     const a = await addAccount(keyJson(), p);
     await setActiveAccount(p, null);
-    data.set(LEGACY_CREDENTIAL_KEY, keyJson());
+    data.set(LEGACY_CREDENTIAL_KEY, legacyKey());
+    const get = vi.mocked(p.secureStore.get);
+    get.mockClear();
     const idx = await loadAccounts(p);
     expect(idx.accounts.map((x) => x.id)).toEqual([a.account.id]);
     expect(idx.activeId).toBeNull();
-    expect(data.has(LEGACY_CREDENTIAL_KEY)).toBe(false);
-    expect(index().accounts).toHaveLength(1);
-  });
-
-  it("keeps a signed-out choice when an extra legacy entry is merged into an existing index", async () => {
-    const { p, data } = mockPlatform();
-    await addAccount(keyJson(), p);
-    await setActiveAccount(p, null);
-    data.set(LEGACY_CREDENTIAL_KEY, keyB());
-    const idx = await loadAccounts(p);
-    expect(idx.accounts).toHaveLength(2);
-    expect(idx.activeId).toBeNull();
+    expect(get.mock.calls.map((c) => c[0])).toEqual([ACCOUNTS_KEY]);
   });
 
   it("keeps an unreadable legacy entry and reports keyUnreadable", async () => {

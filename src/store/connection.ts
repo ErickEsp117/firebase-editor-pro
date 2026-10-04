@@ -28,7 +28,11 @@ interface ConnectionState {
   duplicateOf: string | null;
   /** Id of the last removed account whose credential could not be deleted (leftover `sa:<id>` entry). */
   orphaned: string | null;
+  /** Repeats the operation that set `error` (offered after a denied keychain prompt); null when it cannot be repeated. */
+  retry: (() => Promise<void>) | null;
   restore(): Promise<void>;
+  /** Restores again from the welcome screen, e.g. after the user denied keychain access. */
+  retryRestore(): Promise<void>;
   /** Internal: the actual restore work; `restore` dedupes concurrent invocations. */
   doRestore(): Promise<void>;
   addFromPicker(): Promise<void>;
@@ -67,6 +71,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   error: null,
   duplicateOf: null,
   orphaned: null,
+  retry: null,
 
   restore() {
     restoreInFlight ??= get()
@@ -75,6 +80,13 @@ export const useConnection = create<ConnectionState>((set, get) => ({
         restoreInFlight = null;
       });
     return restoreInFlight;
+  },
+
+  retryRestore() {
+    // A switch, sign out or removal in flight owns the state; restoring now would race it.
+    if (get().phase === "verifying") return Promise.resolve();
+    set({ phase: "restoring", error: null, retry: null });
+    return get().restore();
   },
 
   async doRestore() {
@@ -87,12 +99,12 @@ export const useConnection = create<ConnectionState>((set, get) => ({
       }
       try {
         const connection = await connectAccount(platform, index.activeId);
-        set({ phase: "connected", accounts: index.accounts, activeId: index.activeId, connection, error: null });
+        set({ phase: "connected", accounts: index.accounts, activeId: index.activeId, connection, error: null, retry: null });
       } catch (e) {
-        set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: classifyError(e) });
+        set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: classifyError(e), retry: get().retryRestore });
       }
     } catch (e) {
-      set({ phase: "welcome", error: classifyError(e) });
+      set({ phase: "welcome", error: classifyError(e), retry: get().retryRestore });
     }
   },
 
@@ -102,7 +114,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
     try {
       picked = await getPlatform().pickJsonFile();
     } catch {
-      set({ error: new ConnectionError("fileRead", ""), phase: get().connection ? "connected" : "welcome" });
+      set({ error: new ConnectionError("fileRead", ""), retry: null, phase: get().connection ? "connected" : "welcome" });
       return;
     }
     if (picked === null) return;
@@ -112,7 +124,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
   async addText(text, fileName) {
     if (get().phase === "verifying") return;
     const previous = get();
-    set({ phase: "verifying", error: null, duplicateOf: null });
+    set({ phase: "verifying", error: null, retry: null, duplicateOf: null });
     try {
       const res = await importAccount(text, getPlatform(), fileName);
       if (res.account.id !== previous.activeId) discardEditorSessions();
@@ -125,7 +137,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
         duplicateOf: res.duplicate ? res.account.id : null,
       });
     } catch (e) {
-      set({ phase: previous.connection ? "connected" : "welcome", error: classifyError(e) });
+      set({ phase: previous.connection ? "connected" : "welcome", error: classifyError(e), retry: null });
     }
   },
 
@@ -140,9 +152,9 @@ export const useConnection = create<ConnectionState>((set, get) => ({
       const connection = await connectAccount(platform, id);
       await setActiveAccount(platform, id);
       if (id !== activeId) discardEditorSessions();
-      set({ phase: "connected", activeId: id, connection, error: null, duplicateOf: null });
+      set({ phase: "connected", activeId: id, connection, error: null, retry: null, duplicateOf: null });
     } catch (e) {
-      set({ phase: previousPhase, error: classifyError(e) });
+      set({ phase: previousPhase, error: classifyError(e), retry: () => get().switchTo(id) });
     }
   },
 
@@ -153,11 +165,11 @@ export const useConnection = create<ConnectionState>((set, get) => ({
     try {
       await setActiveAccount(getPlatform(), null);
     } catch (e) {
-      set({ phase: previousPhase, error: classifyError(e) });
+      set({ phase: previousPhase, error: classifyError(e), retry: get().signOut });
       return;
     }
     discardEditorSessions();
-    set({ phase: "welcome", activeId: null, connection: null, error: null, duplicateOf: null });
+    set({ phase: "welcome", activeId: null, connection: null, error: null, retry: null, duplicateOf: null });
   },
 
   async remove(id) {
@@ -170,7 +182,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
     try {
       result = await removeAccount(platform, id);
     } catch (e) {
-      set({ phase: previousPhase, error: classifyError(e) });
+      set({ phase: previousPhase, error: classifyError(e), retry: () => get().remove(id) });
       return;
     }
     const { index } = result;
@@ -178,14 +190,14 @@ export const useConnection = create<ConnectionState>((set, get) => ({
     // orphaned `sa:<id>` entry that the UI must surface instead of ignoring.
     set({ orphaned: result.orphaned ? id : null });
     if (!wasActive) {
-      set({ phase: previousPhase, accounts: index.accounts, duplicateOf: null });
+      set({ phase: previousPhase, accounts: index.accounts, error: null, retry: null, duplicateOf: null });
       return;
     }
     // Discard in the same tick as the state that leaves the removed account, like switchTo: discarding
     // before the await would let the still-mounted view refetch with the removed key into a fresh cache.
     if (index.activeId === null) {
       discardEditorSessions();
-      set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: null, duplicateOf: null });
+      set({ phase: "welcome", accounts: index.accounts, activeId: null, connection: null, error: null, retry: null, duplicateOf: null });
       return;
     }
     try {
@@ -197,6 +209,7 @@ export const useConnection = create<ConnectionState>((set, get) => ({
         activeId: index.activeId,
         connection,
         error: null,
+        retry: null,
         duplicateOf: null,
       });
     } catch (e) {
@@ -207,10 +220,12 @@ export const useConnection = create<ConnectionState>((set, get) => ({
         activeId: null,
         connection: null,
         error: classifyError(e),
+        // The removed account is gone; restoring connects the account the index now marks active.
+        retry: get().retryRestore,
         duplicateOf: null,
       });
     }
   },
 
-  clearError: () => set({ error: null, duplicateOf: null, orphaned: null }),
+  clearError: () => set({ error: null, retry: null, duplicateOf: null, orphaned: null }),
 }));

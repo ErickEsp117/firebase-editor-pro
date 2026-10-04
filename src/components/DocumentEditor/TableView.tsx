@@ -26,7 +26,7 @@ const BADGE: Record<ValueType, string> = {
 export function TypeBadge({ type }: { type: ValueType }) {
   const { t } = useTranslation();
   return (
-    <span data-testid="type-badge" data-type={type} className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${BADGE[type]}`}>
+    <span data-testid="type-badge" data-type={type} className={`rounded px-1.5 py-0.5 text-xs font-medium ${BADGE[type]}`}>
       {t(`editor.types.${type}`)}
     </span>
   );
@@ -42,7 +42,7 @@ export function TableView({ value, onChange }: Props) {
     <div data-testid="table-view" className="space-y-2">
       <table className="w-full table-fixed border-collapse text-sm">
         <thead>
-          <tr className="text-left text-xs text-fg-muted">
+          <tr className="text-left text-sm text-fg-muted">
             <th className="w-1/4 pb-1">{t("editor.colKey")}</th>
             <th className="w-24 pb-1">{t("editor.colType")}</th>
             <th className="pb-1">{t("editor.colValue")}</th>
@@ -93,7 +93,7 @@ function Row({ root, path, name, depth, apply }: RowProps) {
   return (
     <>
       <tr data-testid={`row-${testKey}`} className="border-t border-line align-top ">
-        <td className="py-1 pr-2 font-mono text-xs" style={{ paddingLeft: depth * 16 }}>
+        <td className="py-1.5 pr-2 font-mono text-sm" style={{ paddingLeft: depth * 16 }}>
           {container ? (
             <button
               type="button"
@@ -111,7 +111,7 @@ function Row({ root, path, name, depth, apply }: RowProps) {
           )}
           <span className="break-all">{name}</span>
         </td>
-        <td className="py-1 pr-2">
+        <td className="py-1.5 pr-2">
           <TypeBadge type={type} />
         </td>
         <td className="py-1 pr-2">
@@ -165,7 +165,7 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
   const canAdd = isArray || (key.trim().length > 0 && !dup);
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs" data-testid={testId}>
+    <div className="flex flex-wrap items-center gap-2 text-sm" data-testid={testId}>
       {!isArray && (
         <input
           type="text"

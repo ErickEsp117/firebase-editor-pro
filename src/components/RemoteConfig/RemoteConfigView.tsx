@@ -2,12 +2,18 @@ import { useShortcutActions, withShortcut } from "../../hooks/shortcuts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RemoteConfigVersion } from "../../core";
+import type { RemoteConfigTemplate, RemoteConfigVersion } from "../../core";
+import { useConnection } from "../../store/connection";
+import { hasPendingInputs, usePendingIn } from "../../store/pendingInputs";
+import { useSettings } from "../../store/settings";
+import { AreaHeader } from "../Firestore/DocumentView";
+import { RcVisualEditor } from "./RcVisualEditor";
+import { isObj } from "./rcTableModel";
 import { useRcEditor } from "../../store/rcEditor";
 import { ErrorNotice } from "../errors/ErrorNotice";
 import { ioErrorMessage } from "../Firestore/crud/ioErrors";
 import { PublishDialog, RcConfirmDialog, RcConflictDialog } from "./dialogs";
-import { countEntries } from "./rcModel";
+import { countEntries, templateToText } from "./rcModel";
 import { ErrorMessage, FailureBody, IssueList, rejectionText, type RcFailure } from "./rcErrors";
 import { TemplateEditor } from "./TemplateEditor";
 import { useRcController, type RcNotice } from "./useRemoteConfig";
@@ -25,6 +31,12 @@ export function RemoteConfigView() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const rc = useRcController();
+  const projectId = useConnection((s) => s.connection?.projectId);
+  const view = useSettings((s) => s.rcView);
+  // Uncommitted table cells are unpublished changes too.
+  const pendingCells = usePendingIn("rc");
+  const unsaved = rc.dirty || pendingCells;
+  const setView = useSettings((s) => s.setRcView);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [description, setDescription] = useState("");
   const [dialogError, setDialogError] = useState<RcFailure | null>(null);
@@ -70,29 +82,86 @@ export function RemoteConfigView() {
         if (rc.loadError) rc.retryLoad();
         return;
       }
-      if (rc.dirty) setDialog({ kind: "reload" });
+      if (rc.dirty || hasPendingInputs("rc")) setDialog({ kind: "reload" });
       else void rc.reload(false);
     },
   });
   const session = rc.session;
+  const header = (
+    <AreaHeader title={t("nav.remoteConfig")} subtitle={projectId ? `${projectId} · ${t("layout.template")}` : t("layout.template")}>
+      <div role="tablist" aria-label={t("rc.table.viewMode")} className="segmented">
+        {(["json", "table"] as const).map((v) => (
+          <button key={v} type="button" role="tab" aria-selected={view === v} data-testid={`rc-view-${v}`} onClick={() => setView(v)}>
+            {v === "json" ? t("editor.viewJson") : t("rc.visual.viewLabel")}
+          </button>
+        ))}
+      </div>
+    </AreaHeader>
+  );
   if (rc.loadError) {
     return (
-      <ErrorNotice testId="rc-load-error" error={rc.loadError.error} summary={t("rc.loadError")} onRetry={rc.retryLoad} retryTestId="rc-retry" />
+      <>
+        {header}
+        <div className="panel-body">
+          <ErrorNotice testId="rc-load-error" error={rc.loadError.error} summary={t("rc.loadError")} onRetry={rc.retryLoad} retryTestId="rc-retry" />
+        </div>
+      </>
     );
   }
   if (rc.loading || !session) {
     return (
-      <p role="status" data-testid="rc-loading">
-        {t("rc.loading")}
-      </p>
+      <>
+        {header}
+        <p role="status" data-testid="rc-loading" className="panel-body">
+          {t("rc.loading")}
+        </p>
+      </>
     );
   }
 
   const failureView = (testId: string) => dialogError && <FailureBody failure={dialogError} testId={testId} />;
   const counts = rc.draft.ok ? countEntries(rc.draft.template) : null;
 
+  // The table edits the same draft text as the JSON editor, always on top of the latest text.
+  const editTemplate = (update: (current: RemoteConfigTemplate) => RemoteConfigTemplate) => {
+    // A reload or rollback in flight replaces the draft when it lands, which would drop this edit.
+    if (working) return;
+    const latest = useRcEditor.getState().session?.text;
+    if (latest === undefined) return;
+    let current: unknown;
+    try {
+      current = JSON.parse(latest);
+    } catch {
+      return;
+    }
+    if (isObj(current)) rc.setText(templateToText(update(current)));
+  };
+  const tableTemplate = (() => {
+    if (rc.draft.ok) return rc.draft.template;
+    try {
+      const parsed: unknown = JSON.parse(rc.text);
+      return isObj(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const versions = (
+    <VersionsPanel
+      api={rc.api}
+      currentVersion={session.versionNumber}
+      busy={working}
+      onRollback={(version) => {
+        setDialogError(null);
+        setDialog({ kind: "rollback", version });
+      }}
+    />
+  );
+
   return (
-    <div data-testid="rc-view" className="space-y-3">
+    <>
+    {header}
+    <div data-testid="rc-view" className="panel-body space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fg-muted ">
         <span data-testid="rc-etag" className="font-mono">
           {t("rc.etag", { etag: session.etag })}
@@ -105,7 +174,7 @@ export function RemoteConfigView() {
             {t("rc.parameterCount", { count: counts.parameters })} · {t("rc.conditionCount", { count: counts.conditions })}
           </span>
         )}
-        {rc.dirty && (
+        {unsaved && (
           <span data-testid="rc-dirty" className="text-warning ">
             {t("rc.unpublished")}
           </span>
@@ -140,7 +209,7 @@ export function RemoteConfigView() {
           title={withShortcut(t("rc.reloadTemplate"), "reload")}
           className={BTN}
           disabled={working}
-          onClick={() => (rc.dirty ? setDialog({ kind: "reload" }) : void rc.reload(false))}
+          onClick={() => (unsaved ? setDialog({ kind: "reload" }) : void rc.reload(false))}
         >
           {rc.busy === "reload" ? t("rc.reloading") : t("rc.reloadTemplate")}
         </button>
@@ -163,18 +232,16 @@ export function RemoteConfigView() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]">
-        <TemplateEditor text={rc.text} onChange={rc.setText} />
-        <VersionsPanel
-          api={rc.api}
-          currentVersion={session.versionNumber}
-          busy={working}
-          onRollback={(version) => {
-            setDialogError(null);
-            setDialog({ kind: "rollback", version });
-          }}
-        />
-      </div>
+      {view === "json" ? (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <TemplateEditor text={rc.text} onChange={rc.setText} />
+          {versions}
+        </div>
+      ) : tableTemplate ? (
+        <RcVisualEditor template={tableTemplate} onChange={editTemplate} versions={versions} busy={working} />
+      ) : (
+        <p data-testid="rc-table-unavailable" className="text-sm text-fg-muted">{t("rc.table.needsValidJson")}</p>
+      )}
 
       {dialog?.kind === "publish" && (
         <PublishDialog
@@ -225,7 +292,7 @@ export function RemoteConfigView() {
           }}
         >
           <p className="text-sm">{t("rc.rollbackBody", { version: dialog.version.versionNumber })}</p>
-          {rc.dirty && (
+          {unsaved && (
             <p role="alert" data-testid="rc-rollback-dirty" className="text-sm text-warning ">
               {t("rc.rollbackDirty")}
             </p>
@@ -238,6 +305,7 @@ export function RemoteConfigView() {
         </RcConfirmDialog>
       )}
     </div>
+    </>
   );
 }
 

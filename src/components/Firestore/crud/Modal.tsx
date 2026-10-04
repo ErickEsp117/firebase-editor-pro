@@ -11,6 +11,8 @@ interface Props {
   role?: "dialog" | "alertdialog";
   /** Where focus goes on close when the opener is gone or was disabled (e.g. the Save button while saving). */
   returnFocus?(): HTMLElement | null;
+  /** "wide" for editors that need room (Remote Config parameter and condition dialogs). */
+  size?: "default" | "wide";
 }
 
 /** Open dialogs, bottom first. Only the topmost one handles Escape, Tab and focus containment. */
@@ -19,19 +21,22 @@ const stack: HTMLElement[] = [];
 const openers = new WeakMap<HTMLElement, HTMLElement | null>();
 
 const FOCUSABLE =
-  'summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
+  'summary, button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
 function focusableIn(panel: HTMLElement): HTMLElement[] {
-  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((element) => {
-    if (element.closest("[hidden], [inert]")) return false;
-    // Content of a collapsed <details> cannot take focus; its own <summary> can.
-    const closed = element.closest("details:not([open])");
-    return !closed || (element.tagName === "SUMMARY" && element.parentElement === closed);
-  });
+  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+    .filter((element) => {
+      if (element.closest("[hidden], [inert]")) return false;
+      // Content of a collapsed <details> cannot take focus; its own <summary> can.
+      const closed = element.closest("details:not([open])");
+      return !closed || (element.tagName === "SUMMARY" && element.parentElement === closed);
+    })
+    // Tab order is document order; not every DOM returns a selector list in that order.
+    .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
 }
 
 /** Shared modal: keep focus inside it and restore the invoking control on dismissal. */
-export function Modal({ titleId, testId, title, children, onClose, busy = false, role = "alertdialog", returnFocus }: Props) {
+export function Modal({ titleId, testId, title, children, onClose, busy = false, role = "alertdialog", returnFocus, size = "default" }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   // Read while rendering, before React applies autoFocus to a field inside the dialog. When this dialog
   // replaces one that is still open (publish -> conflict), that dialog's opener is the fallback.
@@ -52,6 +57,12 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
     const keydown = (event: KeyboardEvent) => {
       if (!isTop()) return;
       if (event.key === "Escape") {
+        // CodeMirror panels that close on Escape get it first, keeping the dialog and its edits: an open search
+        // panel (from the text or anywhere in the panel), the lint list and the go-to-line form. The lint and
+        // go-to-line close buttons have no Escape handler, so Escape there still closes the dialog.
+        const target = event.target instanceof Element ? event.target : null;
+        const searchOpen = !!target?.closest(".cm-editor")?.querySelector(".cm-search") && !!target?.closest(".cm-content, .cm-search");
+        if (searchOpen || target?.closest(".cm-panel-lint > ul, .cm-dialog form")) return;
         event.preventDefault(); event.stopImmediatePropagation();
         if (!current.current.busy) current.current.onClose();
       } else if (event.key === "Tab") {
@@ -81,7 +92,7 @@ export function Modal({ titleId, testId, title, children, onClose, busy = false,
   return createPortal(
     <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div ref={ref} tabIndex={-1} role={role} aria-modal="true" aria-labelledby={titleId}
-        data-testid={testId} className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-auto rounded-xl border border-line bg-surface p-5 text-fg shadow-xl">
+        data-testid={testId} className={`max-h-[90vh] w-full ${size === "wide" ? "max-w-3xl" : "max-w-lg"} space-y-4 overflow-auto rounded-xl border border-line bg-surface p-5 text-fg shadow-xl`}>
         <h3 id={titleId} className="text-base font-semibold">{title}</h3>
         {children}
       </div>
