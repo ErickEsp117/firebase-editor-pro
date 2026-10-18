@@ -157,10 +157,12 @@ describe("DocumentEditor", () => {
 
   it("adds a nested field and keeps unsaved changes when the language changes", async () => {
     mount();
+    fireEvent.click(screen.getByTestId("add-field-open"));
     fireEvent.change(screen.getByTestId("add-field-name"), { target: { value: "m" } });
     fireEvent.change(screen.getByTestId("add-field-type"), { target: { value: "map" } });
     fireEvent.click(screen.getByTestId("add-field-button"));
     fireEvent.click(screen.getByTestId("toggle-m"));
+    fireEvent.click(screen.getByTestId("add-m-open"));
     fireEvent.change(screen.getByTestId("add-m-name"), { target: { value: "k" } });
     fireEvent.click(screen.getByTestId("add-m-button"));
     expect(screen.getByTestId("row-m.k")).toBeTruthy();
@@ -171,6 +173,31 @@ describe("DocumentEditor", () => {
     fireEvent.click(screen.getByTestId("save-button"));
     await waitFor(() => expect(screen.getByTestId("save-status")).toBeTruthy());
     expect(writes[0].url.searchParams.getAll("updateMask.fieldPaths")).toEqual(["m"]);
+  });
+
+  it("opens a single add form on demand and cancels without changing the document", () => {
+    mount();
+    expect(screen.queryByTestId("add-field-name")).toBeNull();
+    fireEvent.click(screen.getByTestId("add-field-open"));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    fireEvent.change(screen.getByTestId("add-field-name"), { target: { value: "cancelled" } });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByTestId("row-cancelled")).toBeNull();
+    expect(screen.queryByTestId("dirty-indicator")).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
+
+  it("adds an item to its selected array without asking for a field name", () => {
+    server = mk({ list: { arrayValue: { values: [] } } }, "2024-01-01T00:00:00Z");
+    mount();
+    fireEvent.click(screen.getByTestId("toggle-list"));
+    fireEvent.click(screen.getByTestId("add-list-open"));
+    expect(screen.queryByTestId("add-list-name")).toBeNull();
+    fireEvent.change(screen.getByTestId("add-list-type"), { target: { value: "integer" } });
+    fireEvent.click(screen.getByTestId("add-list-button"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByTestId("row-list.0").querySelector('[data-type="integer"]')).toBeTruthy();
   });
 
   it("renders the JSON view with the same data and format/repair buttons", () => {
@@ -207,13 +234,16 @@ describe("DocumentEditor", () => {
   it("adds, edits and deletes fields named like inherited Object members", async () => {
     mount();
     for (const name of ["constructor", "toString", "hasOwnProperty"]) {
+      fireEvent.click(screen.getByTestId("add-field-open"));
       fireEvent.change(screen.getByTestId("add-field-name"), { target: { value: name } });
       expect((screen.getByTestId("add-field-button") as HTMLButtonElement).disabled).toBe(false);
       fireEvent.click(screen.getByTestId("add-field-button"));
       expect(screen.getByTestId(`row-${name}`)).toBeTruthy();
     }
+    fireEvent.click(screen.getByTestId("add-field-open"));
     fireEvent.change(screen.getByTestId("add-field-name"), { target: { value: "constructor" } });
     expect((screen.getByTestId("add-field-button") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.click(screen.getByTestId("save-button"));
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0].url.searchParams.getAll("updateMask.fieldPaths").sort()).toEqual(["constructor", "hasOwnProperty", "toString"]);
