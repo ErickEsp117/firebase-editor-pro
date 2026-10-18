@@ -112,13 +112,14 @@ html:not(.vibrancy) body { background: var(--surface); }
   li:hover > div .tree-actions, .tree-actions:focus-visible, .tree-actions:focus-within { opacity: 1; }
   [data-testid="document-panel"] { background: var(--surface); }
   .field-table-shell { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .field-table { min-width: 680px; }
+  .field-table-scroll { overflow-x: clip; }
+  .field-table { min-width: 0; }
   .field-table th { padding: 10px 12px; background: var(--panel); font-weight: 600; }
   .field-table td { padding: 8px 12px; }
   .field-row { border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
   .field-row:hover, .field-row:focus-within { background: var(--hover); }
   .field-row[data-open="true"] { background: color-mix(in srgb, var(--panel) 65%, var(--surface)); }
-  .field-name { position: relative; }
+  .field-name { position: relative; overflow-wrap: anywhere; }
   .field-guide { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border); pointer-events: none; }
   .field-toggle { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; flex-shrink: 0; border-radius: 4px; color: var(--text-secondary); }
   .field-toggle:hover { background: var(--selection); color: var(--text); }
@@ -128,8 +129,9 @@ html:not(.vibrancy) body { background: var(--surface); }
   .field-row:hover .field-delete, .field-row:focus-within .field-delete { opacity: 1; }
   .field-delete:hover, .field-delete:focus-visible { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
   .field-add-row td { padding-top: 4px; padding-bottom: 12px; }
-  .field-add { padding: 8px; border: 1px dashed var(--border); border-radius: 7px; width: fit-content; max-width: 100%; }
-  .field-table-shell > .field-add { margin: 12px; }
+  .field-add-trigger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 5px; color: var(--text-secondary); font-size: 12px; }
+  .field-add-trigger:hover { background: var(--hover); color: var(--text); }
+  .field-table-footer { padding: 8px 12px; border-top: 1px solid var(--border); }
   @media (hover: none) { .field-delete { opacity: 1; } }
   .native.platform-macos .welcome-toolbar { padding-left: 88px; }
 }

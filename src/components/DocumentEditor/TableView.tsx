@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Modal } from "../Firestore/crud/Modal";
 import { ValueEditor } from "./ValueEditor";
 import { addAt, defaultValue, deleteAt, getAt, isObj, setAt, typeOf, VALUE_TYPES, type Obj, type PathSeg, type ValueType } from "./valueTypes";
 
@@ -38,10 +39,12 @@ export function TableView({ value, onChange }: Props) {
   const root = value as unknown;
   const apply: Apply = (update) => onChange((cur) => update(cur) as Obj);
   const keys = Object.keys(value);
+  const [adding, setAdding] = useState<PathSeg[] | null>(null);
+  const titleId = useId();
 
   return (
     <div data-testid="table-view" className="field-table-shell">
-      <div className="overflow-x-auto">
+      <div className="field-table-scroll">
         <table className="field-table w-full table-fixed border-collapse text-sm">
           <thead>
             <tr className="text-left text-xs text-fg-muted">
@@ -60,12 +63,27 @@ export function TableView({ value, onChange }: Props) {
               </tr>
             )}
             {keys.map((k) => (
-              <Row key={k} root={root} path={[k]} name={k} depth={0} apply={apply} />
+              <Row key={k} root={root} path={[k]} name={k} depth={0} apply={apply} onAdd={setAdding} />
             ))}
           </tbody>
         </table>
       </div>
-      <AddEntry container={value} onAdd={(key, v) => apply((r) => addAt(r, [], key, v))} testId="add-field" />
+      <div className="field-table-footer">
+        <button type="button" data-testid="add-field-open" className="field-add-trigger" onClick={() => setAdding([])}>
+          <Plus size={14} aria-hidden="true" />{t("editor.addToDocument")}
+        </button>
+      </div>
+      {adding !== null && (
+        <Modal titleId={titleId} testId="add-entry-dialog" role="dialog"
+          title={t(Array.isArray(getAt(root, adding)) ? "editor.addItem" : "editor.addField")}
+          onClose={() => setAdding(null)}>
+          <p className="mb-4 break-words text-sm text-fg-muted">{adding.length ? t("editor.addInside", { path: adding.map((seg) => JSON.stringify(seg)).join(" / ") }) : t("editor.documentRoot")}</p>
+          <AddEntry container={getAt(root, adding)} onCancel={() => setAdding(null)} onAdd={(key, v) => {
+            apply((r) => addAt(r, adding, key, v));
+            setAdding(null);
+          }} testId={adding.length ? `add-${adding.join(".")}` : "add-field"} />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -78,9 +96,10 @@ interface RowProps {
   name: string;
   depth: number;
   apply: Apply;
+  onAdd(path: PathSeg[]): void;
 }
 
-function Row({ root, path, name, depth, apply }: RowProps) {
+function Row({ root, path, name, depth, apply, onAdd }: RowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const value = getAt(root, path);
@@ -147,15 +166,14 @@ function Row({ root, path, name, depth, apply }: RowProps) {
       {container && open && (
         <>
           {entries.map(([seg, label]) => (
-            <Row key={String(seg)} root={root} path={[...path, seg]} name={label} depth={depth + 1} apply={apply} />
+            <Row key={String(seg)} root={root} path={[...path, seg]} name={label} depth={depth + 1} apply={apply} onAdd={onAdd} />
           ))}
           <tr className="field-add-row">
             <td colSpan={4} style={{ paddingLeft: 12 + (depth + 1) * 20 }}>
-              <AddEntry
-                container={value}
-                onAdd={(key, v) => apply((r) => addAt(r, path, key, v))}
-                testId={`add-${testKey}`}
-              />
+              <button type="button" className="field-add-trigger" data-testid={`add-${testKey}-open`} onClick={() => onAdd(path)}>
+                <Plus size={14} aria-hidden="true" />
+                {t(type === "array" ? "editor.addItemInside" : "editor.addFieldInside", { name })}
+              </button>
             </td>
           </tr>
         </>
@@ -164,7 +182,7 @@ function Row({ root, path, name, depth, apply }: RowProps) {
   );
 }
 
-function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key: string | undefined, value: unknown): void; testId: string }) {
+function AddEntry({ container, onAdd, onCancel, testId }: { container: unknown; onCancel(): void; onAdd(key: string | undefined, value: unknown): void; testId: string }) {
   const { t } = useTranslation();
   const isArray = Array.isArray(container);
   const [key, setKey] = useState("");
@@ -173,7 +191,11 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
   const canAdd = isArray || (key.trim().length > 0 && !dup);
 
   return (
-    <div className="field-add flex flex-wrap items-center gap-2 text-sm" data-testid={testId}>
+    <form className="flex flex-wrap items-center gap-2 text-sm" data-testid={testId} onSubmit={(event) => {
+      event.preventDefault();
+      if (!canAdd) return;
+      onAdd(isArray ? undefined : key, defaultValue(type));
+    }}>
       {!isArray && (
         <input
           type="text"
@@ -199,19 +221,16 @@ function AddEntry({ container, onAdd, testId }: { container: unknown; onAdd(key:
         ))}
       </select>
       <button
-        type="button"
+        type="submit"
         disabled={!canAdd}
         data-testid={`${testId}-button`}
-        onClick={() => {
-          onAdd(isArray ? undefined : key, defaultValue(type));
-          setKey("");
-        }}
         className="btn inline-flex items-center gap-1.5 disabled:opacity-50"
       >
         <Plus size={14} aria-hidden="true" />
         {t(isArray ? "editor.addItem" : "editor.addField")}
       </button>
-      {dup && <span role="alert" className="text-danger ">{t("editor.duplicateField")}</span>}
-    </div>
+      <button type="button" className="btn" onClick={onCancel}>{t("connection.cancel")}</button>
+      {dup && <span role="alert" className="w-full text-danger">{t("editor.duplicateField")}</span>}
+    </form>
   );
 }
